@@ -1,5 +1,5 @@
+import { UserWithRole } from '@/types'
 import { supabase } from './supabase'
-import { Role, Permission, UserWithRole } from '@/types'
 
 export interface UserRole {
   id: string
@@ -46,7 +46,7 @@ export async function getUserRoleAndPermissions(userId: string): Promise<UserWit
 
     if (permissionsError) throw permissionsError
 
-    const permissions = permissionsData?.map((rp: any) => rp.permissions) || []
+    const permissions = permissionsData?.map((rp: { permissions: UserPermission[] }) => rp.permissions).flat() || []
 
     return {
       user: userData,

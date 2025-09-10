@@ -144,7 +144,7 @@ export default function UserManagementPage() {
 
       // Create user record directly in the users table
       // The user will need to set up their password via password reset
-      const { data: userData, error } = await supabase
+      const { error } = await supabase
         .from('users')
         .insert([{
           id: crypto.randomUUID(),
@@ -315,6 +315,8 @@ export default function UserManagementPage() {
       </div>
     </div>
   ))
+
+  InputWithError.displayName = 'InputWithError'
 
   if (authLoading || loading) {
     return (

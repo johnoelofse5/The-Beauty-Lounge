@@ -115,7 +115,7 @@ export async function getEmailTrackingByStatus(status: EmailStatus): Promise<Ema
 /**
  * Track a password reset email
  */
-export async function trackPasswordResetEmail(email: string, metadata?: Record<string, any>): Promise<EmailTracking> {
+export async function trackPasswordResetEmail(email: string, metadata?: Record<string, unknown>): Promise<EmailTracking> {
   return createEmailTracking({
     email,
     email_type: 'password_reset',

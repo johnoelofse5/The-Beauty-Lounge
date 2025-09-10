@@ -8,7 +8,7 @@ export interface EmailTracking {
   delivered_at?: string
   failed_at?: string
   error_message?: string
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
   created_at: string
   updated_at: string
 }
@@ -34,7 +34,7 @@ export interface EmailTrackingCreate {
   email_type: EmailType
   subject?: string
   status?: EmailStatus
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
 }
 
 export interface EmailTrackingUpdate {
@@ -43,5 +43,5 @@ export interface EmailTrackingUpdate {
   delivered_at?: string
   failed_at?: string
   error_message?: string
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
 }

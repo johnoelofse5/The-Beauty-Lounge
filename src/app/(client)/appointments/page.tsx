@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
@@ -19,14 +19,6 @@ interface Practitioner {
   last_name: string
   email: string
   phone: string
-}
-
-interface AppointmentBooking {
-  service_ids: string[]
-  appointment_date: string
-  start_time: string
-  practitioner_id: string
-  notes?: string
 }
 
 export default function AppointmentsPage() {
@@ -73,59 +65,7 @@ export default function AppointmentsPage() {
     }
   }, [user])
 
-  // Load available time slots when date is selected
-  useEffect(() => {
-    if (selectedDate && selectedServices.length > 0 && selectedPractitioner) {
-      loadAvailableSlots()
-    }
-  }, [selectedDate, selectedServices, selectedPractitioner])
-
-  // Clear available slots when practitioner changes (if date is already selected)
-  useEffect(() => {
-    if (selectedDate && selectedServices.length > 0 && selectedPractitioner) {
-      setAvailableSlots([])
-      setSelectedTime('')
-    }
-  }, [selectedPractitioner])
-
-  const loadServices = async () => {
-    try {
-      setLoading(true)
-      const servicesData = await getServicesWithCategories()
-      setServices(servicesData)
-    } catch (err) {
-      setError('Failed to load services')
-      console.error('Error loading services:', err)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const loadPractitioners = async () => {
-    try {
-      const { data: practitionersData, error } = await supabase
-        .from('users')
-        .select('id, first_name, last_name, email, phone')
-        .eq('is_practitioner', true)
-        .eq('is_active', true)
-        .eq('is_deleted', false)
-        .order('first_name', { ascending: true })
-
-      if (error) throw error
-
-      setPractitioners(practitionersData || [])
-      
-      // If there's only one practitioner, auto-select them
-      if (practitionersData && practitionersData.length === 1) {
-        setSelectedPractitioner(practitionersData[0])
-      }
-    } catch (err) {
-      setError('Failed to load practitioners')
-      console.error('Error loading practitioners:', err)
-    }
-  }
-
-  const loadAvailableSlots = async () => {
+  const loadAvailableSlots = useCallback(async () => {
     if (!selectedDate || selectedServices.length === 0 || !selectedPractitioner) return
 
     try {
@@ -186,7 +126,60 @@ export default function AppointmentsPage() {
     } finally {
       setLoadingSlots(false)
     }
+  }, [selectedDate, selectedServices, selectedPractitioner])
+
+  // Load available time slots when date is selected
+  useEffect(() => {
+    if (selectedDate && selectedServices.length > 0 && selectedPractitioner) {
+      loadAvailableSlots()
+    }
+  }, [selectedDate, selectedServices, selectedPractitioner, loadAvailableSlots])
+
+  // Clear available slots when practitioner changes (if date is already selected)
+  useEffect(() => {
+    if (selectedDate && selectedServices.length > 0 && selectedPractitioner) {
+      setAvailableSlots([])
+      setSelectedTime('')
+    }
+  }, [selectedPractitioner, selectedDate, selectedServices])
+
+  const loadServices = async () => {
+    try {
+      setLoading(true)
+      const servicesData = await getServicesWithCategories()
+      setServices(servicesData)
+    } catch (err) {
+      setError('Failed to load services')
+      console.error('Error loading services:', err)
+    } finally {
+      setLoading(false)
+    }
   }
+
+  const loadPractitioners = async () => {
+    try {
+      const { data: practitionersData, error } = await supabase
+        .from('users')
+        .select('id, first_name, last_name, email, phone')
+        .eq('is_practitioner', true)
+        .eq('is_active', true)
+        .eq('is_deleted', false)
+        .order('first_name', { ascending: true })
+
+      if (error) throw error
+
+      setPractitioners(practitionersData || [])
+      
+      // If there's only one practitioner, auto-select them
+      if (practitionersData && practitionersData.length === 1) {
+        setSelectedPractitioner(practitionersData[0])
+      }
+    } catch (err) {
+      setError('Failed to load practitioners')
+      console.error('Error loading practitioners:', err)
+    }
+  }
+
 
   const handleServiceSelect = (service: ServiceWithCategory) => {
     setSelectedServices(prev => {
@@ -694,7 +687,7 @@ export default function AppointmentsPage() {
                     <div className="flex items-center space-x-2">
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600"></div>
                       <span className="text-sm text-gray-900">
-                        Checking {selectedPractitioner.first_name} {selectedPractitioner.last_name}'s availability...
+                        Checking {selectedPractitioner.first_name} {selectedPractitioner.last_name}&apos;s availability...
                       </span>
                     </div>
                   ) : availableSlots.length === 0 ? (
