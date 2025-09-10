@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
-import { Role, Permission, RoleWithPermissions, PermissionWithRoles } from '@/types'
+import { Role, Permission, RoleWithPermissions } from '@/types'
 import TopNav from '@/components/TopNav'
 
 interface InputWithErrorProps {
@@ -64,9 +64,6 @@ export default function RolesPage() {
   const [selectedRole, setSelectedRole] = useState<Role | null>(null)
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>([])
 
-  const nameRef = useRef<HTMLInputElement>(null)
-  const descriptionRef = useRef<HTMLTextAreaElement>(null)
-
   useEffect(() => {
     if (user) {
       loadData()
@@ -112,15 +109,15 @@ export default function RolesPage() {
       // Transform role permissions data
       const rolePermissionsMap = new Map<string, RoleWithPermissions>()
       
-      rolePermissionsData?.forEach((rp: any) => {
+      rolePermissionsData?.forEach((rp: { role_id: string; roles: Role[]; permissions: Permission[] }) => {
         const roleId = rp.role_id
         if (!rolePermissionsMap.has(roleId)) {
           rolePermissionsMap.set(roleId, {
-            ...rp.roles,
+            ...rp.roles[0],
             permissions: []
           })
         }
-        rolePermissionsMap.get(roleId)?.permissions.push(rp.permissions)
+        rolePermissionsMap.get(roleId)?.permissions.push(rp.permissions[0])
       })
 
       setRoles(rolesData || [])

@@ -1,12 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
 import { ServiceWithCategory } from '@/types'
 import { formatDuration } from '@/lib/services'
-import { getFilteredAppointments, canViewAllAppointments, canViewOwnAppointmentsOnly } from '@/lib/rbac'
+import { getFilteredAppointments, canViewAllAppointments } from '@/lib/rbac'
 import TopNav from '@/components/TopNav'
 
 interface Appointment {
@@ -51,14 +51,7 @@ export default function AppointmentsPage() {
   const [showAppointmentModal, setShowAppointmentModal] = useState(false)
   const [isAppointmentModalClosing, setIsAppointmentModalClosing] = useState(false)
 
-  // Load appointments
-  useEffect(() => {
-    if (user && userRoleData) {
-      loadAppointments()
-    }
-  }, [user, userRoleData, currentDate, viewMode])
-
-  const loadAppointments = async () => {
+  const loadAppointments = useCallback(async () => {
     try {
       setLoading(true)
       
@@ -116,7 +109,14 @@ export default function AppointmentsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [user, userRoleData, currentDate, viewMode])
+
+  // Load appointments
+  useEffect(() => {
+    if (user && userRoleData) {
+      loadAppointments()
+    }
+  }, [user, userRoleData, loadAppointments])
 
   const getDateRange = (date: Date, mode: ViewMode) => {
     const startDate = new Date(date)
@@ -163,10 +163,6 @@ export default function AppointmentsPage() {
 
   const formatPrice = (price: number): string => {
     return `R${price.toFixed(2)}`
-  }
-
-  const getTotalDuration = (services: ServiceWithCategory[]): number => {
-    return services.reduce((total, service) => total + service.duration_minutes, 0)
   }
 
   const getTotalPrice = (services: ServiceWithCategory[]): number => {
@@ -227,7 +223,6 @@ export default function AppointmentsPage() {
 
   const renderDayView = () => {
     const dateStr = formatDateForDB(currentDate)
-    const dayAppointments = getAppointmentsForDate(dateStr)
     
     return (
       <div className="space-y-4">
@@ -418,7 +413,6 @@ export default function AppointmentsPage() {
     const month = currentDate.getMonth()
     
     const firstDay = new Date(year, month, 1)
-    const lastDay = new Date(year, month + 1, 0)
     const startDate = new Date(firstDay)
     startDate.setDate(startDate.getDate() - firstDay.getDay())
     
