@@ -107,17 +107,19 @@ export default function RolesPage() {
       
       const rolePermissionsMap = new Map<string, RoleWithPermissions>()
       
-      rolePermissionsData?.forEach((rp: any) => {
+      rolePermissionsData?.forEach((rp: { role_id: string; roles: Role[]; permissions: Permission[] }) => {
         const roleId = rp.role_id
+        const role = rp.roles[0]
+        const permission = rp.permissions[0]
         
         if (!rolePermissionsMap.has(roleId)) {
           rolePermissionsMap.set(roleId, {
-            ...rp.roles,
+            ...role,
             permissions: []
           })
         }
-        if (rp.permissions) {
-          rolePermissionsMap.get(roleId)?.permissions.push(rp.permissions)
+        if (permission) {
+          rolePermissionsMap.get(roleId)?.permissions.push(permission)
         }
       })
 

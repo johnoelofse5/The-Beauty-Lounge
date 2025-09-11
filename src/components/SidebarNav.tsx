@@ -25,7 +25,6 @@ import {
   Mail,
   User,
   LogOut,
-  Menu,
   Sparkles,
 } from 'lucide-react'
 

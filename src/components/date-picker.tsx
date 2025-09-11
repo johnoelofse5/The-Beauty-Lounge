@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { format } from "date-fns"
-import { Calendar as CalendarIcon, ChevronDownIcon } from "lucide-react"
+import { Calendar as CalendarIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
@@ -11,7 +11,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
 
 interface DatePickerProps {
@@ -30,7 +29,6 @@ export function DatePicker({
   onChange,
   placeholder = "Select date",
   disabled = false,
-  minDate,
   maxDate,
   className
 }: DatePickerProps & { onChange?: (date: Date | null) => void }) {

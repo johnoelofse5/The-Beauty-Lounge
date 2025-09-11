@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
 import { ServiceWithCategory } from '@/types'
 import { formatDuration } from '@/lib/services'
-import { getFilteredAppointments, canViewAllAppointments, isPractitioner, canViewOwnAppointmentsOnly } from '@/lib/rbac'
+import { getFilteredAppointments, isPractitioner, canViewOwnAppointmentsOnly } from '@/lib/rbac'
 
 interface Appointment {
   id: string

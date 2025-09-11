@@ -47,7 +47,7 @@ export default function UserManagementPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
-  const [viewMode, setViewMode] = useState<ViewMode>('all')
+  const [viewMode] = useState<ViewMode>('all')
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
   const [showUserModal, setShowUserModal] = useState(false)

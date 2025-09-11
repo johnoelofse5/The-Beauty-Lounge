@@ -5,10 +5,9 @@ import Link from 'next/link'
 import { useAuth } from '@/contexts/AuthContext'
 import { getServicesByCategory, formatPrice, formatDuration } from '@/lib/services'
 import { ServiceWithCategory } from '@/types/service'
-import { canViewAllAppointments } from '@/lib/rbac'
 
 export default function HomePage() {
-  const { user, loading: authLoading, userRoleData } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const [servicesByCategory, setServicesByCategory] = useState<{ [categoryName: string]: ServiceWithCategory[] }>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)

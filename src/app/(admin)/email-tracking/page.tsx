@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { getAllEmailTracking, getEmailTrackingStats, EmailTracking, EmailStatus, EmailType } from '@/lib/email-tracking'
-import { canViewAllAppointments } from '@/lib/rbac'
 
 export default function EmailTrackingPage() {
   const { user, userRoleData } = useAuth()
