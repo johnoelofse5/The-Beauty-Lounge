@@ -6,8 +6,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
 import { ServiceWithCategory } from '@/types'
 import { formatDuration } from '@/lib/services'
-import { getFilteredAppointments, canViewAllAppointments } from '@/lib/rbac'
-import TopNav from '@/components/TopNav'
+import { getFilteredAppointments, canViewAllAppointments, isPractitioner, canViewOwnAppointmentsOnly } from '@/lib/rbac'
 
 interface Appointment {
   id: string
@@ -23,13 +22,13 @@ interface Appointment {
   is_deleted: boolean
   created_at: string
   updated_at: string
-  users: {
+  client: {
     first_name: string
     last_name: string
     email: string
     phone?: string
   } | null
-  practitioners: {
+  practitioner: {
     first_name: string
     last_name: string
     email: string
@@ -169,6 +168,25 @@ export default function AppointmentsPage() {
     return services.reduce((total, service) => total + (service.price || 0), 0)
   }
 
+  // Helper function to get the appropriate user info to display based on current user's role
+  const getDisplayUserInfo = (appointment: Appointment) => {
+    
+    if (!userRoleData?.role) return appointment.client
+
+    // If current user is a client, show practitioner info
+    if (canViewOwnAppointmentsOnly(userRoleData.role)) {
+      return appointment.practitioner
+    }
+    // If current user is a practitioner, show client info
+    else if (isPractitioner(userRoleData.role)) {
+      return appointment.client
+    }
+    // If super admin, show client info by default
+    else {
+      return appointment.client
+    }
+  }
+
   const navigateDate = (direction: 'prev' | 'next') => {
     const newDate = new Date(currentDate)
     
@@ -265,7 +283,7 @@ export default function AppointmentsPage() {
                         <div className="flex items-center justify-between">
                           <div>
                             <p className="font-medium text-gray-900">
-                              {appointment.users?.first_name || 'Unknown'} {appointment.users?.last_name || 'User'}
+                              {getDisplayUserInfo(appointment)?.first_name || 'Unknown'} {getDisplayUserInfo(appointment)?.last_name || 'User'}
                             </p>
                             <p className="text-sm text-gray-600">
                               {appointment.services?.map(s => s.name).join(', ') || 'Service'}
@@ -339,7 +357,7 @@ export default function AppointmentsPage() {
                         className="p-2 bg-blue-50 border border-blue-200 rounded cursor-pointer hover:bg-blue-100 transition-colors"
                       >
                         <p className="text-xs font-medium text-gray-900 truncate">
-                          {appointment.users?.first_name || 'Unknown'} {appointment.users?.last_name || 'User'}
+                          {getDisplayUserInfo(appointment)?.first_name || 'Unknown'} {getDisplayUserInfo(appointment)?.last_name || 'User'}
                         </p>
                         <p className="text-xs text-gray-600">
                           {formatTime(appointment.start_time)}
@@ -386,7 +404,7 @@ export default function AppointmentsPage() {
                         >
                           <div className="flex items-center justify-between mb-1">
                             <p className="text-sm font-medium text-gray-900">
-                              {appointment.users?.first_name || 'Unknown'} {appointment.users?.last_name || 'User'}
+                              {getDisplayUserInfo(appointment)?.first_name || 'Unknown'} {getDisplayUserInfo(appointment)?.last_name || 'User'}
                             </p>
                             <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
                               {formatTime(appointment.start_time)}
@@ -491,7 +509,7 @@ export default function AppointmentsPage() {
                           onClick={() => handleAppointmentClick(appointment)}
                           className="text-xs p-1 bg-blue-100 text-blue-800 rounded cursor-pointer hover:bg-blue-200 transition-colors truncate"
                         >
-                          {formatTime(appointment.start_time)} {appointment.users?.first_name || 'Unknown'}
+                          {formatTime(appointment.start_time)} {getDisplayUserInfo(appointment)?.first_name || 'Unknown'}
                         </div>
                       ))}
                       {dayAppointments.length > 3 && (
@@ -549,7 +567,7 @@ export default function AppointmentsPage() {
                         >
                           <div className="flex items-center justify-between mb-2">
                             <h4 className="font-medium text-gray-900">
-                              {appointment.users?.first_name || 'Unknown'} {appointment.users?.last_name || 'User'}
+                              {getDisplayUserInfo(appointment)?.first_name || 'Unknown'} {getDisplayUserInfo(appointment)?.last_name || 'User'}
                             </h4>
                             <span className="text-sm text-gray-500 bg-white px-2 py-1 rounded border">
                               {formatTime(appointment.start_time)} - {formatTime(appointment.end_time)}
@@ -599,16 +617,6 @@ export default function AppointmentsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <TopNav 
-        title={canViewAllAppointments(userRoleData?.role || null) ? "Bookings" : "My Appointments"}
-        showServices={canViewAllAppointments(userRoleData?.role || null)}
-        showAppointments={false}
-        showUsers={canViewAllAppointments(userRoleData?.role || null)}
-        showRoles={canViewAllAppointments(userRoleData?.role || null)}
-        showMyAppointments={false}
-      />
-
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Error Message */}
@@ -711,40 +719,132 @@ export default function AppointmentsPage() {
               {/* Content */}
               <div className="flex-1 overflow-y-auto px-6 py-4">
                 <div className="space-y-6">
-                  {/* Client Information */}
-                  <div>
-                    <h4 className="text-lg font-semibold text-gray-900 mb-3">Client Information</h4>
-                    <div className="bg-gray-50 rounded-lg p-4">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          <p className="text-sm font-medium text-gray-700">Name</p>
-                          <p className="text-gray-900">
-                            {selectedAppointment.users?.first_name || 'Unknown'} {selectedAppointment.users?.last_name || 'User'}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-gray-700">Email</p>
-                          <p className="text-gray-900">{selectedAppointment.users?.email || 'No email'}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-gray-700">Phone</p>
-                          <p className="text-gray-900">{selectedAppointment.users?.phone || 'No phone'}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-gray-700">Status</p>
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            selectedAppointment.status === 'scheduled' 
-                              ? 'bg-blue-100 text-blue-800'
-                              : selectedAppointment.status === 'completed'
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-gray-100 text-gray-800'
-                          }`}>
-                            {selectedAppointment.status}
-                          </span>
+                  {/* Show relevant information first based on user role */}
+                  {(() => {
+                    return userRoleData?.role && canViewOwnAppointmentsOnly(userRoleData.role)
+                  })() ? (
+                    // Client viewing appointments - show practitioner info first
+                    <>
+                      {/* Practitioner Information */}
+                      <div>
+                        <h4 className="text-lg font-semibold text-gray-900 mb-3">Your Practitioner</h4>
+                        <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                              <p className="text-sm font-medium text-gray-700">Name</p>
+                              <p className="text-gray-900">
+                                {selectedAppointment.practitioner?.first_name || 'Unknown'} {selectedAppointment.practitioner?.last_name || 'User'}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-gray-700">Email</p>
+                              <p className="text-gray-900">{selectedAppointment.practitioner?.email || 'No email'}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-gray-700">Phone</p>
+                              <p className="text-gray-900">{selectedAppointment.practitioner?.phone || 'No phone'}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-gray-700">Status</p>
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                selectedAppointment.status === 'scheduled' 
+                                  ? 'bg-blue-100 text-blue-800'
+                                  : selectedAppointment.status === 'completed'
+                                  ? 'bg-green-100 text-green-800'
+                                  : 'bg-gray-100 text-gray-800'
+                              }`}>
+                                {selectedAppointment.status}
+                              </span>
+                            </div>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </div>
+
+                      {/* Client Information */}
+                      <div>
+                        <h4 className="text-lg font-semibold text-gray-900 mb-3">Your Information</h4>
+                        <div className="bg-gray-50 rounded-lg p-4">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                              <p className="text-sm font-medium text-gray-700">Name</p>
+                              <p className="text-gray-900">
+                                {selectedAppointment.client?.first_name || 'Unknown'} {selectedAppointment.client?.last_name || 'User'}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-gray-700">Email</p>
+                              <p className="text-gray-900">{selectedAppointment.client?.email || 'No email'}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-gray-700">Phone</p>
+                              <p className="text-gray-900">{selectedAppointment.client?.phone || 'No phone'}</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    // Practitioner or admin viewing appointments - show client info first
+                    <>
+                      {/* Client Information */}
+                      <div>
+                        <h4 className="text-lg font-semibold text-gray-900 mb-3">Client Information</h4>
+                        <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                              <p className="text-sm font-medium text-gray-700">Name</p>
+                              <p className="text-gray-900">
+                                {selectedAppointment.client?.first_name || 'Unknown'} {selectedAppointment.client?.last_name || 'User'}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-gray-700">Email</p>
+                              <p className="text-gray-900">{selectedAppointment.client?.email || 'No email'}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-gray-700">Phone</p>
+                              <p className="text-gray-900">{selectedAppointment.client?.phone || 'No phone'}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-gray-700">Status</p>
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                selectedAppointment.status === 'scheduled' 
+                                  ? 'bg-blue-100 text-blue-800'
+                                  : selectedAppointment.status === 'completed'
+                                  ? 'bg-green-100 text-green-800'
+                                  : 'bg-gray-100 text-gray-800'
+                              }`}>
+                                {selectedAppointment.status}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Practitioner Information */}
+                      <div>
+                        <h4 className="text-lg font-semibold text-gray-900 mb-3">Practitioner Information</h4>
+                        <div className="bg-gray-50 rounded-lg p-4">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                              <p className="text-sm font-medium text-gray-700">Name</p>
+                              <p className="text-gray-900">
+                                {selectedAppointment.practitioner?.first_name || 'Unknown'} {selectedAppointment.practitioner?.last_name || 'User'}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-gray-700">Email</p>
+                              <p className="text-gray-900">{selectedAppointment.practitioner?.email || 'No email'}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-gray-700">Phone</p>
+                              <p className="text-gray-900">{selectedAppointment.practitioner?.phone || 'No phone'}</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  )}
 
                   {/* Services */}
                   {selectedAppointment.services && selectedAppointment.services.length > 0 && (

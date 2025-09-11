@@ -5,7 +5,6 @@ import Link from 'next/link'
 import { useAuth } from '@/contexts/AuthContext'
 import { getServicesByCategory, formatPrice, formatDuration } from '@/lib/services'
 import { ServiceWithCategory } from '@/types/service'
-import TopNav from '@/components/TopNav'
 import { canViewAllAppointments } from '@/lib/rbac'
 
 export default function HomePage() {
@@ -44,19 +43,8 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      {user ? (
-        <TopNav
-          title="The Beauty Lounge"
-          showMyAppointments={true}
-          showServices={canViewAllAppointments(userRoleData?.role || null)}
-          showUsers={canViewAllAppointments(userRoleData?.role || null)}
-          showRoles={canViewAllAppointments(userRoleData?.role || null)}
-          showEmailTracking={canViewAllAppointments(userRoleData?.role || null)}
-          showAppointments={false}
-          showHomeLink={false}
-        />
-      ) : (
+      {/* Header for non-authenticated users */}
+      {!user && (
         <header className="bg-white shadow-sm border-b border-gray-200">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center h-16">
@@ -162,7 +150,7 @@ export default function HomePage() {
                                 </div>
                               </div>
                             </div>
-          </div>
+                          </div>
 
                           {user ? (
                             <div className="mt-4">

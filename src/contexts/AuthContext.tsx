@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState } from 'react'
 import { Session, User as SupabaseUser } from '@supabase/supabase-js'
+import { useRouter } from 'next/navigation'
 import { AuthContextType } from '@/types/auth-context-type'
 import { UserSignUpData } from '@/types/user-signup'
 import { supabase } from '@/lib/supabase'
@@ -28,6 +29,7 @@ export const useAuth = () => {
 }
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+  const router = useRouter()
   const [user, setUser] = useState<SupabaseUser | null>(null)
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
@@ -49,23 +51,43 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
-      setUser(session?.user ?? null)
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error) {
+        console.error('Error getting session:', error)
+        // Clear any invalid session data
+        setSession(null)
+        setUser(null)
+        setUserRoleData(null)
+      } else {
+        setSession(session)
+        setUser(session?.user ?? null)
+      }
       setLoading(false)
     })
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        setSession(session)
-        setUser(session?.user ?? null)
+        
+        if (event === 'SIGNED_OUT') {
+          setSession(null)
+          setUser(null)
+          setUserRoleData(null)
+          // Redirect to home page when user signs out
+          router.push('/')
+        } else if (event === 'TOKEN_REFRESHED') {
+          setSession(session)
+          setUser(session?.user ?? null)
+        } else if (event === 'SIGNED_IN') {
+          setSession(session)
+          setUser(session?.user ?? null)
+        }
         setLoading(false)
       }
     )
 
     return () => subscription.unsubscribe()
-  }, [])
+  }, [router])
 
   const signUp = async (email: string, password: string, userData?: UserSignUpData) => {
     const { error } = await supabase.auth.signUp({
@@ -101,6 +123,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     if (error) {
       throw new Error(error.message)
     }
+    // Redirect to home page after successful sign out
+    router.push('/')
   }
 
   const resetPassword = async (email: string) => {

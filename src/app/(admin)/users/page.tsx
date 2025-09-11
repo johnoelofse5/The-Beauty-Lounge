@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback, memo, useRef } from 'react'
 import Link from 'next/link'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
-import TopNav from '@/components/TopNav'
 
 interface User {
   id: string
@@ -15,8 +14,19 @@ interface User {
   is_practitioner: boolean
   is_active: boolean
   is_deleted: boolean
+  role_id: string | null
+  role_name: string | null
+  role_description: string | null
   created_at: string
   updated_at: string
+}
+
+interface Role {
+  id: string
+  name: string
+  description: string
+  is_active: boolean
+  is_deleted: boolean
 }
 
 interface UserFormData {
@@ -25,6 +35,7 @@ interface UserFormData {
   last_name: string
   phone: string
   is_practitioner: boolean
+  role_id: string | null
 }
 
 type ViewMode = 'all' | 'practitioners' | 'clients'
@@ -32,6 +43,7 @@ type ViewMode = 'all' | 'practitioners' | 'clients'
 export default function UserManagementPage() {
   const { user, loading: authLoading } = useAuth()
   const [users, setUsers] = useState<User[]>([])
+  const [roles, setRoles] = useState<Role[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
@@ -46,7 +58,8 @@ export default function UserManagementPage() {
     first_name: '',
     last_name: '',
     phone: '',
-    is_practitioner: false
+    is_practitioner: false,
+    role_id: null
   })
   const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({})
   const [isModalClosing, setIsModalClosing] = useState(false)
@@ -57,6 +70,7 @@ export default function UserManagementPage() {
   const lastNameRef = useRef<HTMLInputElement>(null)
   const phoneRef = useRef<HTMLInputElement>(null)
   const practitionerRef = useRef<HTMLInputElement>(null)
+  const roleRef = useRef<HTMLSelectElement>(null)
 
   // Auto-dismiss messages after 3 seconds
   useEffect(() => {
@@ -73,10 +87,11 @@ export default function UserManagementPage() {
     }
   }, [success])
 
-  // Load users
+  // Load users and roles
   useEffect(() => {
     if (user) {
       loadUsers()
+      loadRoles()
     }
   }, [user])
 
@@ -86,18 +101,49 @@ export default function UserManagementPage() {
       
       const { data: usersData, error } = await supabase
         .from('users')
-        .select('*')
+        .select(`
+          *,
+          role:roles (
+            id,
+            name,
+            description
+          )
+        `)
         .eq('is_deleted', false)
         .order('created_at', { ascending: false })
 
       if (error) throw error
 
-      setUsers(usersData || [])
+      // Transform the data to include role information
+      const transformedUsers = usersData?.map(user => ({
+        ...user,
+        role_name: user.role?.name || null,
+        role_description: user.role?.description || null
+      })) || []
+
+      setUsers(transformedUsers)
     } catch (err) {
       setError('Failed to load users')
       console.error('Error loading users:', err)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadRoles = async () => {
+    try {
+      const { data: rolesData, error } = await supabase
+        .from('roles')
+        .select('*')
+        .eq('is_active', true)
+        .eq('is_deleted', false)
+        .order('name', { ascending: true })
+
+      if (error) throw error
+
+      setRoles(rolesData || [])
+    } catch (err) {
+      console.error('Error loading roles:', err)
     }
   }
 
@@ -141,6 +187,7 @@ export default function UserManagementPage() {
       const lastName = lastNameRef.current?.value || ''
       const phone = phoneRef.current?.value || ''
       const isPractitioner = practitionerRef.current?.checked || false
+      const roleId = roleRef.current?.value || null
 
       // Create user record directly in the users table
       // The user will need to set up their password via password reset
@@ -153,6 +200,7 @@ export default function UserManagementPage() {
           last_name: lastName,
           phone: phone,
           is_practitioner: isPractitioner,
+          role_id: roleId,
           is_active: true,
           is_deleted: false
         }])
@@ -183,6 +231,7 @@ export default function UserManagementPage() {
           last_name: formData.last_name,
           phone: formData.phone,
           is_practitioner: formData.is_practitioner,
+          role_id: formData.role_id,
           updated_at: new Date().toISOString()
         })
         .eq('id', selectedUser.id)
@@ -231,6 +280,7 @@ export default function UserManagementPage() {
     if (lastNameRef.current) lastNameRef.current.value = ''
     if (phoneRef.current) phoneRef.current.value = ''
     if (practitionerRef.current) practitionerRef.current.checked = false
+    if (roleRef.current) roleRef.current.value = ''
     setFormErrors({})
   }, [])
 
@@ -241,13 +291,15 @@ export default function UserManagementPage() {
       first_name: user.first_name,
       last_name: user.last_name,
       phone: user.phone,
-      is_practitioner: user.is_practitioner
+      is_practitioner: user.is_practitioner,
+      role_id: user.role_id
     })
     if (emailRef.current) emailRef.current.value = user.email
     if (firstNameRef.current) firstNameRef.current.value = user.first_name
     if (lastNameRef.current) lastNameRef.current.value = user.last_name
     if (phoneRef.current) phoneRef.current.value = user.phone
     if (practitionerRef.current) practitionerRef.current.checked = user.is_practitioner
+    if (roleRef.current) roleRef.current.value = user.role_id || ''
     setIsEditing(true)
     setShowUserModal(true)
   }
@@ -345,22 +397,6 @@ export default function UserManagementPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <TopNav 
-        title="Users"
-        showViewToggle={true}
-        viewMode={viewMode}
-        onViewModeChange={setViewMode}
-        viewModeLabels={{
-          all: 'All Users',
-          practitioners: 'Practitioners',
-          clients: 'Clients'
-        }}
-        showServices={true}
-        showAppointments={true}
-        showUsers={false}
-        showMyAppointments={false}
-      />
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -415,6 +451,9 @@ export default function UserManagementPage() {
                       Type
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Role
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Status
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -446,6 +485,19 @@ export default function UserManagementPage() {
                             : 'bg-green-100 text-green-800'
                         }`}>
                           {user.is_practitioner ? 'Practitioner' : 'Client'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          user.role_name === 'super_admin' 
+                            ? 'bg-purple-100 text-purple-800'
+                            : user.role_name === 'practitioner'
+                            ? 'bg-blue-100 text-blue-800'
+                            : user.role_name === 'client'
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-gray-100 text-gray-800'
+                        }`}>
+                          {user.role_name || 'No Role'}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -653,6 +705,23 @@ export default function UserManagementPage() {
                   </InputWithError>
 
                   <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Role
+                    </label>
+                    <select
+                      ref={roleRef}
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    >
+                      <option value="">Select a role</option>
+                      {roles.map(role => (
+                        <option key={role.id} value={role.id}>
+                          {role.name} - {role.description}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
                     <label className="flex items-center">
                       <input
                         ref={practitionerRef}
@@ -789,6 +858,26 @@ export default function UserManagementPage() {
                       }`}
                     />
                   </InputWithError>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Role
+                    </label>
+                    <select
+                      value={formData.role_id || ''}
+                      onChange={(e) => {
+                        setFormData({ ...formData, role_id: e.target.value || null })
+                      }}
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    >
+                      <option value="">Select a role</option>
+                      {roles.map(role => (
+                        <option key={role.id} value={role.id}>
+                          {role.name} - {role.description}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
                   <div>
                     <label className="flex items-center">

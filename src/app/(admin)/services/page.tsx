@@ -6,7 +6,6 @@ import { useAuth } from '@/contexts/AuthContext'
 import { getServicesWithCategories, getCategories, formatPrice, formatDuration } from '@/lib/services'
 import { ServiceWithCategory, Category } from '@/types'
 import { supabase } from '@/lib/supabase'
-import TopNav from '@/components/TopNav'
 
 interface ServiceFormData {
   name: string
@@ -412,14 +411,6 @@ export default function AdminServicesPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <TopNav 
-        title="Services"
-        showServices={false}
-        showAppointments={true}
-        showUsers={true}
-        showMyAppointments={false}
-      />
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

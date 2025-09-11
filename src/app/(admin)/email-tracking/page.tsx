@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { getAllEmailTracking, getEmailTrackingStats, EmailTracking, EmailStatus, EmailType } from '@/lib/email-tracking'
-import TopNav from '@/components/TopNav'
 import { canViewAllAppointments } from '@/lib/rbac'
 
 export default function EmailTrackingPage() {
@@ -99,14 +98,6 @@ export default function EmailTrackingPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <TopNav
-          title="Email Tracking"
-          showServices={canViewAllAppointments(userRoleData?.role || null)}
-          showAppointments={false}
-          showUsers={canViewAllAppointments(userRoleData?.role || null)}
-          showRoles={canViewAllAppointments(userRoleData?.role || null)}
-          showMyAppointments={false}
-        />
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
@@ -119,14 +110,6 @@ export default function EmailTrackingPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <TopNav
-        title="Email Tracking"
-        showServices={canViewAllAppointments(userRoleData?.role || null)}
-        showAppointments={false}
-        showUsers={canViewAllAppointments(userRoleData?.role || null)}
-        showRoles={canViewAllAppointments(userRoleData?.role || null)}
-        showMyAppointments={false}
-      />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {error && (

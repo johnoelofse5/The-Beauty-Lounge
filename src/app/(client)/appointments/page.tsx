@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { getServicesWithCategories, formatPrice, formatDuration } from '@/lib/services'
 import { ServiceWithCategory } from '@/types'
 import { supabase } from '@/lib/supabase'
+import { DatePicker } from '@/components/date-picker'
 
 interface TimeSlot {
   time: string
@@ -48,7 +49,7 @@ export default function AppointmentsPage() {
   // Booking form state
   const [selectedServices, setSelectedServices] = useState<ServiceWithCategory[]>([])
   const [selectedPractitioner, setSelectedPractitioner] = useState<Practitioner | null>(null)
-  const [selectedDate, setSelectedDate] = useState<string>('')
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined)
   const [selectedTime, setSelectedTime] = useState<string>('')
   const [notes, setNotes] = useState<string>('')
   const [bookingStep, setBookingStep] = useState<'service' | 'practitioner' | 'datetime' | 'confirm'>('service')
@@ -65,6 +66,24 @@ export default function AppointmentsPage() {
     }
   }, [user])
 
+  // Helper functions for date handling
+  const getTomorrowDate = () => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0) // Set to start of today
+    return today
+  }
+
+  const getMaxDate = () => {
+    const maxDate = new Date()
+    maxDate.setMonth(maxDate.getMonth() + 3)
+    return maxDate
+  }
+
+  const formatDateForAPI = (date: Date | undefined) => {
+    if (!date) return ''
+    return date.toISOString().split('T')[0]
+  }
+
   const loadAvailableSlots = useCallback(async () => {
     if (!selectedDate || selectedServices.length === 0 || !selectedPractitioner) return
 
@@ -78,7 +97,7 @@ export default function AppointmentsPage() {
       const { data: existingAppointments, error } = await supabase
         .from('appointments')
         .select('start_time, end_time')
-        .eq('appointment_date', selectedDate)
+        .eq('appointment_date', formatDateForAPI(selectedDate))
         .eq('practitioner_id', selectedPractitioner.id)
         .eq('is_active', true)
         .eq('is_deleted', false)
@@ -96,15 +115,15 @@ export default function AppointmentsPage() {
           const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}:00`
           
           // Calculate end time for this slot with all selected services
-          const startTime = new Date(`${selectedDate}T${timeString}`)
+          const startTime = new Date(`${formatDateForAPI(selectedDate)}T${timeString}`)
           const endTime = new Date(startTime.getTime() + totalDurationMinutes * 60000)
           const endTimeString = endTime.toTimeString().split(' ')[0]
           
           // Check if this slot conflicts with existing appointments
-          const isAvailable = !existingAppointments?.some(apt => {
+          const hasConflict = existingAppointments?.some(apt => {
             const aptStart = apt.start_time
             const aptEnd = apt.end_time
-            // Check if our appointment would overlap with existing ones
+            // Check if our appointment (timeString to endTimeString) would overlap with existing appointment
             return (timeString < aptEnd && endTimeString > aptStart)
           })
 
@@ -114,7 +133,7 @@ export default function AppointmentsPage() {
 
           slots.push({
             time: timeString,
-            available: isAvailable && withinBusinessHours
+            available: !hasConflict && withinBusinessHours
           })
         }
       }
@@ -220,7 +239,7 @@ export default function AppointmentsPage() {
       const totalDurationMinutes = selectedServices.reduce((total, service) => total + service.duration_minutes, 0)
       
       // Calculate end time based on total duration
-      const startTime = new Date(`${selectedDate}T${selectedTime}`)
+      const startTime = new Date(`${formatDateForAPI(selectedDate)}T${selectedTime}`)
       const endTime = new Date(startTime.getTime() + totalDurationMinutes * 60000)
       const endTimeString = endTime.toTimeString().split(' ')[0]
 
@@ -228,7 +247,7 @@ export default function AppointmentsPage() {
       const appointmentData = {
         user_id: user.id,
         practitioner_id: selectedPractitioner.id,
-        appointment_date: selectedDate,
+        appointment_date: formatDateForAPI(selectedDate),
         start_time: selectedTime,
         end_time: endTimeString,
         status: 'scheduled',
@@ -252,7 +271,7 @@ export default function AppointmentsPage() {
       // Reset form
       setSelectedServices([])
       setSelectedPractitioner(practitioners.length === 1 ? practitioners[0] : null)
-      setSelectedDate('')
+      setSelectedDate(undefined)
       setSelectedTime('')
       setNotes('')
       setBookingStep('service')
@@ -269,22 +288,11 @@ export default function AppointmentsPage() {
   }
 
   const formatTimeSlot = (time: string): string => {
+    if (!time) return ''
     const [hours, minutes] = time.split(':').map(Number)
     const period = hours >= 12 ? 'PM' : 'AM'
     const displayHours = hours > 12 ? hours - 12 : hours === 0 ? 12 : hours
     return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`
-  }
-
-  const getTomorrowDate = (): string => {
-    const tomorrow = new Date()
-    tomorrow.setDate(tomorrow.getDate() + 1)
-    return tomorrow.toISOString().split('T')[0]
-  }
-
-  const getMaxDate = (): string => {
-    const maxDate = new Date()
-    maxDate.setMonth(maxDate.getMonth() + 3) // 3 months ahead
-    return maxDate.toISOString().split('T')[0]
   }
 
   if (authLoading || loading) {
@@ -346,7 +354,8 @@ export default function AppointmentsPage() {
 
         {/* Progress Steps */}
         <div className="mb-8">
-          <div className="flex items-center justify-center space-x-6">
+          {/* Desktop Progress Steps */}
+          <div className="hidden md:flex items-center justify-center space-x-6">
             <div className={`flex items-center ${bookingStep === 'service' ? 'text-indigo-600' : bookingStep === 'practitioner' || bookingStep === 'datetime' || bookingStep === 'confirm' ? 'text-green-600' : 'text-gray-400'}`}>
               <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-sm font-medium ${bookingStep === 'service' ? 'border-indigo-600 bg-indigo-600 text-white' : bookingStep === 'practitioner' || bookingStep === 'datetime' || bookingStep === 'confirm' ? 'border-green-600 bg-green-600 text-white' : 'border-gray-300'}`}>
                 1
@@ -375,13 +384,58 @@ export default function AppointmentsPage() {
               <span className="ml-2 text-sm font-medium">Confirm</span>
             </div>
           </div>
+
+          {/* Mobile Progress Steps */}
+          <div className="md:hidden">
+            <div className="flex items-center justify-between mb-3">
+              <div className={`flex items-center ${bookingStep === 'service' ? 'text-indigo-600' : bookingStep === 'practitioner' || bookingStep === 'datetime' || bookingStep === 'confirm' ? 'text-green-600' : 'text-gray-400'}`}>
+                <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center text-xs font-medium ${bookingStep === 'service' ? 'border-indigo-600 bg-indigo-600 text-white' : bookingStep === 'practitioner' || bookingStep === 'datetime' || bookingStep === 'confirm' ? 'border-green-600 bg-green-600 text-white' : 'border-gray-300'}`}>
+                  1
+                </div>
+                <span className="ml-1 text-xs font-medium">Services</span>
+              </div>
+              
+              <div className={`flex items-center ${bookingStep === 'practitioner' ? 'text-indigo-600' : bookingStep === 'datetime' || bookingStep === 'confirm' ? 'text-green-600' : 'text-gray-400'}`}>
+                <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center text-xs font-medium ${bookingStep === 'practitioner' ? 'border-indigo-600 bg-indigo-600 text-white' : bookingStep === 'datetime' || bookingStep === 'confirm' ? 'border-green-600 bg-green-600 text-white' : 'border-gray-300'}`}>
+                  2
+                </div>
+                <span className="ml-1 text-xs font-medium">Practitioner</span>
+              </div>
+              
+              <div className={`flex items-center ${bookingStep === 'datetime' ? 'text-indigo-600' : bookingStep === 'confirm' ? 'text-green-600' : 'text-gray-400'}`}>
+                <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center text-xs font-medium ${bookingStep === 'datetime' ? 'border-indigo-600 bg-indigo-600 text-white' : bookingStep === 'confirm' ? 'border-green-600 bg-green-600 text-white' : 'border-gray-300'}`}>
+                  3
+                </div>
+                <span className="ml-1 text-xs font-medium">Date & Time</span>
+              </div>
+              
+              <div className={`flex items-center ${bookingStep === 'confirm' ? 'text-indigo-600' : 'text-gray-400'}`}>
+                <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center text-xs font-medium ${bookingStep === 'confirm' ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-gray-300'}`}>
+                  4
+                </div>
+                <span className="ml-1 text-xs font-medium">Confirm</span>
+              </div>
+            </div>
+            
+            {/* Mobile Progress Bar */}
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div 
+                className="bg-indigo-600 h-2 rounded-full transition-all duration-300"
+                style={{ 
+                  width: bookingStep === 'service' ? '25%' : 
+                         bookingStep === 'practitioner' ? '50%' : 
+                         bookingStep === 'datetime' ? '75%' : '100%' 
+                }}
+              ></div>
+            </div>
+          </div>
         </div>
 
         {/* Step 1: Service Selection */}
         {bookingStep === 'service' && (
           <div>
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-gray-900">Choose Services</h2>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2 sm:mb-0">Choose Services</h2>
               {selectedServices.length > 0 && (
                 <div className="text-sm text-gray-600">
                   {selectedServices.length} service{selectedServices.length !== 1 ? 's' : ''} selected
@@ -389,7 +443,7 @@ export default function AppointmentsPage() {
               )}
             </div>
             
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {services.map((service) => {
                 const isSelected = selectedServices.some(s => s.id === service.id)
                 return (
@@ -402,7 +456,7 @@ export default function AppointmentsPage() {
                         : 'border-gray-200 hover:border-indigo-300'
                     }`}
                   >
-                    <div className="p-6">
+                    <div className="p-4 sm:p-6">
                       <div className="flex items-start justify-between mb-2">
                         <h3 className="text-lg font-semibold text-gray-900">
                           {service.name}
@@ -444,7 +498,7 @@ export default function AppointmentsPage() {
             </div>
             
             {selectedServices.length > 0 && (
-              <div className="mt-8 bg-white rounded-lg border border-gray-200 p-6">
+              <div className="mt-6 sm:mt-8 bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Selected Services</h3>
                 <div className="space-y-3">
                   {selectedServices.map((service) => (
@@ -485,7 +539,7 @@ export default function AppointmentsPage() {
                 <div className="mt-6 flex justify-end">
                   <button
                     onClick={handleContinueToPractitioner}
-                    className="bg-indigo-600 text-white px-6 py-2 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 font-medium"
+                    className="w-full sm:w-auto bg-indigo-600 text-white px-6 py-3 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 font-medium"
                   >
                     Continue to Practitioner
                   </button>
@@ -658,21 +712,21 @@ export default function AppointmentsPage() {
             <div className="space-y-6">
               {/* Date Selection */}
               <div>
-                <label className="block text-sm font-medium text-gray-900 mb-2">
+                <label className="block text-sm font-medium text-gray-900 mb-3">
                   Select Date
                 </label>
-                <input
-                  type="date"
-                  min={getTomorrowDate()}
-                  max={getMaxDate()}
-                  value={selectedDate}
-                  onChange={(e) => {
-                    setSelectedDate(e.target.value)
+                <DatePicker
+                  date={selectedDate}
+                  onDateChange={(date) => {
+                    setSelectedDate(date)
                     setSelectedTime('')
                   }}
-                  className="block w-full max-w-xs px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  placeholder="Pick a date"
+                  minDate={getTomorrowDate()}
+                  maxDate={getMaxDate()}
+                  className="w-full max-w-sm"
                 />
-                <p className="mt-1 text-xs text-gray-500">
+                <p className="mt-2 text-sm text-gray-500">
                   You can book appointments from tomorrow up to 3 months in advance
                 </p>
               </div>
@@ -680,7 +734,7 @@ export default function AppointmentsPage() {
               {/* Time Selection */}
               {selectedDate && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-900 mb-2">
+                  <label className="block text-sm font-medium text-gray-900 mb-3">
                     Available Time Slots
                   </label>
                   {loadingSlots ? (
@@ -711,11 +765,11 @@ export default function AppointmentsPage() {
                           key={slot.time}
                           onClick={() => slot.available && setSelectedTime(slot.time)}
                           disabled={!slot.available}
-                          className={`px-3 py-2 text-sm font-medium rounded-md border transition-colors ${
+                          className={`px-4 py-3 text-sm font-medium rounded-lg border transition-all duration-200 ${
                             selectedTime === slot.time
-                              ? 'bg-indigo-600 text-white border-indigo-600'
+                              ? 'bg-indigo-600 text-white border-indigo-600 shadow-md'
                               : slot.available
-                              ? 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                              ? 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400 hover:shadow-sm'
                               : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
                           }`}
                         >
@@ -729,7 +783,7 @@ export default function AppointmentsPage() {
 
               {/* Notes */}
               <div>
-                <label className="block text-sm font-medium text-gray-900 mb-2">
+                <label className="block text-sm font-medium text-gray-900 mb-3">
                   Notes (Optional)
                 </label>
                 <textarea
@@ -737,7 +791,7 @@ export default function AppointmentsPage() {
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="Any special requests or notes for your appointment..."
-                  className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  className="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 hover:border-gray-400 transition-colors duration-200 text-base resize-none"
                 />
               </div>
 
@@ -746,7 +800,7 @@ export default function AppointmentsPage() {
                 <div className="flex justify-end">
                   <button
                     onClick={handleDateTimeConfirm}
-                    className="bg-indigo-600 text-white px-6 py-2 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 font-medium"
+                    className="w-full sm:w-auto bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 font-medium transition-colors duration-200 shadow-sm hover:shadow-md"
                   >
                     Continue to Confirmation
                   </button>
@@ -827,7 +881,7 @@ export default function AppointmentsPage() {
                 <div className="flex justify-between">
                   <span className="text-gray-900 font-medium">End Time:</span>
                   <span className="font-medium text-gray-900">
-                    {formatTimeSlot(new Date(new Date(`${selectedDate}T${selectedTime}`).getTime() + selectedServices.reduce((total, service) => total + service.duration_minutes, 0) * 60000).toTimeString().split(' ')[0])}
+                    {formatTimeSlot(new Date(new Date(`${formatDateForAPI(selectedDate)}T${selectedTime}`).getTime() + selectedServices.reduce((total, service) => total + service.duration_minutes, 0) * 60000).toTimeString().split(' ')[0])}
                   </span>
                 </div>
                 
