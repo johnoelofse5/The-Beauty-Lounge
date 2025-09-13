@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
-import { canViewAllAppointments } from '@/lib/rbac'
+import { canViewAllAppointments, canViewAdmin, canManageServices, canManageUsers } from '@/lib/rbac'  
 import {
   Sidebar,
   SidebarContent,
@@ -16,6 +16,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarSeparator,
+  useSidebar,
 } from '@/components/ui/sidebar'
 import {
   Home,
@@ -35,6 +36,7 @@ interface SidebarNavProps {
 export default function SidebarNav({ title = "The Beauty Lounge" }: SidebarNavProps) {
   const { user, userRoleData, signOut } = useAuth()
   const pathname = usePathname()
+  const { setOpenMobile, isMobile } = useSidebar()
 
   const handleSignOut = async () => {
     try {
@@ -44,11 +46,21 @@ export default function SidebarNav({ title = "The Beauty Lounge" }: SidebarNavPr
     }
   }
 
+  const handleNavigationClick = () => {
+    // Close mobile sidebar when navigating
+    if (isMobile) {
+      setOpenMobile(false)
+    }
+  }
+
   if (!user) {
     return null
   }
 
-  const canViewAdmin = canViewAllAppointments(userRoleData?.role || null)
+  const canViewAdminFeatures = canViewAdmin(userRoleData?.role || null)
+  const canViewAllAppts = canViewAllAppointments(userRoleData?.role || null)
+  const canManageServicesAccess = canManageServices(userRoleData?.role || null)
+  const canManageUsersAccess = canManageUsers(userRoleData?.role || null)
 
   const navigationItems = [
     {
@@ -61,37 +73,37 @@ export default function SidebarNav({ title = "The Beauty Lounge" }: SidebarNavPr
       title: "My Appointments",
       url: "/appointments-management",
       icon: Calendar,
-      show: !canViewAdmin, // Show for non-admin users (clients and practitioners)
+      show: !canViewAllAppts, // Show for clients only
     },
     {
       title: "All Appointments",
       url: "/appointments-management",
       icon: Calendar,
-      show: canViewAdmin, // Show only for admin users (super_admin)
+      show: canViewAllAppts, // Show for practitioners and super admins
     },
     {
       title: "Services",
       url: "/services",
       icon: Sparkles,
-      show: canViewAdmin,
+      show: canManageServicesAccess, // Show for super admin and practitioners
     },
     {
       title: "Users",
       url: "/users",
       icon: Users,
-      show: canViewAdmin,
+      show: canManageUsersAccess, // Show for super admin and practitioners
     },
     {
       title: "Roles & Permissions",
       url: "/roles",
       icon: Settings,
-      show: canViewAdmin,
+      show: canViewAdminFeatures, // Show only for super admin
     },
     {
       title: "Email Tracking",
       url: "/email-tracking",
       icon: Mail,
-      show: canViewAdmin,
+      show: canViewAdminFeatures, // Show only for super admin
     },
   ]
 
@@ -100,15 +112,15 @@ export default function SidebarNav({ title = "The Beauty Lounge" }: SidebarNavPr
   return (
     <Sidebar>
       <SidebarHeader>
-        <div className="flex items-center gap-2 px-2 py-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#F2C7EB] text-gray-900">
+        <div className="flex items-center gap-2 px-2 py-2 min-w-0">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#F2C7EB] text-gray-900 flex-shrink-0">
             <Sparkles className="h-4 w-4" />
           </div>
-          <div className="flex flex-col">
-            <span className="text-sm font-semibold text-sidebar-foreground">
+          <div className="flex flex-col min-w-0 flex-1">
+            <span className="text-sm font-semibold text-sidebar-foreground truncate">
               {title}
             </span>
-            <span className="text-xs text-sidebar-foreground/70">
+            <span className="text-xs text-sidebar-foreground/70 truncate">
               {typeof userRoleData?.role === 'string' ? userRoleData.role : 'User'}
             </span>
           </div>
@@ -127,9 +139,9 @@ export default function SidebarNav({ title = "The Beauty Lounge" }: SidebarNavPr
                 return (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton asChild isActive={isActive}>
-                      <Link href={item.url}>
-                        <Icon className="h-4 w-4" />
-                        <span>{item.title}</span>
+                      <Link href={item.url} onClick={handleNavigationClick} className="min-w-0">
+                        <Icon className="h-4 w-4 flex-shrink-0" />
+                        <span className="truncate">{item.title}</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -148,24 +160,27 @@ export default function SidebarNav({ title = "The Beauty Lounge" }: SidebarNavPr
               <SidebarMenuItem>
                 <SidebarMenuButton>
                   <User className="h-4 w-4" />
-                  <div className="flex flex-col">
-                    <span className="text-sm font-medium">
+                  <div className="flex flex-col min-w-0 flex-1">
+                    <span className="text-sm font-medium truncate">
                       {typeof user.user_metadata?.first_name === 'string' 
                         ? user.user_metadata.first_name 
                         : typeof user.email === 'string' 
                         ? user.email 
                         : 'User'}
                     </span>
-                    <span className="text-xs text-sidebar-foreground/70">
+                    <span className="text-xs text-sidebar-foreground/70 truncate">
                       {typeof user.email === 'string' ? user.email : 'No email'}
                     </span>
                   </div>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton onClick={handleSignOut}>
-                  <LogOut className="h-4 w-4" />
-                  <span>Sign Out</span>
+                <SidebarMenuButton onClick={() => {
+                  handleSignOut()
+                  handleNavigationClick()
+                }}>
+                  <LogOut className="h-4 w-4 flex-shrink-0" />
+                  <span className="truncate">Sign Out</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>

@@ -7,10 +7,12 @@ import { supabase } from '@/lib/supabase'
 import { ServiceWithCategory } from '@/types'
 import { formatDuration } from '@/lib/services'
 import { getFilteredAppointments, isPractitioner, canViewOwnAppointmentsOnly } from '@/lib/rbac'
+import EditAppointmentModal from '@/components/EditAppointmentModal'
 
 interface Appointment {
   id: string
   user_id: string
+  practitioner_id: string
   service_id: string | null
   service_ids: string[]
   appointment_date: string
@@ -49,6 +51,8 @@ export default function AppointmentsPage() {
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null)
   const [showAppointmentModal, setShowAppointmentModal] = useState(false)
   const [isAppointmentModalClosing, setIsAppointmentModalClosing] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [isEditModalClosing, setIsEditModalClosing] = useState(false)
 
   const loadAppointments = useCallback(async () => {
     try {
@@ -216,6 +220,19 @@ export default function AppointmentsPage() {
       setShowAppointmentModal(false)
       setSelectedAppointment(null)
       setIsAppointmentModalClosing(false)
+    }, 300)
+  }
+
+  const openEditModal = () => {
+    setShowEditModal(true)
+    setShowAppointmentModal(false)
+  }
+
+  const closeEditModal = () => {
+    setIsEditModalClosing(true)
+    setTimeout(() => {
+      setShowEditModal(false)
+      setIsEditModalClosing(false)
     }, 300)
   }
 
@@ -628,7 +645,56 @@ export default function AppointmentsPage() {
 
         {/* View Controls */}
         <div className="mb-8">
-          <div className="flex items-center justify-between">
+          {/* Mobile Layout - Stacked */}
+          <div className="flex flex-col space-y-4 md:hidden">
+            {/* View Mode Toggle */}
+            <div className="flex space-x-1 bg-gray-100 rounded-lg p-1">
+              {(['day', 'week', 'month'] as ViewMode[]).map(mode => (
+                <button
+                  key={mode}
+                  onClick={() => setViewMode(mode)}
+                  className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    viewMode === mode
+                      ? 'bg-white text-gray-900 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  {mode.charAt(0).toUpperCase() + mode.slice(1)}
+                </button>
+              ))}
+            </div>
+
+            {/* Date Navigation */}
+            <div className="flex items-center justify-between">
+              <button
+                onClick={() => navigateDate('prev')}
+                className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+              
+              <button
+                onClick={() => setCurrentDate(new Date())}
+                className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md"
+              >
+                Today
+              </button>
+              
+              <button
+                onClick={() => navigateDate('next')}
+                className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          {/* Desktop Layout - Side by Side */}
+          <div className="hidden md:flex items-center justify-between">
             {/* View Mode Toggle */}
             <div className="flex space-x-1 bg-gray-100 rounded-lg p-1">
               {(['day', 'week', 'month'] as ViewMode[]).map(mode => (
@@ -908,15 +974,43 @@ export default function AppointmentsPage() {
 
               {/* Actions */}
               <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 rounded-b-xl">
-                <button
-                  onClick={closeAppointmentModal}
-                  className="w-full bg-indigo-600 text-white px-4 py-3 rounded-lg font-medium hover:bg-indigo-700 transition-colors"
-                >
-                  Close
-                </button>
+                <div className="flex space-x-3">
+                  {/* Show edit button for clients viewing their own appointments or practitioners viewing appointments assigned to them */}
+                  {userRoleData?.role && selectedAppointment.status === 'scheduled' && (
+                    (canViewOwnAppointmentsOnly(userRoleData.role) && selectedAppointment.user_id === userRoleData.user?.id) ||
+                    (isPractitioner(userRoleData.role) && selectedAppointment.practitioner_id === userRoleData.user?.id)
+                  ) && (
+                    <button
+                      onClick={openEditModal}
+                      className="flex-1 bg-blue-600 text-white px-3 py-2 lg:px-4 lg:py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors text-sm lg:text-base"
+                    >
+                      Edit Appointment
+                    </button>
+                  )}
+                  <button
+                    onClick={closeAppointmentModal}
+                    className={`${userRoleData?.role && selectedAppointment.status === 'scheduled' && (
+                      (canViewOwnAppointmentsOnly(userRoleData.role) && selectedAppointment.user_id === userRoleData.user?.id) ||
+                      (isPractitioner(userRoleData.role) && selectedAppointment.practitioner_id === userRoleData.user?.id)
+                    ) ? 'flex-1' : 'w-full'} bg-gray-600 text-white px-3 py-2 lg:px-4 lg:py-3 rounded-lg font-medium hover:bg-gray-700 transition-colors text-sm lg:text-base`}
+                  >
+                    Close
+                  </button>
+                </div>
               </div>
             </div>
           </div>
+        )}
+
+        {/* Edit Appointment Modal */}
+        {showEditModal && selectedAppointment && userRoleData && (
+          <EditAppointmentModal
+            appointment={selectedAppointment}
+            isClosing={isEditModalClosing}
+            onClose={closeEditModal}
+            onUpdate={loadAppointments}
+            userRoleData={userRoleData}
+          />
         )}
       </main>
     </div>

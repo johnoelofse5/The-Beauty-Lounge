@@ -154,7 +154,7 @@ export default function HomePage() {
                           {user ? (
                             <div className="mt-4">
                               <Link
-                                href="/appointments"
+                                href={`/appointments?serviceId=${service.id}`}
                                 className="block w-full bg-[#F2C7EB] text-gray-900 px-4 py-2 rounded-md hover:bg-[#E8A8D8] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#F2C7EB] transition-colors text-sm font-medium text-center"
                               >
                                 Book Appointment

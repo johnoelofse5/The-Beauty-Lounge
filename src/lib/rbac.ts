@@ -127,6 +127,27 @@ export function canViewAllAppointments(userRole: UserRole | null): boolean {
 }
 
 /**
+ * Check if user has admin-level access (super admin only)
+ */
+export function canViewAdmin(userRole: UserRole | null): boolean {
+  return isSuperAdmin(userRole)
+}
+
+/**
+ * Check if user can manage services (super admin or practitioner)
+ */
+export function canManageServices(userRole: UserRole | null): boolean {
+  return isSuperAdmin(userRole) || isPractitioner(userRole)
+}
+
+/**
+ * Check if user can manage users (super admin or practitioner)
+ */
+export function canManageUsers(userRole: UserRole | null): boolean {
+  return isSuperAdmin(userRole) || isPractitioner(userRole)
+}
+
+/**
  * Check if user can only view their own appointments (client)
  */
 export function canViewOwnAppointmentsOnly(userRole: UserRole | null): boolean {

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { getServicesWithCategories, formatPrice, formatDuration } from '@/lib/services'
 import { ServiceWithCategory } from '@/types'
@@ -25,6 +25,7 @@ interface Practitioner {
 export default function AppointmentsPage() {
   const { user, loading: authLoading } = useAuth()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [services, setServices] = useState<ServiceWithCategory[]>([])
   const [practitioners, setPractitioners] = useState<Practitioner[]>([])
   const [loading, setLoading] = useState(true)
@@ -57,6 +58,9 @@ export default function AppointmentsPage() {
   // Available time slots
   const [availableSlots, setAvailableSlots] = useState<TimeSlot[]>([])
   const [loadingSlots, setLoadingSlots] = useState(false)
+  
+  // Floating pill visibility
+  const [showFloatingPill, setShowFloatingPill] = useState(true)
 
   // Load services and practitioners
   useEffect(() => {
@@ -65,6 +69,21 @@ export default function AppointmentsPage() {
       loadPractitioners()
     }
   }, [user])
+
+  // Pre-select service from URL parameter
+  useEffect(() => {
+    const serviceId = searchParams.get('serviceId')
+    if (serviceId && services.length > 0) {
+      const serviceToSelect = services.find(service => service.id === serviceId)
+      if (serviceToSelect && !selectedServices.find(s => s.id === serviceId)) {
+        setSelectedServices([serviceToSelect])
+        // Remove the serviceId from URL to clean up the address bar
+        const newUrl = new URL(window.location.href)
+        newUrl.searchParams.delete('serviceId')
+        window.history.replaceState({}, '', newUrl.toString())
+      }
+    }
+  }, [services, searchParams, selectedServices])
 
   // Helper functions for date handling
   const getTomorrowDate = () => {
@@ -81,7 +100,11 @@ export default function AppointmentsPage() {
 
   const formatDateForAPI = (date: Date | undefined) => {
     if (!date) return ''
-    return date.toISOString().split('T')[0]
+    // Use local date formatting instead of UTC to avoid timezone issues
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
   }
 
   const loadAvailableSlots = useCallback(async () => {
@@ -94,6 +117,7 @@ export default function AppointmentsPage() {
       const totalDurationMinutes = selectedServices.reduce((total, service) => total + service.duration_minutes, 0)
       
       // Get existing appointments for the selected date and practitioner
+      // Now that RLS policy allows reading appointments for availability checking
       const { data: existingAppointments, error } = await supabase
         .from('appointments')
         .select('start_time, end_time')
@@ -161,6 +185,35 @@ export default function AppointmentsPage() {
       setSelectedTime('')
     }
   }, [selectedPractitioner, selectedDate, selectedServices])
+
+  // Handle floating pill visibility based on scroll position
+  useEffect(() => {
+    if (bookingStep !== 'service' || selectedServices.length === 0) {
+      setShowFloatingPill(true)
+      return
+    }
+
+    const handleScroll = () => {
+      const selectedServicesElement = document.getElementById('selected-services-section')
+      if (!selectedServicesElement) {
+        setShowFloatingPill(true)
+        return
+      }
+
+      const rect = selectedServicesElement.getBoundingClientRect()
+      const isVisible = rect.top <= window.innerHeight && rect.bottom >= 0
+      
+      // Hide pill when selected services section is visible, show when scrolling up
+      setShowFloatingPill(!isVisible)
+    }
+
+    window.addEventListener('scroll', handleScroll)
+    handleScroll() // Check initial state
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll)
+    }
+  }, [bookingStep, selectedServices.length])
 
   const loadServices = async () => {
     try {
@@ -322,21 +375,6 @@ export default function AppointmentsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-4">
-              <Link href="/" className="text-indigo-600 hover:text-indigo-500">
-                ← Back to Home
-              </Link>
-              <h1 className="text-xl font-bold text-gray-900 sm:text-2xl">
-                Book Appointment
-              </h1>
-            </div>
-          </div>
-        </div>
-      </header>
 
       {/* Main Content */}
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -387,46 +425,40 @@ export default function AppointmentsPage() {
 
           {/* Mobile Progress Steps */}
           <div className="md:hidden">
-            <div className="flex items-center justify-between mb-3">
-              <div className={`flex items-center ${bookingStep === 'service' ? 'text-indigo-600' : bookingStep === 'practitioner' || bookingStep === 'datetime' || bookingStep === 'confirm' ? 'text-green-600' : 'text-gray-400'}`}>
-                <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center text-xs font-medium ${bookingStep === 'service' ? 'border-indigo-600 bg-indigo-600 text-white' : bookingStep === 'practitioner' || bookingStep === 'datetime' || bookingStep === 'confirm' ? 'border-green-600 bg-green-600 text-white' : 'border-gray-300'}`}>
-                  1
-                </div>
-                <span className="ml-1 text-xs font-medium">Services</span>
-              </div>
-              
-              <div className={`flex items-center ${bookingStep === 'practitioner' ? 'text-indigo-600' : bookingStep === 'datetime' || bookingStep === 'confirm' ? 'text-green-600' : 'text-gray-400'}`}>
-                <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center text-xs font-medium ${bookingStep === 'practitioner' ? 'border-indigo-600 bg-indigo-600 text-white' : bookingStep === 'datetime' || bookingStep === 'confirm' ? 'border-green-600 bg-green-600 text-white' : 'border-gray-300'}`}>
-                  2
-                </div>
-                <span className="ml-1 text-xs font-medium">Practitioner</span>
-              </div>
-              
-              <div className={`flex items-center ${bookingStep === 'datetime' ? 'text-indigo-600' : bookingStep === 'confirm' ? 'text-green-600' : 'text-gray-400'}`}>
-                <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center text-xs font-medium ${bookingStep === 'datetime' ? 'border-indigo-600 bg-indigo-600 text-white' : bookingStep === 'confirm' ? 'border-green-600 bg-green-600 text-white' : 'border-gray-300'}`}>
-                  3
-                </div>
-                <span className="ml-1 text-xs font-medium">Date & Time</span>
-              </div>
-              
-              <div className={`flex items-center ${bookingStep === 'confirm' ? 'text-indigo-600' : 'text-gray-400'}`}>
-                <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center text-xs font-medium ${bookingStep === 'confirm' ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-gray-300'}`}>
-                  4
-                </div>
-                <span className="ml-1 text-xs font-medium">Confirm</span>
-              </div>
-            </div>
-            
             {/* Mobile Progress Bar */}
-            <div className="w-full bg-gray-200 rounded-full h-2">
+            <div className="w-full bg-gray-200 rounded-full h-3 mb-4">
               <div 
-                className="bg-indigo-600 h-2 rounded-full transition-all duration-300"
+                className="bg-indigo-600 h-3 rounded-full transition-all duration-300"
                 style={{ 
                   width: bookingStep === 'service' ? '25%' : 
-                         bookingStep === 'practitioner' ? '50%' : 
-                         bookingStep === 'datetime' ? '75%' : '100%' 
+                         bookingStep === 'datetime' ? '50%' : 
+                         bookingStep === 'confirm' ? '75%' : '100%' 
                 }}
               ></div>
+            </div>
+            
+            {/* Mobile Step Indicators */}
+            <div className="flex items-center justify-between">
+              <div className={`flex flex-col items-center ${bookingStep === 'service' ? 'text-indigo-600' : bookingStep === 'datetime' || bookingStep === 'confirm' ? 'text-green-600' : 'text-gray-400'}`}>
+                <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-sm font-medium mb-1 ${bookingStep === 'service' ? 'border-indigo-600 bg-indigo-600 text-white' : bookingStep === 'datetime' || bookingStep === 'confirm' ? 'border-green-600 bg-green-600 text-white' : 'border-gray-300'}`}>
+                  1
+                </div>
+                <span className="text-xs font-medium text-center">Services</span>
+              </div>
+              
+              <div className={`flex flex-col items-center ${bookingStep === 'datetime' ? 'text-indigo-600' : bookingStep === 'confirm' ? 'text-green-600' : 'text-gray-400'}`}>
+                <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-sm font-medium mb-1 ${bookingStep === 'datetime' ? 'border-indigo-600 bg-indigo-600 text-white' : bookingStep === 'confirm' ? 'border-green-600 bg-green-600 text-white' : 'border-gray-300'}`}>
+                  2
+                </div>
+                <span className="text-xs font-medium text-center">Date & Time</span>
+              </div>
+              
+              <div className={`flex flex-col items-center ${bookingStep === 'confirm' ? 'text-indigo-600' : 'text-gray-400'}`}>
+                <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-sm font-medium mb-1 ${bookingStep === 'confirm' ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-gray-300'}`}>
+                  3
+                </div>
+                <span className="text-xs font-medium text-center">Confirm</span>
+              </div>
             </div>
           </div>
         </div>
@@ -442,69 +474,125 @@ export default function AppointmentsPage() {
                 </div>
               )}
             </div>
+
+            {/* Sticky Category Navigation Bar */}
+            <div className="sticky top-0 z-10 bg-gray-50 py-4 mb-6 -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+              <div className="flex overflow-x-auto scrollbar-hide space-x-2 pb-2">
+                {Object.entries(
+                  services.reduce((acc, service) => {
+                    const categoryName = service.category_name || 'Other Services'
+                    if (!acc[categoryName]) {
+                      acc[categoryName] = []
+                    }
+                    acc[categoryName].push(service)
+                    return acc
+                  }, {} as { [key: string]: ServiceWithCategory[] })
+                )
+                  .sort(([, servicesA], [, servicesB]) => {
+                    const orderA = servicesA[0]?.category_display_order || 999
+                    const orderB = servicesB[0]?.category_display_order || 999
+                    return orderA - orderB
+                  })
+                  .map(([categoryName]) => (
+                    <button
+                      key={categoryName}
+                      onClick={() => {
+                        const element = document.getElementById(`category-${categoryName.replace(/\s+/g, '-').toLowerCase()}`)
+                        element?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                      }}
+                      className="flex-shrink-0 px-4 py-2 bg-white border border-gray-200 rounded-full text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-colors whitespace-nowrap shadow-sm"
+                    >
+                      {categoryName}
+                    </button>
+                  ))}
+              </div>
+            </div>
             
-            <div className="grid grid-cols-1 gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {services.map((service) => {
-                const isSelected = selectedServices.some(s => s.id === service.id)
-                return (
-                  <div
-                    key={service.id}
-                    onClick={() => handleServiceSelect(service)}
-                    className={`bg-white rounded-lg border shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer ${
-                      isSelected 
-                        ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-200' 
-                        : 'border-gray-200 hover:border-indigo-300'
-                    }`}
-                  >
-                    <div className="p-4 sm:p-6">
-                      <div className="flex items-start justify-between mb-2">
-                        <h3 className="text-lg font-semibold text-gray-900">
-                          {service.name}
-                        </h3>
-                        {isSelected && (
-                          <div className="flex-shrink-0 ml-2">
-                            <div className="w-6 h-6 bg-indigo-600 rounded-full flex items-center justify-center">
-                              <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                              </svg>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                      {service.description && (
-                        <p className="text-sm text-gray-600 mb-3 line-clamp-2">
-                          {service.description}
-                        </p>
-                      )}
-                      <div className="flex items-center justify-between">
-                        <div className="text-sm text-gray-500">
-                          {formatDuration(service.duration_minutes)}
-                        </div>
-                        <div className="text-lg font-bold text-indigo-600">
-                          {formatPrice(service.price || 0)}
-                        </div>
-                      </div>
-                      {service.category_name && (
-                        <div className="mt-3">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                            {service.category_name}
-                          </span>
-                        </div>
+            <div className="space-y-8">
+              {Object.entries(
+                services.reduce((acc, service) => {
+                  const categoryName = service.category_name || 'Other Services'
+                  if (!acc[categoryName]) {
+                    acc[categoryName] = []
+                  }
+                  acc[categoryName].push(service)
+                  return acc
+                }, {} as { [key: string]: ServiceWithCategory[] })
+              )
+                .sort(([, servicesA], [, servicesB]) => {
+                  const orderA = servicesA[0]?.category_display_order || 999
+                  const orderB = servicesB[0]?.category_display_order || 999
+                  return orderA - orderB
+                })
+                .map(([categoryName, categoryServices]) => (
+                  <div key={categoryName} id={`category-${categoryName.replace(/\s+/g, '-').toLowerCase()}`} className="space-y-4">
+                    {/* Category Header */}
+                    <div className="border-b border-gray-200 pb-2">
+                      <h3 className="text-xl font-semibold text-gray-900">{categoryName}</h3>
+                      {categoryServices[0]?.category_description && (
+                        <p className="text-sm text-gray-600 mt-1">{categoryServices[0].category_description}</p>
                       )}
                     </div>
+
+                    {/* Services Grid for this category */}
+                    <div className="grid grid-cols-1 gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                      {categoryServices.map((service) => {
+                        const isSelected = selectedServices.some(s => s.id === service.id)
+                        return (
+                          <div
+                            key={service.id}
+                            onClick={() => handleServiceSelect(service)}
+                            className={`bg-white rounded-lg border shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer ${
+                              isSelected 
+                                ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-200' 
+                                : 'border-gray-200 hover:border-indigo-300'
+                            }`}
+                          >
+                            <div className="p-4 sm:p-6">
+                              <div className="flex items-start justify-between mb-2">
+                                <h4 className="text-lg font-semibold text-gray-900">
+                                  {service.name}
+                                </h4>
+                                {isSelected && (
+                                  <div className="flex-shrink-0 ml-2">
+                                    <div className="w-6 h-6 bg-indigo-600 rounded-full flex items-center justify-center">
+                                      <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                      </svg>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                              {service.description && (
+                                <p className="text-sm text-gray-600 mb-3 line-clamp-2">
+                                  {service.description}
+                                </p>
+                              )}
+                              <div className="flex items-center justify-between">
+                                <div className="text-sm text-gray-500">
+                                  {formatDuration(service.duration_minutes)}
+                                </div>
+                                <div className="text-lg font-bold text-gray-900">
+                                  {formatPrice(service.price || 0)}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
                   </div>
-                )
-              })}
+                ))}
             </div>
             
             {selectedServices.length > 0 && (
-              <div className="mt-6 sm:mt-8 bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
+              <div id="selected-services-section" className="mt-6 sm:mt-8 bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Selected Services</h3>
                 <div className="space-y-3">
                   {selectedServices.map((service) => (
                     <div key={service.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-b-0">
                       <div className="flex items-center space-x-3">
-                        <div className="w-5 h-5 bg-indigo-600 rounded-full flex items-center justify-center">
+                        <div className="w-5 h-5 bg-indigo-600 rounded-full flex items-center justify-center flex-shrink-0">
                           <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                           </svg>
@@ -515,7 +603,7 @@ export default function AppointmentsPage() {
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="font-semibold text-indigo-600">{formatPrice(service.price || 0)}</p>
+                        <p className="font-semibold text-gray-900">{formatPrice(service.price || 0)}</p>
                       </div>
                     </div>
                   ))}
@@ -530,7 +618,7 @@ export default function AppointmentsPage() {
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-medium text-gray-900">Total Price:</p>
-                      <p className="text-lg font-bold text-indigo-600">
+                      <p className="text-lg font-bold text-gray-900">
                         {formatPrice(selectedServices.reduce((total, service) => total + (service.price || 0), 0))}
                       </p>
                     </div>
@@ -546,6 +634,26 @@ export default function AppointmentsPage() {
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Floating Action Pill - Only show on service selection step when services are selected */}
+        {bookingStep === 'service' && selectedServices.length > 0 && (
+          <div className={`fixed bottom-6 left-1/2 transform -translate-x-1/2 z-20 transition-all duration-300 ${
+            showFloatingPill ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'
+          }`}>
+            <button
+              onClick={() => {
+                const element = document.getElementById('selected-services-section')
+                element?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+              }}
+              className="bg-indigo-600 text-white px-6 py-3 rounded-full shadow-lg border-2 border-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200 flex items-center justify-center space-x-2 font-medium min-w-[280px]"
+            >
+              <span>{selectedServices.length} service{selectedServices.length !== 1 ? 's' : ''} selected</span>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+              </svg>
+            </button>
           </div>
         )}
 
@@ -570,7 +678,7 @@ export default function AppointmentsPage() {
                       <p className="font-medium text-gray-900">{service.name}</p>
                       <p className="text-sm text-gray-700">{formatDuration(service.duration_minutes)}</p>
                     </div>
-                    <div className="text-indigo-600 font-semibold">
+                    <div className="text-gray-900 font-semibold">
                       {formatPrice(service.price || 0)}
                     </div>
                   </div>
@@ -586,7 +694,7 @@ export default function AppointmentsPage() {
                   </div>
                   <div className="text-right">
                     <p className="text-sm font-medium text-gray-900">Total Price:</p>
-                    <p className="text-lg font-bold text-indigo-600">
+                    <p className="text-lg font-bold text-gray-900">
                       {formatPrice(selectedServices.reduce((total, service) => total + (service.price || 0), 0))}
                     </p>
                   </div>
@@ -669,7 +777,7 @@ export default function AppointmentsPage() {
                           <p className="font-medium text-gray-900">{service.name}</p>
                           <p className="text-sm text-gray-700">{formatDuration(service.duration_minutes)}</p>
                         </div>
-                        <div className="text-indigo-600 font-semibold">
+                        <div className="text-gray-900 font-semibold">
                           {formatPrice(service.price || 0)}
                         </div>
                       </div>
@@ -699,7 +807,7 @@ export default function AppointmentsPage() {
                   </div>
                   <div className="text-right">
                     <p className="text-sm font-medium text-gray-900">Total Price:</p>
-                    <p className="text-lg font-bold text-indigo-600">
+                    <p className="text-lg font-bold text-gray-900">
                       {formatPrice(selectedServices.reduce((total, service) => total + (service.price || 0), 0))}
                     </p>
                   </div>
@@ -837,7 +945,7 @@ export default function AppointmentsPage() {
                           <p className="font-medium text-gray-900">{service.name}</p>
                           <p className="text-sm text-gray-700">{formatDuration(service.duration_minutes)}</p>
                         </div>
-                        <p className="font-semibold text-indigo-600">{formatPrice(service.price || 0)}</p>
+                        <p className="font-semibold text-gray-900">{formatPrice(service.price || 0)}</p>
                       </div>
                     ))}
                   </div>
@@ -887,7 +995,7 @@ export default function AppointmentsPage() {
                 
                 <div className="flex justify-between border-t pt-4">
                   <span className="text-gray-900 font-medium">Total Price:</span>
-                  <span className="font-bold text-indigo-600 text-xl">
+                  <span className="font-bold text-gray-900 text-xl">
                     {formatPrice(selectedServices.reduce((total, service) => total + (service.price || 0), 0))}
                   </span>
                 </div>
@@ -901,16 +1009,16 @@ export default function AppointmentsPage() {
               </div>
             </div>
 
-            <div className="flex justify-between">
+            <div className="flex space-x-3">
               <button
                 onClick={() => setBookingStep('service')}
-                className="bg-gray-200 text-gray-700 px-6 py-2 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 font-medium"
+                className="flex-1 bg-gray-200 text-gray-700 px-3 py-2 lg:px-6 lg:py-2 rounded-lg hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 font-medium text-sm lg:text-base transition-colors"
               >
                 Start Over
               </button>
               <button
                 onClick={handleBookingConfirm}
-                className="bg-green-600 text-white px-8 py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 font-medium"
+                className="flex-1 bg-green-600 text-white px-3 py-2 lg:px-8 lg:py-2 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 font-medium text-sm lg:text-base transition-colors"
               >
                 Confirm Appointment
               </button>

@@ -90,7 +90,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, [router])
 
   const signUp = async (email: string, password: string, userData?: UserSignUpData) => {
-    const { error } = await supabase.auth.signUp({
+    // First, sign up the user with Supabase Auth
+    const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -102,8 +103,48 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     })
 
-    if (error) {
-      throw new Error(error.message)
+    if (authError) {
+      throw new Error(authError.message)
+    }
+
+    // If user was created successfully, create a user record in the database
+    if (authData.user) {
+      try {
+        // Get the client role ID
+        const { data: clientRole, error: roleError } = await supabase
+          .from('roles')
+          .select('id')
+          .eq('name', 'client')
+          .single()
+
+        if (roleError) {
+          console.error('Error fetching client role:', roleError)
+          // Continue without role assignment - the database trigger will handle it
+        }
+
+        // Create user record in the users table
+        const { error: userError } = await supabase
+          .from('users')
+          .insert({
+            id: authData.user.id,
+            email: email,
+            first_name: userData?.first_name || '',
+            last_name: userData?.last_name || '',
+            phone: userData?.phone || '',
+            role_id: clientRole?.id || null, // Assign client role or let trigger handle it
+            is_active: true,
+            is_deleted: false
+          })
+
+        if (userError) {
+          console.error('Error creating user record:', userError)
+          // Don't throw error here as the auth user was created successfully
+          // The database trigger will handle role assignment
+        }
+      } catch (err) {
+        console.error('Error in user creation process:', err)
+        // Don't throw error here as the auth user was created successfully
+      }
     }
   }
 

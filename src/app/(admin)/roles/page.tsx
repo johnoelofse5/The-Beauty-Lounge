@@ -105,12 +105,13 @@ export default function RolesPage() {
 
       if (rolePermissionsError) throw rolePermissionsError
       
+      
       const rolePermissionsMap = new Map<string, RoleWithPermissions>()
       
-      rolePermissionsData?.forEach((rp: { role_id: string; roles: Role[]; permissions: Permission[] }) => {
+      rolePermissionsData?.forEach((rp: any) => {
         const roleId = rp.role_id
-        const role = rp.roles[0]
-        const permission = rp.permissions[0]
+        const role = rp.roles
+        const permission = rp.permissions
         
         if (!rolePermissionsMap.has(roleId)) {
           rolePermissionsMap.set(roleId, {
@@ -124,6 +125,7 @@ export default function RolesPage() {
       })
 
       const transformedRolePermissions = Array.from(rolePermissionsMap.values())
+      
 
       setRoles(rolesData || [])
       setPermissions(permissionsData || [])
@@ -370,7 +372,11 @@ export default function RolesPage() {
     // Get current permissions for this role
     const roleWithPermissions = rolePermissions.find(rp => rp.id === role.id)
     
-    setSelectedPermissions(roleWithPermissions?.permissions.map(p => p.id) || [])
+    if (roleWithPermissions) {
+      setSelectedPermissions(roleWithPermissions.permissions.map(p => p.id))
+    } else {
+      setSelectedPermissions([])
+    }
     
     setShowRolePermissionsModal(true)
   }
@@ -950,7 +956,7 @@ export default function RolesPage() {
                       type="checkbox"
                       checked={selectedPermissions.includes(permission.id)}
                       onChange={() => handlePermissionToggle(permission.id)}
-                      className="h-4 w-4 text-[#F2C7EB] focus:ring-[#F2C7EB] border-gray-300 rounded"
+                      className="h-5 w-5 text-[#F2C7EB] focus:ring-[#F2C7EB] border-gray-300 rounded flex-shrink-0"
                     />
                     <div className="ml-3 flex-1">
                       <div className="flex items-center space-x-2">

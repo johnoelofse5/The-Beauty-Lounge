@@ -200,58 +200,110 @@ export default function EmailTrackingPage() {
             <p className="text-sm text-gray-600">Showing {filteredEmails.length} of {emailTracking.length} records</p>
           </div>
           
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subject</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sent</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Error</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {filteredEmails.map((email) => (
-                  <tr key={email.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {email.email}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getTypeColor(email.email_type)}`}>
-                        {email.email_type.replace('_', ' ')}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(email.status)}`}>
+          {/* Desktop Table View */}
+          <div className="hidden lg:block">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subject</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sent</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Error</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {filteredEmails.map((email) => (
+                    <tr key={email.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {email.email}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getTypeColor(email.email_type)}`}>
+                          {email.email_type.replace('_', ' ')}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(email.status)}`}>
+                          {email.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-900">
+                        {email.subject || '-'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {formatDate(email.created_at)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {email.sent_at ? formatDate(email.sent_at) : '-'}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-500">
+                        {email.error_message ? (
+                          <span className="text-red-600" title={email.error_message}>
+                            {email.error_message.length > 50 
+                              ? `${email.error_message.substring(0, 50)}...` 
+                              : email.error_message
+                            }
+                          </span>
+                        ) : '-'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Mobile Card View */}
+          <div className="lg:hidden">
+            <div className="space-y-4 p-4">
+              {filteredEmails.map((email) => (
+                <div key={email.id} className="border border-gray-200 rounded-lg p-4 bg-white">
+                  <div className="flex justify-between items-start mb-3">
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-sm font-medium text-gray-900 truncate">
+                        {email.email}
+                      </h4>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {email.subject || 'No subject'}
+                      </p>
+                    </div>
+                    <div className="flex flex-col space-y-1 ml-2">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(email.status)}`}>
                         {email.status}
                       </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-900">
-                      {email.subject || '-'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {formatDate(email.created_at)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {email.sent_at ? formatDate(email.sent_at) : '-'}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-500">
-                      {email.error_message ? (
-                        <span className="text-red-600" title={email.error_message}>
-                          {email.error_message.length > 50 
-                            ? `${email.error_message.substring(0, 50)}...` 
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getTypeColor(email.email_type)}`}>
+                        {email.email_type.replace('_', ' ')}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2 text-xs text-gray-600">
+                    <div className="flex justify-between">
+                      <span>Created:</span>
+                      <span>{formatDate(email.created_at)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Sent:</span>
+                      <span>{email.sent_at ? formatDate(email.sent_at) : 'Not sent'}</span>
+                    </div>
+                    {email.error_message && (
+                      <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded">
+                        <span className="text-red-600 text-xs">
+                          Error: {email.error_message.length > 100 
+                            ? `${email.error_message.substring(0, 100)}...` 
                             : email.error_message
                           }
                         </span>
-                      ) : '-'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
 
           {filteredEmails.length === 0 && (
