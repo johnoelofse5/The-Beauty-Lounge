@@ -174,6 +174,7 @@ export default function ScheduleManagementPage() {
                           value={dayData.start_time}
                           onChange={(e) => handleTimeChange(key as keyof ScheduleFormData, 'start_time', e.target.value)}
                           className="w-full"
+                          label="Start Time"
                         />
                       </div>
                       <div>
@@ -185,6 +186,7 @@ export default function ScheduleManagementPage() {
                           value={dayData.end_time}
                           onChange={(e) => handleTimeChange(key as keyof ScheduleFormData, 'end_time', e.target.value)}
                           className="w-full"
+                          label="End Time"
                         />
                       </div>
                     </div>

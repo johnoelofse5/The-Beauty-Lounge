@@ -140,7 +140,6 @@ export default function TimeSlotSelector({
       {/* Available slots */}
       {availableSlots.length > 0 && (
         <div className="space-y-3">
-          <h4 className="text-sm font-medium text-gray-700">Available Times</h4>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
             {availableSlots.map((slot) => (
               <button
@@ -166,7 +165,6 @@ export default function TimeSlotSelector({
       {/* Unavailable slots (for reference) */}
       {unavailableSlots.length > 0 && (
         <div className="space-y-3">
-          <h4 className="text-sm font-medium text-gray-700">Unavailable Times</h4>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
             {unavailableSlots.map((slot) => (
               <div
