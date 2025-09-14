@@ -103,24 +103,49 @@ export default function HomePage() {
             <p className="text-gray-500 text-lg">No services available at the moment.</p>
           </div>
         ) : (
-          <div className="space-y-12">
-            {Object.entries(servicesByCategory)
-              .sort(([, servicesA], [, servicesB]) => {
-                const orderA = servicesA[0]?.category_display_order || 999
-                const orderB = servicesB[0]?.category_display_order || 999
-                return orderA - orderB
-              })
-              .map(([categoryName, categoryServices]) => (
-                <div key={categoryName} className="space-y-6">
-                  {/* Category Header */}
-                  <div className="flex items-center space-x-3">
           <div>
-                      <h3 className="text-2xl font-bold text-gray-900">{categoryName}</h3>
-                      {categoryServices[0]?.category_description && (
-                        <p className="text-gray-600">{categoryServices[0].category_description}</p>
-                      )}
-                    </div>
-          </div>
+            {/* Sticky Category Navigation Bar */}
+            <div className="sticky top-0 z-10 bg-gray-50 py-4 mb-6 -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+              <div className="flex overflow-x-auto scrollbar-hide space-x-2 pb-2">
+                {Object.entries(servicesByCategory)
+                  .sort(([, servicesA], [, servicesB]) => {
+                    const orderA = servicesA[0]?.category_display_order || 999
+                    const orderB = servicesB[0]?.category_display_order || 999
+                    return orderA - orderB
+                  })
+                  .map(([categoryName]) => (
+                    <button
+                      key={categoryName}
+                      onClick={() => {
+                        const element = document.getElementById(`category-${categoryName.replace(/\s+/g, '-').toLowerCase()}`)
+                        element?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                      }}
+                      className="flex-shrink-0 px-4 py-2 bg-white border border-gray-200 rounded-full text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-colors whitespace-nowrap shadow-sm"
+                    >
+                      {categoryName}
+                    </button>
+                  ))}
+              </div>
+            </div>
+
+            <div className="space-y-12">
+              {Object.entries(servicesByCategory)
+                .sort(([, servicesA], [, servicesB]) => {
+                  const orderA = servicesA[0]?.category_display_order || 999
+                  const orderB = servicesB[0]?.category_display_order || 999
+                  return orderA - orderB
+                })
+                .map(([categoryName, categoryServices]) => (
+                  <div key={categoryName} id={`category-${categoryName.replace(/\s+/g, '-').toLowerCase()}`} className="space-y-6">
+                    {/* Category Header */}
+                    <div className="flex items-center space-x-3">
+            <div>
+                        <h3 className="text-2xl font-bold text-gray-900">{categoryName}</h3>
+                        {categoryServices[0]?.category_description && (
+                          <p className="text-gray-600">{categoryServices[0].category_description}</p>
+                        )}
+                      </div>
+            </div>
 
                   {/* Services Grid for this category */}
                   <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -176,6 +201,7 @@ export default function HomePage() {
                   </div>
                 </div>
               ))}
+            </div>
           </div>
         )}
 

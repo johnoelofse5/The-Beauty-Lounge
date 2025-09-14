@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
-import { canViewAllAppointments, canViewAdmin, canManageServices, canManageUsers } from '@/lib/rbac'  
+import { canViewAllAppointments, canViewAdmin, canManageServices, canManageUsers, isPractitioner } from '@/lib/rbac'  
 import {
   Sidebar,
   SidebarContent,
@@ -27,6 +27,7 @@ import {
   User,
   LogOut,
   Sparkles,
+  PlusCircle,
 } from 'lucide-react'
 
 interface SidebarNavProps {
@@ -61,6 +62,7 @@ export default function SidebarNav({ title = "The Beauty Lounge" }: SidebarNavPr
   const canViewAllAppts = canViewAllAppointments(userRoleData?.role || null)
   const canManageServicesAccess = canManageServices(userRoleData?.role || null)
   const canManageUsersAccess = canManageUsers(userRoleData?.role || null)
+  const isPractitionerUser = isPractitioner(userRoleData?.role || null)
 
   const navigationItems = [
     {
@@ -80,6 +82,12 @@ export default function SidebarNav({ title = "The Beauty Lounge" }: SidebarNavPr
       url: "/appointments-management",
       icon: Calendar,
       show: canViewAllAppts, // Show for practitioners and super admins
+    },
+    {
+      title: "Book for Client",
+      url: "/appointments",
+      icon: PlusCircle,
+      show: isPractitionerUser, // Show only for practitioners
     },
     {
       title: "Services",

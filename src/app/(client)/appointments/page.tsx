@@ -4,10 +4,12 @@ import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
+import { useToast } from '@/contexts/ToastContext'
 import { getServicesWithCategories, formatPrice, formatDuration } from '@/lib/services'
 import { ServiceWithCategory } from '@/types'
 import { supabase } from '@/lib/supabase'
 import { DatePicker } from '@/components/date-picker'
+import { isPractitioner } from '@/lib/rbac'
 
 interface TimeSlot {
   time: string
@@ -22,38 +24,36 @@ interface Practitioner {
   phone: string
 }
 
+interface Client {
+  id: string
+  first_name: string
+  last_name: string
+  email: string
+  phone: string
+}
+
 export default function AppointmentsPage() {
-  const { user, loading: authLoading } = useAuth()
+  const { user, userRoleData, loading: authLoading } = useAuth()
+  const { showSuccess, showError } = useToast()
   const router = useRouter()
   const searchParams = useSearchParams()
   const [services, setServices] = useState<ServiceWithCategory[]>([])
   const [practitioners, setPractitioners] = useState<Practitioner[]>([])
+  const [clients, setClients] = useState<Client[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState<string | null>(null)
 
-  // Auto-dismiss messages after 3 seconds
-  useEffect(() => {
-    if (error) {
-      const timer = setTimeout(() => setError(null), 3000)
-      return () => clearTimeout(timer)
-    }
-  }, [error])
-
-  useEffect(() => {
-    if (success) {
-      const timer = setTimeout(() => setSuccess(null), 3000)
-      return () => clearTimeout(timer)
-    }
-  }, [success])
   
   // Booking form state
   const [selectedServices, setSelectedServices] = useState<ServiceWithCategory[]>([])
   const [selectedPractitioner, setSelectedPractitioner] = useState<Practitioner | null>(null)
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null)
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined)
   const [selectedTime, setSelectedTime] = useState<string>('')
   const [notes, setNotes] = useState<string>('')
-  const [bookingStep, setBookingStep] = useState<'service' | 'practitioner' | 'datetime' | 'confirm'>('service')
+  
+  // Determine booking flow based on user role
+  const isPractitionerUser = isPractitioner(userRoleData?.role || null)
+  const [bookingStep, setBookingStep] = useState<'service' | 'practitioner' | 'client' | 'datetime' | 'confirm'>('service')
   
   // Available time slots
   const [availableSlots, setAvailableSlots] = useState<TimeSlot[]>([])
@@ -62,13 +62,16 @@ export default function AppointmentsPage() {
   // Floating pill visibility
   const [showFloatingPill, setShowFloatingPill] = useState(true)
 
-  // Load services and practitioners
+  // Load services, practitioners, and clients
   useEffect(() => {
     if (user) {
       loadServices()
       loadPractitioners()
+      if (isPractitionerUser) {
+        loadClients()
+      }
     }
-  }, [user])
+  }, [user, isPractitionerUser])
 
   // Pre-select service from URL parameter
   useEffect(() => {
@@ -221,7 +224,7 @@ export default function AppointmentsPage() {
       const servicesData = await getServicesWithCategories()
       setServices(servicesData)
     } catch (err) {
-      setError('Failed to load services')
+      showError('Failed to load services')
       console.error('Error loading services:', err)
     } finally {
       setLoading(false)
@@ -247,8 +250,26 @@ export default function AppointmentsPage() {
         setSelectedPractitioner(practitionersData[0])
       }
     } catch (err) {
-      setError('Failed to load practitioners')
+      showError('Failed to load practitioners')
       console.error('Error loading practitioners:', err)
+    }
+  }
+
+  const loadClients = async () => {
+    try {
+      const { data: clientsData, error } = await supabase
+        .from('users')
+        .select('id, first_name, last_name, email, phone')
+        .eq('is_practitioner', false)
+        .eq('is_active', true)
+        .eq('is_deleted', false)
+        .order('first_name', { ascending: true })
+
+      if (error) throw error
+      setClients(clientsData || [])
+    } catch (err) {
+      showError('Failed to load clients')
+      console.error('Error loading clients:', err)
     }
   }
 
@@ -268,13 +289,29 @@ export default function AppointmentsPage() {
 
   const handleContinueToPractitioner = () => {
     if (selectedServices.length > 0) {
-      setBookingStep('practitioner')
+      if (isPractitionerUser) {
+        setBookingStep('client')
+      } else {
+        setBookingStep('practitioner')
+      }
+    }
+  }
+
+  const handleContinueToClient = () => {
+    if (selectedServices.length > 0) {
+      setBookingStep('client')
     }
   }
 
   const handleContinueToDateTime = () => {
-    if (selectedServices.length > 0 && selectedPractitioner) {
-      setBookingStep('datetime')
+    if (isPractitionerUser) {
+      if (selectedServices.length > 0 && selectedClient) {
+        setBookingStep('datetime')
+      }
+    } else {
+      if (selectedServices.length > 0 && selectedPractitioner) {
+        setBookingStep('datetime')
+      }
     }
   }
 
@@ -285,7 +322,12 @@ export default function AppointmentsPage() {
   }
 
   const handleBookingConfirm = async () => {
-    if (selectedServices.length === 0 || !selectedDate || !selectedTime || !selectedPractitioner || !user) return
+    // Validate based on user role
+    if (isPractitionerUser) {
+      if (selectedServices.length === 0 || !selectedDate || !selectedTime || !selectedClient || !user) return
+    } else {
+      if (selectedServices.length === 0 || !selectedDate || !selectedTime || !selectedPractitioner || !user) return
+    }
 
     try {
       // Calculate total duration for all services
@@ -298,8 +340,8 @@ export default function AppointmentsPage() {
 
       // Create appointment with all selected services
       const appointmentData = {
-        user_id: user.id,
-        practitioner_id: selectedPractitioner.id,
+        user_id: isPractitionerUser ? selectedClient!.id : user.id,
+        practitioner_id: isPractitionerUser ? user.id : selectedPractitioner!.id,
         appointment_date: formatDateForAPI(selectedDate),
         start_time: selectedTime,
         end_time: endTimeString,
@@ -319,23 +361,28 @@ export default function AppointmentsPage() {
 
       if (error) throw error
 
-      setSuccess('Appointment booked successfully! Redirecting to home page...')
+      showSuccess('Appointment booked successfully! Redirecting...')
       
       // Reset form
       setSelectedServices([])
       setSelectedPractitioner(practitioners.length === 1 ? practitioners[0] : null)
+      setSelectedClient(null)
       setSelectedDate(undefined)
       setSelectedTime('')
       setNotes('')
       setBookingStep('service')
       
-      // Redirect to home page after 2 seconds
+      // Redirect based on user role
       setTimeout(() => {
-        router.push('/')
+        if (isPractitionerUser) {
+          router.push('/appointments-management')
+        } else {
+          router.push('/')
+        }
       }, 2000)
       
     } catch (err) {
-      setError('Failed to book appointment. Please try again.')
+      showError('Failed to book appointment. Please try again.')
       console.error('Error booking appointment:', err)
     }
   }
@@ -378,46 +425,46 @@ export default function AppointmentsPage() {
 
       {/* Main Content */}
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Messages */}
-        {error && (
-          <div className="mb-6 rounded-md bg-red-50 p-4 border border-red-200">
-            <div className="text-sm text-red-700">{error}</div>
-          </div>
-        )}
-        {success && (
-          <div className="mb-6 rounded-md bg-green-50 p-4 border border-green-200">
-            <div className="text-sm text-green-700">{success}</div>
-          </div>
-        )}
 
         {/* Progress Steps */}
         <div className="mb-8">
           {/* Desktop Progress Steps */}
           <div className="hidden md:flex items-center justify-center space-x-6">
-            <div className={`flex items-center ${bookingStep === 'service' ? 'text-indigo-600' : bookingStep === 'practitioner' || bookingStep === 'datetime' || bookingStep === 'confirm' ? 'text-green-600' : 'text-gray-400'}`}>
-              <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-sm font-medium ${bookingStep === 'service' ? 'border-indigo-600 bg-indigo-600 text-white' : bookingStep === 'practitioner' || bookingStep === 'datetime' || bookingStep === 'confirm' ? 'border-green-600 bg-green-600 text-white' : 'border-gray-300'}`}>
+            <div className={`flex items-center ${bookingStep === 'service' ? 'text-indigo-600' : bookingStep === 'practitioner' || bookingStep === 'client' || bookingStep === 'datetime' || bookingStep === 'confirm' ? 'text-green-600' : 'text-gray-400'}`}>
+              <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-sm font-medium ${bookingStep === 'service' ? 'border-indigo-600 bg-indigo-600 text-white' : bookingStep === 'practitioner' || bookingStep === 'client' || bookingStep === 'datetime' || bookingStep === 'confirm' ? 'border-green-600 bg-green-600 text-white' : 'border-gray-300'}`}>
                 1
               </div>
               <span className="ml-2 text-sm font-medium">Services</span>
             </div>
             
-            <div className={`flex items-center ${bookingStep === 'practitioner' ? 'text-indigo-600' : bookingStep === 'datetime' || bookingStep === 'confirm' ? 'text-green-600' : 'text-gray-400'}`}>
-              <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-sm font-medium ${bookingStep === 'practitioner' ? 'border-indigo-600 bg-indigo-600 text-white' : bookingStep === 'datetime' || bookingStep === 'confirm' ? 'border-green-600 bg-green-600 text-white' : 'border-gray-300'}`}>
-                2
+            {!isPractitionerUser && (
+              <div className={`flex items-center ${bookingStep === 'practitioner' ? 'text-indigo-600' : bookingStep === 'datetime' || bookingStep === 'confirm' ? 'text-green-600' : 'text-gray-400'}`}>
+                <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-sm font-medium ${bookingStep === 'practitioner' ? 'border-indigo-600 bg-indigo-600 text-white' : bookingStep === 'datetime' || bookingStep === 'confirm' ? 'border-green-600 bg-green-600 text-white' : 'border-gray-300'}`}>
+                  2
+                </div>
+                <span className="ml-2 text-sm font-medium">Practitioner</span>
               </div>
-              <span className="ml-2 text-sm font-medium">Practitioner</span>
-            </div>
+            )}
+            
+            {isPractitionerUser && (
+              <div className={`flex items-center ${bookingStep === 'client' ? 'text-indigo-600' : bookingStep === 'datetime' || bookingStep === 'confirm' ? 'text-green-600' : 'text-gray-400'}`}>
+                <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-sm font-medium ${bookingStep === 'client' ? 'border-indigo-600 bg-indigo-600 text-white' : bookingStep === 'datetime' || bookingStep === 'confirm' ? 'border-green-600 bg-green-600 text-white' : 'border-gray-300'}`}>
+                  2
+                </div>
+                <span className="ml-2 text-sm font-medium">Client</span>
+              </div>
+            )}
             
             <div className={`flex items-center ${bookingStep === 'datetime' ? 'text-indigo-600' : bookingStep === 'confirm' ? 'text-green-600' : 'text-gray-400'}`}>
               <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-sm font-medium ${bookingStep === 'datetime' ? 'border-indigo-600 bg-indigo-600 text-white' : bookingStep === 'confirm' ? 'border-green-600 bg-green-600 text-white' : 'border-gray-300'}`}>
-                3
+                {isPractitionerUser ? '3' : '3'}
               </div>
               <span className="ml-2 text-sm font-medium">Date & Time</span>
             </div>
             
             <div className={`flex items-center ${bookingStep === 'confirm' ? 'text-indigo-600' : 'text-gray-400'}`}>
               <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-sm font-medium ${bookingStep === 'confirm' ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-gray-300'}`}>
-                4
+                {isPractitionerUser ? '4' : '4'}
               </div>
               <span className="ml-2 text-sm font-medium">Confirm</span>
             </div>
@@ -629,7 +676,7 @@ export default function AppointmentsPage() {
                     onClick={handleContinueToPractitioner}
                     className="w-full sm:w-auto bg-indigo-600 text-white px-6 py-3 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 font-medium"
                   >
-                    Continue to Practitioner
+                    Continue to {isPractitionerUser ? 'Client' : 'Practitioner'}
                   </button>
                 </div>
               </div>
@@ -743,7 +790,69 @@ export default function AppointmentsPage() {
               <div className="mt-8 flex justify-end">
                 <button
                   onClick={handleContinueToDateTime}
-                  className="bg-indigo-600 text-white px-6 py-2 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 font-medium"
+                  className="w-full sm:w-auto bg-indigo-600 text-white px-6 py-2 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 font-medium"
+                >
+                  Continue to Date & Time
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Step 2.5: Client Selection (for practitioners) */}
+        {bookingStep === 'client' && isPractitionerUser && (
+          <div>
+            <div className="mb-6">
+              <button
+                onClick={() => setBookingStep('service')}
+                className="text-indigo-600 hover:text-indigo-500 text-sm font-medium"
+              >
+                ← Change Services
+              </button>
+            </div>
+
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">Select Client</h2>
+            
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {clients.map((client) => (
+                <div
+                  key={client.id}
+                  onClick={() => setSelectedClient(client)}
+                  className={`bg-white rounded-lg border shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer ${
+                    selectedClient?.id === client.id 
+                      ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-200' 
+                      : 'border-gray-200 hover:border-indigo-300'
+                  }`}
+                >
+                  <div className="p-6">
+                    <div className="flex items-start justify-between mb-2">
+                      <h3 className="text-lg font-semibold text-gray-900">
+                        {client.first_name} {client.last_name}
+                      </h3>
+                      {selectedClient?.id === client.id && (
+                        <div className="flex-shrink-0 ml-2">
+                          <div className="w-6 h-6 bg-indigo-600 rounded-full flex items-center justify-center">
+                            <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm text-gray-600">{client.email}</p>
+                      <p className="text-sm text-gray-600">{client.phone}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            
+            {selectedClient && (
+              <div className="mt-8 flex justify-end">
+                <button
+                  onClick={handleContinueToDateTime}
+                  className="w-full sm:w-auto bg-indigo-600 text-white px-6 py-2 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 font-medium"
                 >
                   Continue to Date & Time
                 </button>
@@ -753,14 +862,14 @@ export default function AppointmentsPage() {
         )}
 
         {/* Step 3: Date & Time Selection */}
-        {bookingStep === 'datetime' && selectedServices.length > 0 && selectedPractitioner && (
+        {bookingStep === 'datetime' && selectedServices.length > 0 && ((isPractitionerUser && selectedClient) || (!isPractitionerUser && selectedPractitioner)) && (
           <div>
             <div className="mb-6">
               <button
-                onClick={() => setBookingStep('practitioner')}
+                onClick={() => setBookingStep(isPractitionerUser ? 'client' : 'practitioner')}
                 className="text-indigo-600 hover:text-indigo-500 text-sm font-medium"
               >
-                ← Change Practitioner
+                ← Change {isPractitionerUser ? 'Client' : 'Practitioner'}
               </button>
             </div>
 
@@ -786,13 +895,25 @@ export default function AppointmentsPage() {
                 </div>
                 
                 <div>
-                  <h4 className="font-medium text-gray-900 mb-3">Practitioner</h4>
+                  <h4 className="font-medium text-gray-900 mb-3">{isPractitionerUser ? 'Client' : 'Practitioner'}</h4>
                   <div className="p-3 bg-gray-50 rounded-md">
-                    <p className="font-medium text-gray-900">
-                      {selectedPractitioner.first_name} {selectedPractitioner.last_name}
-                    </p>
-                    <p className="text-sm text-gray-600">{selectedPractitioner.email}</p>
-                    <p className="text-sm text-gray-600">{selectedPractitioner.phone}</p>
+                    {isPractitionerUser ? (
+                      <>
+                        <p className="font-medium text-gray-900">
+                          {selectedClient?.first_name} {selectedClient?.last_name}
+                        </p>
+                        <p className="text-sm text-gray-600">{selectedClient?.email}</p>
+                        <p className="text-sm text-gray-600">{selectedClient?.phone}</p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="font-medium text-gray-900">
+                          {selectedPractitioner?.first_name} {selectedPractitioner?.last_name}
+                        </p>
+                        <p className="text-sm text-gray-600">{selectedPractitioner?.email}</p>
+                        <p className="text-sm text-gray-600">{selectedPractitioner?.phone}</p>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
@@ -849,7 +970,7 @@ export default function AppointmentsPage() {
                     <div className="flex items-center space-x-2">
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600"></div>
                       <span className="text-sm text-gray-900">
-                        Checking {selectedPractitioner.first_name} {selectedPractitioner.last_name}&apos;s availability...
+                        Checking {selectedPractitioner?.first_name} {selectedPractitioner?.last_name}&apos;s availability...
                       </span>
                     </div>
                   ) : availableSlots.length === 0 ? (
@@ -860,7 +981,7 @@ export default function AppointmentsPage() {
                         </svg>
                       </div>
                       <p className="text-sm text-gray-900 font-medium">
-                        No available time slots for {selectedPractitioner.first_name} {selectedPractitioner.last_name} on this date
+                        No available time slots for {selectedPractitioner?.first_name} {selectedPractitioner?.last_name} on this date
                       </p>
                       <p className="text-xs text-gray-500 mt-1">
                         Please try a different date or practitioner
@@ -919,7 +1040,7 @@ export default function AppointmentsPage() {
         )}
 
         {/* Step 4: Confirmation */}
-        {bookingStep === 'confirm' && selectedServices.length > 0 && selectedPractitioner && selectedDate && selectedTime && (
+        {bookingStep === 'confirm' && selectedServices.length > 0 && ((isPractitionerUser && selectedClient) || (!isPractitionerUser && selectedPractitioner)) && selectedDate && selectedTime && (
           <div>
             <div className="mb-6">
               <button
@@ -952,13 +1073,25 @@ export default function AppointmentsPage() {
                 </div>
                 
                 <div>
-                  <span className="text-gray-900 font-medium">Practitioner:</span>
+                  <span className="text-gray-900 font-medium">{isPractitionerUser ? 'Client:' : 'Practitioner:'}</span>
                   <div className="mt-2 p-3 bg-gray-50 rounded-md">
-                    <p className="font-medium text-gray-900">
-                      {selectedPractitioner.first_name} {selectedPractitioner.last_name}
-                    </p>
-                    <p className="text-sm text-gray-600">{selectedPractitioner.email}</p>
-                    <p className="text-sm text-gray-600">{selectedPractitioner.phone}</p>
+                    {isPractitionerUser ? (
+                      <>
+                        <p className="font-medium text-gray-900">
+                          {selectedClient?.first_name} {selectedClient?.last_name}
+                        </p>
+                        <p className="text-sm text-gray-600">{selectedClient?.email}</p>
+                        <p className="text-sm text-gray-600">{selectedClient?.phone}</p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="font-medium text-gray-900">
+                          {selectedPractitioner?.first_name} {selectedPractitioner?.last_name}
+                        </p>
+                        <p className="text-sm text-gray-600">{selectedPractitioner?.email}</p>
+                        <p className="text-sm text-gray-600">{selectedPractitioner?.phone}</p>
+                      </>
+                    )}
                   </div>
                 </div>
                 
