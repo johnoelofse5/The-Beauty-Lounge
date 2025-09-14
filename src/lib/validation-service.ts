@@ -5,7 +5,7 @@ export interface ValidationRule {
   min?: number
   max?: number
   pattern?: RegExp
-  custom?: (value: any) => string | null
+  custom?: (value: any, formData?: any) => string | null
   message?: string
 }
 
@@ -27,7 +27,7 @@ export class ValidationService {
   /**
    * Validate a single field against a rule
    */
-  static validateField(value: any, rule: ValidationRule, fieldName: string): string | null {
+  static validateField(value: any, rule: ValidationRule, fieldName: string, formData?: any): string | null {
     // Required validation
     if (rule.required && (!value || (typeof value === 'string' && !value.trim()))) {
       return rule.message || `${fieldName} is required`
@@ -65,7 +65,7 @@ export class ValidationService {
 
     // Custom validation
     if (rule.custom) {
-      const customError = rule.custom(value)
+      const customError = rule.custom(value, formData)
       if (customError) {
         return customError
       }
@@ -81,7 +81,7 @@ export class ValidationService {
     const errors: { [key: string]: string } = {}
 
     for (const [fieldName, rule] of Object.entries(schema)) {
-      const error = this.validateField(data[fieldName], rule, fieldName)
+      const error = this.validateField(data[fieldName], rule, fieldName, data)
       if (error) {
         errors[fieldName] = error
       }
@@ -161,8 +161,7 @@ export class ValidationService {
         maxLength: 50
       },
       phone: {
-        pattern: /^[\+]?[1-9][\d]{0,15}$/,
-        message: 'Please enter a valid phone number'
+        message: 'Please enter a phone number'
       }
     },
 
@@ -179,6 +178,37 @@ export class ValidationService {
       },
       category: {
         maxLength: 50
+      }
+    },
+
+    // External client validation schema
+    externalClient: {
+      firstName: {
+        required: true,
+        minLength: 1,
+        maxLength: 50,
+        message: 'First name is required'
+      },
+      lastName: {
+        required: true,
+        minLength: 1,
+        maxLength: 50,
+        message: 'Last name is required'
+      },
+      email: {
+        pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+        message: 'Please enter a valid email address'
+      },
+      phone: {
+        message: 'Please enter a phone number'
+      },
+      contactMethod: {
+        custom: (value: any, formData: any) => {
+          if (!formData?.email && !formData?.phone) {
+            return 'At least one contact method (email or phone) is required'
+          }
+          return null
+        }
       }
     },
 

@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/contexts/ToastContext'
-import { canViewAllAppointments, canViewAdmin, canManageServices, canManageUsers, isPractitioner, isSuperAdmin } from '@/lib/rbac'  
+import { canViewAllAppointments, canViewAdmin, canManageServices, canManageUsers, isPractitioner, isSuperAdmin, canManagePortfolio, canViewPortfolio, canManageSchedule } from '@/lib/rbac'  
 import {
   Sidebar,
   SidebarContent,
@@ -29,8 +29,10 @@ import {
   LogOut,
   Sparkles,
   PlusCircle,
-  Image
+  Image,
+  Clock
 } from 'lucide-react'
+import { useEffect, useState } from 'react'
 
 interface SidebarNavProps {
   title?: string
@@ -41,6 +43,36 @@ export default function SidebarNav({ title = "The Beauty Lounge" }: SidebarNavPr
   const { showSuccess, showError } = useToast()
   const pathname = usePathname()
   const { setOpenMobile, isMobile } = useSidebar()
+  const [permissions, setPermissions] = useState({
+    canManagePortfolio: false,
+    canViewPortfolio: false,
+    canManageSchedule: false
+  })
+
+  // Load permissions on component mount
+  useEffect(() => {
+    const loadPermissions = async () => {
+      if (!user?.id) return
+
+      try {
+        const [portfolioManage, portfolioView, scheduleManage] = await Promise.all([
+          canManagePortfolio(user.id),
+          canViewPortfolio(user.id),
+          canManageSchedule(user.id)
+        ])
+
+        setPermissions({
+          canManagePortfolio: portfolioManage,
+          canViewPortfolio: portfolioView,
+          canManageSchedule: scheduleManage
+        })
+      } catch (error) {
+        console.error('Error loading permissions:', error)
+      }
+    }
+
+    loadPermissions()
+  }, [user?.id])
 
   const handleSignOut = async () => {
     try {
@@ -100,13 +132,19 @@ export default function SidebarNav({ title = "The Beauty Lounge" }: SidebarNavPr
       title: "Portfolio",
       url: "/portfolio",
       icon: Image,
-      show: true, // Show for all logged-in users
+      show: permissions.canViewPortfolio, // Show based on permission
     },
     {
       title: "Manage Portfolio",
       url: "/portfolio/manage",
       icon: Image,
-      show: isPractitionerUser || canViewAdminFeatures, // Show only for practitioners and admins
+      show: permissions.canManagePortfolio, // Show based on permission
+    },
+    {
+      title: "Working Schedule",
+      url: "/schedule",
+      icon: Clock,
+      show: permissions.canManageSchedule, // Show based on permission
     },
     {
       title: "Services",

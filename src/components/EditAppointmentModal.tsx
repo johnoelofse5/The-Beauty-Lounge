@@ -6,15 +6,11 @@ import { ServiceWithCategory } from '@/types'
 import { formatDuration, formatPrice, getServicesWithCategories } from '@/lib/services'
 import { DatePicker } from '@/components/date-picker'
 import { hasPermission, isPractitioner } from '@/lib/rbac'
-
-interface TimeSlot {
-    time: string
-    available: boolean
-}
+import TimeSlotSelector from '@/components/TimeSlotSelector'
 
 interface Appointment {
     id: string
-    user_id: string
+    user_id: string | null
     practitioner_id: string
     service_id: string | null
     service_ids: string[]
@@ -27,6 +23,12 @@ interface Appointment {
     is_deleted: boolean
     created_at: string
     updated_at: string
+    // External client information
+    client_first_name?: string
+    client_last_name?: string
+    client_email?: string
+    client_phone?: string
+    is_external_client?: boolean
     client: {
         first_name: string
         last_name: string
@@ -73,7 +75,7 @@ export default function EditAppointmentModal({
     const [selectedServices, setSelectedServices] = useState<ServiceWithCategory[]>([])
     const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined)
     const [selectedTimeSlot, setSelectedTimeSlot] = useState<string>('')
-    const [availableSlots, setAvailableSlots] = useState<TimeSlot[]>([])
+    const [existingAppointments, setExistingAppointments] = useState<any[]>([])
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [success, setSuccess] = useState(false)
@@ -103,81 +105,45 @@ export default function EditAppointmentModal({
         loadServices()
     }, [])
 
-    // Load available time slots when date changes
+    // Load existing appointments when date changes
     useEffect(() => {
         if (selectedDate && appointment?.practitioner) {
-            loadAvailableSlots()
+            loadExistingAppointments()
+        } else {
+            setExistingAppointments([])
         }
     }, [selectedDate, appointment?.practitioner])
 
-    const formatTimeSlot = (time: string): string => {
-        if (!time) return ''
-        const [hours, minutes] = time.split(':').map(Number)
-        const period = hours >= 12 ? 'PM' : 'AM'
-        const displayHours = hours > 12 ? hours - 12 : hours === 0 ? 12 : hours
-        return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`
+    const formatDateForAPI = (date: Date): string => {
+        const year = date.getFullYear()
+        const month = String(date.getMonth() + 1).padStart(2, '0')
+        const day = String(date.getDate()).padStart(2, '0')
+        return `${year}-${month}-${day}`
     }
 
-    const loadAvailableSlots = async () => {
-        if (!selectedDate || !appointment?.practitioner) return
+    const loadExistingAppointments = async () => {
+        if (!selectedDate || !appointment?.practitioner) {
+            setExistingAppointments([])
+            return
+        }
 
         try {
             setLoading(true)
-
-            // Format date for database query
-            const dateString = selectedDate.toISOString().split('T')[0]
-
-            // Get existing appointments for the practitioner on the selected date
-            const { data: existingAppointments, error: appointmentsError } = await supabase
+            
+            const { data, error } = await supabase
                 .from('appointments')
                 .select('start_time, end_time')
+                .eq('appointment_date', formatDateForAPI(selectedDate))
                 .eq('practitioner_id', appointment.practitioner_id)
-                .eq('appointment_date', dateString)
                 .eq('is_active', true)
                 .eq('is_deleted', false)
                 .neq('id', appointment.id) // Exclude current appointment
 
-            if (appointmentsError) throw appointmentsError
-
-            // Generate time slots (9 AM to 5 PM, 30-minute intervals)
-            const slots: TimeSlot[] = []
-            const startHour = 9
-            const endHour = 17
-            const intervalMinutes = 30
-
-            for (let hour = startHour; hour < endHour; hour++) {
-                for (let minute = 0; minute < 60; minute += intervalMinutes) {
-                    const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}:00`
-
-                    // Calculate end time for this slot with all selected services
-                    const totalDuration = selectedServices.reduce((sum, service) => sum + service.duration_minutes, 0)
-                    const startTime = new Date(`${dateString}T${timeString}`)
-                    const endTime = new Date(startTime.getTime() + totalDuration * 60000)
-                    const endTimeString = endTime.toTimeString().split(' ')[0]
-
-                    // Check if this slot conflicts with existing appointments
-                    const hasConflict = existingAppointments?.some(apt => {
-                        const aptStart = apt.start_time
-                        const aptEnd = apt.end_time
-                        // Check if our appointment (timeString to endTimeString) would overlap with existing appointment
-                        return (timeString < aptEnd && endTimeString > aptStart)
-                    })
-
-                    // Also check if the appointment would extend beyond business hours
-                    const businessEndTime = `${endHour.toString().padStart(2, '0')}:00:00`
-                    const withinBusinessHours = endTimeString <= businessEndTime
-
-                    slots.push({
-                        time: timeString,
-                        available: !hasConflict && withinBusinessHours
-                    })
-                }
-            }
-
-            setAvailableSlots(slots)
+            if (error) throw error
+            setExistingAppointments(data || [])
         } catch (err) {
-            console.error('Error loading available slots:', err)
-            setError('Failed to load available time slots')
+            console.error('Error loading existing appointments:', err)
+            setExistingAppointments([])
         } finally {
             setLoading(false)
         }
@@ -449,46 +415,16 @@ export default function EditAppointmentModal({
                             {/* Time Selection */}
                             <div>
                                 <h4 className="text-lg font-semibold text-gray-900 mb-3">Select Time</h4>
-                                {loading ? (
-                                    <div className="flex items-center space-x-2">
-                                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600"></div>
-                                        <span className="text-sm text-gray-900">
-                                            Checking {appointment.practitioner?.first_name} {appointment.practitioner?.last_name}&apos;s availability...
-                                        </span>
-                                    </div>
-                                ) : availableSlots.length === 0 ? (
-                                    <div className="text-center py-8">
-                                        <div className="text-gray-500 mb-2">
-                                            <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                            </svg>
-                                        </div>
-                                        <p className="text-sm text-gray-900 font-medium">
-                                            No available time slots for {appointment.practitioner?.first_name} {appointment.practitioner?.last_name} on this date
-                                        </p>
-                                        <p className="text-xs text-gray-500 mt-1">
-                                            Please try a different date
-                                        </p>
-                                    </div>
-                                ) : (
-                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                                        {availableSlots.map((slot) => (
-                                            <button
-                                                key={slot.time}
-                                                type="button"
-                                                onClick={() => slot.available && setSelectedTimeSlot(slot.time)}
-                                                disabled={!slot.available}
-                                                className={`w-full h-12 text-sm font-medium rounded-lg border transition-all duration-200 flex items-center justify-center ${selectedTimeSlot === slot.time
-                                                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-md'
-                                                        : slot.available
-                                                            ? 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400 hover:shadow-sm'
-                                                            : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
-                                                    }`}
-                                            >
-                                                {formatTimeSlot(slot.time)}
-                                            </button>
-                                        ))}
-                                    </div>
+                                {selectedDate && appointment?.practitioner && (
+                                    <TimeSlotSelector
+                                        selectedDate={selectedDate}
+                                        practitionerId={appointment.practitioner_id}
+                                        serviceDurationMinutes={selectedServices.reduce((total, service) => total + (service.duration_minutes || 0), 0)}
+                                        existingAppointments={existingAppointments}
+                                        onTimeSelect={setSelectedTimeSlot}
+                                        selectedTime={selectedTimeSlot}
+                                        disabled={loading}
+                                    />
                                 )}
                             </div>
 

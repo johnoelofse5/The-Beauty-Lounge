@@ -11,7 +11,7 @@ import EditAppointmentModal from '@/components/EditAppointmentModal'
 
 interface Appointment {
   id: string
-  user_id: string
+  user_id: string | null
   practitioner_id: string
   service_id: string | null
   service_ids: string[]
@@ -24,6 +24,12 @@ interface Appointment {
   is_deleted: boolean
   created_at: string
   updated_at: string
+  // External client information
+  client_first_name?: string
+  client_last_name?: string
+  client_email?: string
+  client_phone?: string
+  is_external_client?: boolean
   client: {
     first_name: string
     last_name: string
@@ -181,12 +187,28 @@ export default function AppointmentsPage() {
     if (canViewOwnAppointmentsOnly(userRoleData.role)) {
       return appointment.practitioner
     }
-    // If current user is a practitioner, show client info
+    // If current user is a practitioner, show client info (handle external clients)
     else if (isPractitioner(userRoleData.role)) {
+      if (appointment.is_external_client) {
+        return {
+          first_name: appointment.client_first_name || 'Unknown',
+          last_name: appointment.client_last_name || 'User',
+          email: appointment.client_email || 'No email',
+          phone: appointment.client_phone || 'No phone'
+        }
+      }
       return appointment.client
     }
-    // If super admin, show client info by default
+    // If super admin, show client info by default (handle external clients)
     else {
+      if (appointment.is_external_client) {
+        return {
+          first_name: appointment.client_first_name || 'Unknown',
+          last_name: appointment.client_last_name || 'User',
+          email: appointment.client_email || 'No email',
+          phone: appointment.client_phone || 'No phone'
+        }
+      }
       return appointment.client
     }
   }
@@ -834,16 +856,35 @@ export default function AppointmentsPage() {
                             <div>
                               <p className="text-sm font-medium text-gray-700">Name</p>
                               <p className="text-gray-900">
-                                {selectedAppointment.client?.first_name || 'Unknown'} {selectedAppointment.client?.last_name || 'User'}
+                                {selectedAppointment.is_external_client ? (
+                                  <>
+                                    {selectedAppointment.client_first_name || 'Unknown'} {selectedAppointment.client_last_name || 'User'}
+                                    <span className="text-xs text-gray-500 ml-2">(External Client)</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    {selectedAppointment.client?.first_name || 'Unknown'} {selectedAppointment.client?.last_name || 'User'}
+                                  </>
+                                )}
                               </p>
                             </div>
                             <div>
                               <p className="text-sm font-medium text-gray-700">Email</p>
-                              <p className="text-gray-900">{selectedAppointment.client?.email || 'No email'}</p>
+                              <p className="text-gray-900">
+                                {selectedAppointment.is_external_client 
+                                  ? (selectedAppointment.client_email || 'No email')
+                                  : (selectedAppointment.client?.email || 'No email')
+                                }
+                              </p>
                             </div>
                             <div>
                               <p className="text-sm font-medium text-gray-700">Phone</p>
-                              <p className="text-gray-900">{selectedAppointment.client?.phone || 'No phone'}</p>
+                              <p className="text-gray-900">
+                                {selectedAppointment.is_external_client 
+                                  ? (selectedAppointment.client_phone || 'No phone')
+                                  : (selectedAppointment.client?.phone || 'No phone')
+                                }
+                              </p>
                             </div>
                           </div>
                         </div>
@@ -860,16 +901,35 @@ export default function AppointmentsPage() {
                             <div>
                               <p className="text-sm font-medium text-gray-700">Name</p>
                               <p className="text-gray-900">
-                                {selectedAppointment.client?.first_name || 'Unknown'} {selectedAppointment.client?.last_name || 'User'}
+                                {selectedAppointment.is_external_client ? (
+                                  <>
+                                    {selectedAppointment.client_first_name || 'Unknown'} {selectedAppointment.client_last_name || 'User'}
+                                    <span className="text-xs text-gray-500 ml-2">(External Client)</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    {selectedAppointment.client?.first_name || 'Unknown'} {selectedAppointment.client?.last_name || 'User'}
+                                  </>
+                                )}
                               </p>
                             </div>
                             <div>
                               <p className="text-sm font-medium text-gray-700">Email</p>
-                              <p className="text-gray-900">{selectedAppointment.client?.email || 'No email'}</p>
+                              <p className="text-gray-900">
+                                {selectedAppointment.is_external_client 
+                                  ? (selectedAppointment.client_email || 'No email')
+                                  : (selectedAppointment.client?.email || 'No email')
+                                }
+                              </p>
                             </div>
                             <div>
                               <p className="text-sm font-medium text-gray-700">Phone</p>
-                              <p className="text-gray-900">{selectedAppointment.client?.phone || 'No phone'}</p>
+                              <p className="text-gray-900">
+                                {selectedAppointment.is_external_client 
+                                  ? (selectedAppointment.client_phone || 'No phone')
+                                  : (selectedAppointment.client?.phone || 'No phone')
+                                }
+                              </p>
                             </div>
                             <div>
                               <p className="text-sm font-medium text-gray-700">Status</p>

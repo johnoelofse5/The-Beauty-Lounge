@@ -15,7 +15,8 @@ import {
   Grid,
   List,
   ArrowLeft,
-  ChevronDown
+  ChevronDown,
+  X
 } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -37,6 +38,7 @@ export default function PortfolioPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('')
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
+  const [selectedImage, setSelectedImage] = useState<PortfolioWithPractitioner | null>(null)
 
   useEffect(() => {
     loadPortfolioItems()
@@ -188,7 +190,7 @@ export default function PortfolioPage() {
                 {viewMode === 'grid' ? (
                   // Grid View
                   <>
-                    <div className="relative">
+                    <div className="relative cursor-pointer" onClick={() => setSelectedImage(item)}>
                       <Image
                         src={item.image_url}
                         alt={item.title}
@@ -235,7 +237,7 @@ export default function PortfolioPage() {
                 ) : (
                   // List View
                   <div className="flex">
-                    <div className="relative w-32 h-32 flex-shrink-0">
+                    <div className="relative w-32 h-32 flex-shrink-0 cursor-pointer" onClick={() => setSelectedImage(item)}>
                       <Image
                         src={item.image_url}
                         alt={item.title}
@@ -285,6 +287,70 @@ export default function PortfolioPage() {
           </div>
         )}
       </div>
+
+      {/* Full-size Image Modal */}
+      {selectedImage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={() => setSelectedImage(null)}>
+          <div className="relative max-w-4xl max-h-[90vh] w-full mx-4" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => setSelectedImage(null)}
+              className="absolute top-4 right-4 z-10 bg-white rounded-full p-2 shadow-lg hover:bg-gray-100 transition-colors"
+            >
+              <X className="h-6 w-6 text-gray-600" />
+            </button>
+            
+            <div className="bg-white rounded-lg overflow-hidden shadow-2xl">
+              <div className="relative">
+                <Image
+                  src={selectedImage.image_url}
+                  alt={selectedImage.title}
+                  width={800}
+                  height={600}
+                  className="w-full h-auto max-h-[70vh] object-contain"
+                />
+                {selectedImage.is_featured && (
+                  <div className="absolute top-4 right-16">
+                    <Star className="h-6 w-6 text-yellow-400 fill-current" />
+                  </div>
+                )}
+              </div>
+              
+              <div className="p-6">
+                <div className="flex justify-between items-start mb-4">
+                  <h2 className="text-2xl font-bold text-gray-900">{selectedImage.title}</h2>
+                  <div className="flex items-center text-sm text-gray-500">
+                    <Calendar className="h-4 w-4 mr-1" />
+                    {new Date(selectedImage.created_at).toLocaleDateString()}
+                  </div>
+                </div>
+                
+                {selectedImage.description && (
+                  <p className="text-gray-600 mb-4">{selectedImage.description}</p>
+                )}
+                
+                <div className="flex items-center text-gray-700 mb-4">
+                  <User className="h-5 w-5 mr-2" />
+                  <span className="font-medium">{selectedImage.practitioner.first_name} {selectedImage.practitioner.last_name}</span>
+                </div>
+                
+                <div className="flex flex-wrap gap-2">
+                  {selectedImage.category && (
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-indigo-100 text-indigo-800">
+                      {selectedImage.category}
+                    </span>
+                  )}
+                  {selectedImage.tags && selectedImage.tags.map((tag, index) => (
+                    <span key={index} className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800">
+                      <Tag className="h-3 w-3 mr-1" />
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

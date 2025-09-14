@@ -11,6 +11,9 @@ import { supabase } from '@/lib/supabase'
 import { DatePicker } from '@/components/date-picker'
 import { Textarea } from '@/components/ui/textarea'
 import { isPractitioner } from '@/lib/rbac'
+import { ValidationInput } from '@/components/validation/ValidationComponents'
+import { ValidationService } from '@/lib/validation-service'
+import TimeSlotSelector from '@/components/TimeSlotSelector'
 
 interface TimeSlot {
   time: string
@@ -52,12 +55,21 @@ export default function AppointmentsPage() {
   const [selectedTime, setSelectedTime] = useState<string>('')
   const [notes, setNotes] = useState<string>('')
   
+  // External client information (for non-registered clients)
+  const [isExternalClient, setIsExternalClient] = useState<boolean>(false)
+  const [externalClientInfo, setExternalClientInfo] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: ''
+  })
+  const [externalClientFormErrors, setExternalClientFormErrors] = useState<Record<string, string>>({})
+  
   // Determine booking flow based on user role
   const isPractitionerUser = isPractitioner(userRoleData?.role || null)
   const [bookingStep, setBookingStep] = useState<'service' | 'practitioner' | 'client' | 'datetime' | 'confirm'>('service')
   
-  // Available time slots
-  const [availableSlots, setAvailableSlots] = useState<TimeSlot[]>([])
+  // Available time slots (now handled by TimeSlotSelector component)
   const [loadingSlots, setLoadingSlots] = useState(false)
   
   // Floating pill visibility
@@ -111,18 +123,19 @@ export default function AppointmentsPage() {
     return `${year}-${month}-${day}`
   }
 
-  const loadAvailableSlots = useCallback(async () => {
-    if (!selectedDate || selectedServices.length === 0 || !selectedPractitioner) return
+  // Get existing appointments for conflict checking
+  const [existingAppointments, setExistingAppointments] = useState<any[]>([])
+
+  const loadExistingAppointments = useCallback(async () => {
+    if (!selectedDate || !selectedPractitioner) {
+      setExistingAppointments([])
+      return
+    }
 
     try {
       setLoadingSlots(true)
       
-      // Calculate total duration for all selected services
-      const totalDurationMinutes = selectedServices.reduce((total, service) => total + service.duration_minutes, 0)
-      
-      // Get existing appointments for the selected date and practitioner
-      // Now that RLS policy allows reading appointments for availability checking
-      const { data: existingAppointments, error } = await supabase
+      const { data, error } = await supabase
         .from('appointments')
         .select('start_time, end_time')
         .eq('appointment_date', formatDateForAPI(selectedDate))
@@ -131,64 +144,23 @@ export default function AppointmentsPage() {
         .eq('is_deleted', false)
 
       if (error) throw error
-
-      // Generate time slots (9 AM to 5 PM, 30-minute intervals)
-      const slots: TimeSlot[] = []
-      const startHour = 9
-      const endHour = 17
-      const intervalMinutes = 30
-
-      for (let hour = startHour; hour < endHour; hour++) {
-        for (let minute = 0; minute < 60; minute += intervalMinutes) {
-          const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}:00`
-          
-          // Calculate end time for this slot with all selected services
-          const startTime = new Date(`${formatDateForAPI(selectedDate)}T${timeString}`)
-          const endTime = new Date(startTime.getTime() + totalDurationMinutes * 60000)
-          const endTimeString = endTime.toTimeString().split(' ')[0]
-          
-          // Check if this slot conflicts with existing appointments
-          const hasConflict = existingAppointments?.some(apt => {
-            const aptStart = apt.start_time
-            const aptEnd = apt.end_time
-            // Check if our appointment (timeString to endTimeString) would overlap with existing appointment
-            return (timeString < aptEnd && endTimeString > aptStart)
-          })
-
-          // Also check if the appointment would extend beyond business hours
-          const businessEndTime = `${endHour.toString().padStart(2, '0')}:00:00`
-          const withinBusinessHours = endTimeString <= businessEndTime
-
-          slots.push({
-            time: timeString,
-            available: !hasConflict && withinBusinessHours
-          })
-        }
-      }
-
-      setAvailableSlots(slots)
+      setExistingAppointments(data || [])
     } catch (err) {
-      console.error('Error loading time slots:', err)
-      setAvailableSlots([])
+      console.error('Error loading existing appointments:', err)
+      setExistingAppointments([])
     } finally {
       setLoadingSlots(false)
     }
-  }, [selectedDate, selectedServices, selectedPractitioner])
+  }, [selectedDate, selectedPractitioner])
 
-  // Load available time slots when date is selected
+  // Load existing appointments when date or practitioner changes
   useEffect(() => {
-    if (selectedDate && selectedServices.length > 0 && selectedPractitioner) {
-      loadAvailableSlots()
+    if (selectedDate && selectedPractitioner) {
+      loadExistingAppointments()
+    } else {
+      setExistingAppointments([])
     }
-  }, [selectedDate, selectedServices, selectedPractitioner, loadAvailableSlots])
-
-  // Clear available slots when practitioner changes (if date is already selected)
-  useEffect(() => {
-    if (selectedDate && selectedServices.length > 0 && selectedPractitioner) {
-      setAvailableSlots([])
-      setSelectedTime('')
-    }
-  }, [selectedPractitioner, selectedDate, selectedServices])
+  }, [selectedDate, selectedPractitioner, loadExistingAppointments])
 
   // Handle floating pill visibility based on scroll position
   useEffect(() => {
@@ -308,6 +280,22 @@ export default function AppointmentsPage() {
     if (isPractitionerUser) {
       if (selectedServices.length > 0 && selectedClient) {
         setBookingStep('datetime')
+      } else if (isExternalClient) {
+        // Validate external client info using ValidationService
+        const formData = {
+          firstName: externalClientInfo.firstName,
+          lastName: externalClientInfo.lastName,
+          email: externalClientInfo.email,
+          phone: externalClientInfo.phone
+        }
+        
+        const validationResult = ValidationService.validateForm(formData, ValidationService.schemas.externalClient)
+        
+        if (validationResult.isValid) {
+          setBookingStep('datetime')
+        } else {
+          setExternalClientFormErrors(validationResult.errors)
+        }
       }
     } else {
       if (selectedServices.length > 0 && selectedPractitioner) {
@@ -325,7 +313,10 @@ export default function AppointmentsPage() {
   const handleBookingConfirm = async () => {
     // Validate based on user role
     if (isPractitionerUser) {
-      if (selectedServices.length === 0 || !selectedDate || !selectedTime || !selectedClient || !user) return
+      if (selectedServices.length === 0 || !selectedDate || !selectedTime || !user) return
+      // For practitioners, either selectedClient or external client info must be provided
+      if (!selectedClient && !isExternalClient) return
+      if (isExternalClient && (!externalClientInfo.firstName || !externalClientInfo.lastName || (!externalClientInfo.email && !externalClientInfo.phone))) return
     } else {
       if (selectedServices.length === 0 || !selectedDate || !selectedTime || !selectedPractitioner || !user) return
     }
@@ -341,7 +332,7 @@ export default function AppointmentsPage() {
 
       // Create appointment with all selected services
       const appointmentData = {
-        user_id: isPractitionerUser ? selectedClient!.id : user.id,
+        user_id: isPractitionerUser ? (isExternalClient ? null : selectedClient!.id) : user.id,
         practitioner_id: isPractitionerUser ? user.id : selectedPractitioner!.id,
         appointment_date: formatDateForAPI(selectedDate),
         start_time: selectedTime,
@@ -353,7 +344,13 @@ export default function AppointmentsPage() {
         // Store service IDs as JSON array
         service_ids: selectedServices.map(s => s.id),
         // For backward compatibility, set service_id to first service
-        service_id: selectedServices[0]?.id || null
+        service_id: selectedServices[0]?.id || null,
+        // External client information
+        is_external_client: isPractitionerUser && isExternalClient,
+        client_first_name: isPractitionerUser && isExternalClient ? externalClientInfo.firstName : null,
+        client_last_name: isPractitionerUser && isExternalClient ? externalClientInfo.lastName : null,
+        client_email: isPractitionerUser && isExternalClient ? externalClientInfo.email : null,
+        client_phone: isPractitionerUser && isExternalClient ? externalClientInfo.phone : null
       }
 
       const { error } = await supabase
@@ -371,6 +368,14 @@ export default function AppointmentsPage() {
       setSelectedDate(undefined)
       setSelectedTime('')
       setNotes('')
+      setIsExternalClient(false)
+      setExternalClientInfo({
+        firstName: '',
+        lastName: '',
+        email: '',
+        phone: ''
+      })
+      setExternalClientFormErrors({})
       setBookingStep('service')
       
       // Redirect based on user role
@@ -388,7 +393,7 @@ export default function AppointmentsPage() {
     }
   }
 
-  const formatTimeSlot = (time: string): string => {
+  const formatTimeDisplay = (time: string): string => {
     if (!time) return ''
     const [hours, minutes] = time.split(':').map(Number)
     const period = hours >= 12 ? 'PM' : 'AM'
@@ -814,56 +819,173 @@ export default function AppointmentsPage() {
 
             <h2 className="text-2xl font-bold text-gray-900 mb-6">Select Client</h2>
             
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {clients.map((client) => (
-                <div
-                  key={client.id}
-                  onClick={() => setSelectedClient(client)}
-                  className={`bg-white rounded-lg border shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer ${
-                    selectedClient?.id === client.id 
-                      ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-200' 
-                      : 'border-gray-200 hover:border-indigo-300'
-                  }`}
-                >
-                  <div className="p-6">
-                    <div className="flex items-start justify-between mb-2">
-                      <h3 className="text-lg font-semibold text-gray-900">
-                        {client.first_name} {client.last_name}
-                      </h3>
-                      {selectedClient?.id === client.id && (
-                        <div className="flex-shrink-0 ml-2">
-                          <div className="w-6 h-6 bg-indigo-600 rounded-full flex items-center justify-center">
-                            <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                            </svg>
-                          </div>
+            {/* External Client Option */}
+            <div className="mb-6">
+              <div
+                onClick={() => {
+                  setIsExternalClient(true)
+                  setSelectedClient(null)
+                }}
+                className={`bg-white rounded-lg border shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer ${
+                  isExternalClient 
+                    ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-200' 
+                    : 'border-gray-200 hover:border-indigo-300'
+                }`}
+              >
+                <div className="p-6">
+                  <div className="flex items-start justify-between mb-2">
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      New Client (Not Registered)
+                    </h3>
+                    {isExternalClient && (
+                      <div className="flex-shrink-0 ml-2">
+                        <div className="w-6 h-6 bg-indigo-600 rounded-full flex items-center justify-center">
+                          <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
                         </div>
-                      )}
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-sm text-gray-600">{client.email}</p>
-                      <p className="text-sm text-gray-600">{client.phone}</p>
-                    </div>
+                      </div>
+                    )}
                   </div>
+                  <p className="text-sm text-gray-600">Book appointment for a client who is not registered in the system</p>
                 </div>
-              ))}
+              </div>
             </div>
-            
-            {selectedClient && (
-              <div className="mt-8 flex justify-end">
-                <button
-                  onClick={handleContinueToDateTime}
-                  className="w-full sm:w-auto bg-indigo-600 text-white px-6 py-2 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 font-medium"
-                >
-                  Continue to Date & Time
-                </button>
+
+            {/* External Client Form */}
+            {isExternalClient && (
+              <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Client Information</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <ValidationInput
+                    label="First Name"
+                    required
+                    error={externalClientFormErrors.firstName}
+                    name="firstName"
+                    type="text"
+                    value={externalClientInfo.firstName}
+                    onChange={(e) => {
+                      setExternalClientInfo({...externalClientInfo, firstName: e.target.value})
+                      if (externalClientFormErrors.firstName) {
+                        setExternalClientFormErrors({...externalClientFormErrors, firstName: ''})
+                      }
+                    }}
+                    placeholder="Enter first name"
+                  />
+                  <ValidationInput
+                    label="Last Name"
+                    required
+                    error={externalClientFormErrors.lastName}
+                    name="lastName"
+                    type="text"
+                    value={externalClientInfo.lastName}
+                    onChange={(e) => {
+                      setExternalClientInfo({...externalClientInfo, lastName: e.target.value})
+                      if (externalClientFormErrors.lastName) {
+                        setExternalClientFormErrors({...externalClientFormErrors, lastName: ''})
+                      }
+                    }}
+                    placeholder="Enter last name"
+                  />
+                  <ValidationInput
+                    label="Email"
+                    error={externalClientFormErrors.email}
+                    name="email"
+                    type="email"
+                    value={externalClientInfo.email}
+                    onChange={(e) => {
+                      setExternalClientInfo({...externalClientInfo, email: e.target.value})
+                      if (externalClientFormErrors.email) {
+                        setExternalClientFormErrors({...externalClientFormErrors, email: ''})
+                      }
+                      if (externalClientFormErrors.contactMethod) {
+                        setExternalClientFormErrors({...externalClientFormErrors, contactMethod: ''})
+                      }
+                    }}
+                    placeholder="Enter email address"
+                  />
+                  <ValidationInput
+                    label="Phone"
+                    error={externalClientFormErrors.phone}
+                    name="phone"
+                    type="tel"
+                    value={externalClientInfo.phone}
+                    onChange={(e) => {
+                      setExternalClientInfo({...externalClientInfo, phone: e.target.value})
+                      if (externalClientFormErrors.phone) {
+                        setExternalClientFormErrors({...externalClientFormErrors, phone: ''})
+                      }
+                      if (externalClientFormErrors.contactMethod) {
+                        setExternalClientFormErrors({...externalClientFormErrors, contactMethod: ''})
+                      }
+                    }}
+                    placeholder="Enter phone number"
+                  />
+                </div>
+                <p className="text-sm text-gray-500 mt-2">
+                  * At least one contact method (email or phone) is required
+                </p>
+                {externalClientFormErrors.contactMethod && (
+                  <p className="text-red-500 text-sm mt-2">{externalClientFormErrors.contactMethod}</p>
+                )}
               </div>
             )}
+
+            {/* Registered Clients */}
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Registered Clients</h3>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {clients.map((client) => (
+                  <div
+                    key={client.id}
+                    onClick={() => {
+                      setSelectedClient(client)
+                      setIsExternalClient(false)
+                    }}
+                    className={`bg-white rounded-lg border shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer ${
+                      selectedClient?.id === client.id 
+                        ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-200' 
+                        : 'border-gray-200 hover:border-indigo-300'
+                    }`}
+                  >
+                    <div className="p-6">
+                      <div className="flex items-start justify-between mb-2">
+                        <h3 className="text-lg font-semibold text-gray-900">
+                          {client.first_name} {client.last_name}
+                        </h3>
+                        {selectedClient?.id === client.id && (
+                          <div className="flex-shrink-0 ml-2">
+                            <div className="w-6 h-6 bg-indigo-600 rounded-full flex items-center justify-center">
+                              <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                              </svg>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm text-gray-600">{client.email}</p>
+                        <p className="text-sm text-gray-600">{client.phone}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            <div className="mt-8 flex justify-end">
+              <button
+                onClick={handleContinueToDateTime}
+                className="w-full sm:w-auto bg-indigo-600 text-white px-6 py-2 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 font-medium"
+              >
+                Continue to Date & Time
+              </button>
+            </div>
           </div>
         )}
 
         {/* Step 3: Date & Time Selection */}
-        {bookingStep === 'datetime' && selectedServices.length > 0 && ((isPractitionerUser && selectedClient) || (!isPractitionerUser && selectedPractitioner)) && (
+        {bookingStep === 'datetime' && selectedServices.length > 0 && ((isPractitionerUser && (selectedClient || isExternalClient)) || (!isPractitionerUser && selectedPractitioner)) && (
           <div>
             <div className="mb-6">
               <button
@@ -900,11 +1022,28 @@ export default function AppointmentsPage() {
                   <div className="p-3 bg-gray-50 rounded-md">
                     {isPractitionerUser ? (
                       <>
-                        <p className="font-medium text-gray-900">
-                          {selectedClient?.first_name} {selectedClient?.last_name}
-                        </p>
-                        <p className="text-sm text-gray-600">{selectedClient?.email}</p>
-                        <p className="text-sm text-gray-600">{selectedClient?.phone}</p>
+                        {isExternalClient ? (
+                          <>
+                            <p className="font-medium text-gray-900">
+                              {externalClientInfo.firstName} {externalClientInfo.lastName}
+                            </p>
+                            {externalClientInfo.email && (
+                              <p className="text-sm text-gray-600">{externalClientInfo.email}</p>
+                            )}
+                            {externalClientInfo.phone && (
+                              <p className="text-sm text-gray-600">{externalClientInfo.phone}</p>
+                            )}
+                            <p className="text-xs text-gray-500 mt-1">(External Client)</p>
+                          </>
+                        ) : (
+                          <>
+                            <p className="font-medium text-gray-900">
+                              {selectedClient?.first_name} {selectedClient?.last_name}
+                            </p>
+                            <p className="text-sm text-gray-600">{selectedClient?.email}</p>
+                            <p className="text-sm text-gray-600">{selectedClient?.phone}</p>
+                          </>
+                        )}
                       </>
                     ) : (
                       <>
@@ -962,53 +1101,16 @@ export default function AppointmentsPage() {
               </div>
 
               {/* Time Selection */}
-              {selectedDate && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-900 mb-3">
-                    Available Time Slots
-                  </label>
-                  {loadingSlots ? (
-                    <div className="flex items-center space-x-2">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600"></div>
-                      <span className="text-sm text-gray-900">
-                        Checking {selectedPractitioner?.first_name} {selectedPractitioner?.last_name}&apos;s availability...
-                      </span>
-                    </div>
-                  ) : availableSlots.length === 0 ? (
-                    <div className="text-center py-8">
-                      <div className="text-gray-500 mb-2">
-                        <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                      </div>
-                      <p className="text-sm text-gray-900 font-medium">
-                        No available time slots for {selectedPractitioner?.first_name} {selectedPractitioner?.last_name} on this date
-                      </p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        Please try a different date or practitioner
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                      {availableSlots.map((slot) => (
-                        <button
-                          key={slot.time}
-                          onClick={() => slot.available && setSelectedTime(slot.time)}
-                          disabled={!slot.available}
-                          className={`px-4 py-3 text-sm font-medium rounded-lg border transition-all duration-200 ${
-                            selectedTime === slot.time
-                              ? 'bg-indigo-600 text-white border-indigo-600 shadow-md'
-                              : slot.available
-                              ? 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400 hover:shadow-sm'
-                              : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
-                          }`}
-                        >
-                          {formatTimeSlot(slot.time)}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
+              {selectedDate && selectedPractitioner && (
+                <TimeSlotSelector
+                  selectedDate={selectedDate}
+                  practitionerId={selectedPractitioner.id}
+                  serviceDurationMinutes={selectedServices.reduce((total, service) => total + (service.duration_minutes || 0), 0)}
+                  existingAppointments={existingAppointments}
+                  onTimeSelect={setSelectedTime}
+                  selectedTime={selectedTime}
+                  disabled={loadingSlots}
+                />
               )}
 
               {/* Notes */}
@@ -1041,7 +1143,7 @@ export default function AppointmentsPage() {
         )}
 
         {/* Step 4: Confirmation */}
-        {bookingStep === 'confirm' && selectedServices.length > 0 && ((isPractitionerUser && selectedClient) || (!isPractitionerUser && selectedPractitioner)) && selectedDate && selectedTime && (
+        {bookingStep === 'confirm' && selectedServices.length > 0 && ((isPractitionerUser && (selectedClient || isExternalClient)) || (!isPractitionerUser && selectedPractitioner)) && selectedDate && selectedTime && (
           <div>
             <div className="mb-6">
               <button
@@ -1078,11 +1180,28 @@ export default function AppointmentsPage() {
                   <div className="mt-2 p-3 bg-gray-50 rounded-md">
                     {isPractitionerUser ? (
                       <>
-                        <p className="font-medium text-gray-900">
-                          {selectedClient?.first_name} {selectedClient?.last_name}
-                        </p>
-                        <p className="text-sm text-gray-600">{selectedClient?.email}</p>
-                        <p className="text-sm text-gray-600">{selectedClient?.phone}</p>
+                        {isExternalClient ? (
+                          <>
+                            <p className="font-medium text-gray-900">
+                              {externalClientInfo.firstName} {externalClientInfo.lastName}
+                            </p>
+                            {externalClientInfo.email && (
+                              <p className="text-sm text-gray-600">{externalClientInfo.email}</p>
+                            )}
+                            {externalClientInfo.phone && (
+                              <p className="text-sm text-gray-600">{externalClientInfo.phone}</p>
+                            )}
+                            <p className="text-xs text-gray-500 mt-1">(External Client)</p>
+                          </>
+                        ) : (
+                          <>
+                            <p className="font-medium text-gray-900">
+                              {selectedClient?.first_name} {selectedClient?.last_name}
+                            </p>
+                            <p className="text-sm text-gray-600">{selectedClient?.email}</p>
+                            <p className="text-sm text-gray-600">{selectedClient?.phone}</p>
+                          </>
+                        )}
                       </>
                     ) : (
                       <>
@@ -1117,13 +1236,13 @@ export default function AppointmentsPage() {
                 
                 <div className="flex justify-between">
                   <span className="text-gray-900 font-medium">Start Time:</span>
-                  <span className="font-medium text-gray-900">{formatTimeSlot(selectedTime)}</span>
+                  <span className="font-medium text-gray-900">{formatTimeDisplay(selectedTime)}</span>
                 </div>
                 
                 <div className="flex justify-between">
                   <span className="text-gray-900 font-medium">End Time:</span>
                   <span className="font-medium text-gray-900">
-                    {formatTimeSlot(new Date(new Date(`${formatDateForAPI(selectedDate)}T${selectedTime}`).getTime() + selectedServices.reduce((total, service) => total + service.duration_minutes, 0) * 60000).toTimeString().split(' ')[0])}
+                    {formatTimeDisplay(new Date(new Date(`${formatDateForAPI(selectedDate)}T${selectedTime}`).getTime() + selectedServices.reduce((total, service) => total + service.duration_minutes, 0) * 60000).toTimeString().split(' ')[0])}
                   </span>
                 </div>
                 

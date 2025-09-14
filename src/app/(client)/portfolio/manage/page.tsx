@@ -326,31 +326,6 @@ export default function PortfolioManagementPage() {
                 </div>
 
                 <div>
-                  <ValidationTextarea
-                    label="Description"
-                    error={formErrors.description}
-                    name="description"
-                    rows={3}
-                    value={formData.description}
-                    onChange={handleInputChange}
-                    placeholder="Enter description"
-                  />
-                </div>
-
-                <div>
-                  <ValidationInput
-                    label="Tags"
-                    error={formErrors.tags}
-                    name="tags"
-                    type="text"
-                    value={formData.tags}
-                    onChange={handleInputChange}
-                    placeholder="Enter tags separated by commas"
-                  />
-                  <p className="mt-1 text-xs text-gray-500">Separate tags with commas</p>
-                </div>
-
-                <div>
                   <ValidationFileInput
                     label="Image"
                     required={!editingItem}

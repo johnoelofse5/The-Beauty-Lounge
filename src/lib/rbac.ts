@@ -228,3 +228,179 @@ export async function getFilteredAppointments(userId: string, userRole: UserRole
     return []
   }
 }
+
+/**
+ * Check if user has portfolio management permission
+ */
+export async function canManagePortfolio(userId: string): Promise<boolean> {
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .select(`
+        id,
+        role:roles!role_id (
+          id,
+          name,
+          permissions:role_permissions (
+            permission:permissions (
+              id,
+              name,
+              resource,
+              action
+            )
+          )
+        )
+      `)
+      .eq('id', userId)
+      .eq('is_active', true)
+      .eq('is_deleted', false)
+      .single()
+
+    if (error || !data) return false
+
+    const role = data.role as any
+    if (!role) return false
+
+    // Check if user has portfolio.manage permission
+    const hasPermission = role.permissions?.some((rp: any) =>
+      rp.permission?.name === 'portfolio.manage'
+    )
+
+    return hasPermission || false
+  } catch (error) {
+    console.error('Error checking portfolio management permission:', error)
+    return false
+  }
+}
+
+/**
+ * Check if user has portfolio viewing permission
+ */
+export async function canViewPortfolio(userId: string): Promise<boolean> {
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .select(`
+        id,
+        role:roles!role_id (
+          id,
+          name,
+          permissions:role_permissions (
+            permission:permissions (
+              id,
+              name,
+              resource,
+              action
+            )
+          )
+        )
+      `)
+      .eq('id', userId)
+      .eq('is_active', true)
+      .eq('is_deleted', false)
+      .single()
+
+    if (error || !data) return false
+
+    const role = data.role as any
+    if (!role) return false
+
+    // Check if user has portfolio.view permission
+    const hasPermission = role.permissions?.some((rp: any) =>
+      rp.permission?.name === 'portfolio.view'
+    )
+
+    return hasPermission || false
+  } catch (error) {
+    console.error('Error checking portfolio viewing permission:', error)
+    return false
+  }
+}
+
+/**
+ * Check if user has schedule management permission
+ */
+export async function canManageSchedule(userId: string): Promise<boolean> {
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .select(`
+        id,
+        role:roles!role_id (
+          id,
+          name,
+          permissions:role_permissions (
+            permission:permissions (
+              id,
+              name,
+              resource,
+              action
+            )
+          )
+        )
+      `)
+      .eq('id', userId)
+      .eq('is_active', true)
+      .eq('is_deleted', false)
+      .single()
+
+    if (error || !data) return false
+
+    const role = data.role as any
+    if (!role) return false
+
+    // Check if user has schedule.manage permission
+    const hasPermission = role.permissions?.some((rp: any) =>
+      rp.permission?.name === 'schedule.manage'
+    )
+
+    return hasPermission || false
+  } catch (error) {
+    console.error('Error checking schedule management permission:', error)
+    return false
+  }
+}
+
+/**
+ * Check if user has schedule viewing permission
+ */
+export async function canViewSchedule(userId: string): Promise<boolean> {
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .select(`
+        id,
+        role:roles!role_id (
+          id,
+          name,
+          permissions:role_permissions (
+            permission:permissions (
+              id,
+              name,
+              resource,
+              action
+            )
+          )
+        )
+      `)
+      .eq('id', userId)
+      .eq('is_active', true)
+      .eq('is_deleted', false)
+      .single()
+
+    if (error || !data) return false
+
+    const role = data.role as any
+    if (!role) return false
+
+    // Check if user has schedule.view permission
+    const hasPermission = role.permissions?.some((rp: any) =>
+      rp.permission?.name === 'schedule.view'
+    )
+
+    return hasPermission || false
+  } catch (error) {
+    console.error('Error checking schedule viewing permission:', error)
+    return false
+  }
+}
