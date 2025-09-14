@@ -6,6 +6,9 @@ import { useAuth } from '@/contexts/AuthContext'
 import { getServicesWithCategories, getCategories, formatPrice, formatDuration } from '@/lib/services'
 import { ServiceWithCategory, Category } from '@/types'
 import { supabase } from '@/lib/supabase'
+import { ValidationService } from '@/lib/validation-service'
+import { ValidationInput, ValidationTextarea, ValidationSelect } from '@/components/validation/ValidationComponents'
+import { SelectItem } from '@/components/ui/select'
 
 interface ServiceFormData {
   name: string
@@ -20,37 +23,6 @@ interface CategoryFormData {
   description: string
   display_order: number
 }
-
-// Input component with error handling
-const InputWithError = ({ 
-  label, 
-  error, 
-  required = false, 
-  children 
-}: { 
-  label: string
-  error?: string
-  required?: boolean
-  children: React.ReactNode 
-}) => (
-  <div className="relative">
-    <label className="block text-sm font-medium text-gray-700 mb-1 sm:mb-2">
-      {label} {required && <span className="text-red-500">*</span>}
-    </label>
-    <div className="relative">
-      {children}
-      {error && (
-        <div className="absolute top-full left-0 mt-1 z-10">
-          <div className="bg-red-500 text-white text-xs rounded px-2 py-1 shadow-lg relative">
-            {error}
-            {/* Tooltip arrow */}
-            <div className="absolute -top-1 left-3 w-2 h-2 bg-red-500 transform rotate-45"></div>
-          </div>
-        </div>
-      )}
-    </div>
-  </div>
-)
 
 export default function AdminServicesPage() {
   const { user, loading: authLoading } = useAuth()
@@ -260,26 +232,9 @@ export default function AdminServicesPage() {
   }
 
   const validateServiceForm = (): boolean => {
-    const errors: {[key: string]: string} = {}
-
-    if (!serviceForm.name.trim()) {
-      errors.name = 'Service name is required'
-    }
-
-    if (serviceForm.duration_minutes < 1) {
-      errors.duration_minutes = 'Duration must be at least 1 minute'
-    }
-
-    if (serviceForm.price < 0) {
-      errors.price = 'Price cannot be negative'
-    }
-
-    if (!serviceForm.category_id) {
-      errors.category_id = 'Please select a category'
-    }
-
-    setServiceFormErrors(errors)
-    return Object.keys(errors).length === 0
+    const result = ValidationService.validateForm(serviceForm, ValidationService.schemas.service)
+    setServiceFormErrors(result.errors)
+    return result.isValid
   }
 
   // Category CRUD operations
@@ -370,18 +325,9 @@ export default function AdminServicesPage() {
   }
 
   const validateCategoryForm = (): boolean => {
-    const errors: {[key: string]: string} = {}
-
-    if (!categoryForm.name.trim()) {
-      errors.name = 'Category name is required'
-    }
-
-    if (categoryForm.display_order < 0) {
-      errors.display_order = 'Display order cannot be negative'
-    }
-
-    setCategoryFormErrors(errors)
-    return Object.keys(errors).length === 0
+    const result = ValidationService.validateForm(categoryForm, ValidationService.schemas.category)
+    setCategoryFormErrors(result.errors)
+    return result.isValid
   }
 
   if (authLoading || loading) {
@@ -673,114 +619,77 @@ export default function AdminServicesPage() {
             {/* Form Content */}
             <div className="flex-1 overflow-y-auto px-6 py-4">
               <form onSubmit={handleSaveService} className="space-y-4" id="service-form">
-                <InputWithError 
-                  label="Service Name" 
-                  required 
+                <ValidationInput
+                  label="Service Name"
+                  required
                   error={serviceFormErrors.name}
-                >
-                  <input
-                    type="text"
-                    value={serviceForm.name}
-                    onChange={(e) => {
-                      setServiceForm({ ...serviceForm, name: e.target.value })
-                      if (serviceFormErrors.name) {
-                        setServiceFormErrors({ ...serviceFormErrors, name: '' })
-                      }
-                    }}
-                    className={`block w-full px-3 py-2 border rounded-md shadow-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-0 ${
-                      serviceFormErrors.name 
-                        ? 'border-red-500 focus:ring-red-500 focus:border-red-500' 
-                        : 'border-gray-300 focus:ring-indigo-500 focus:border-indigo-500'
-                    }`}
-                  />
-                </InputWithError>
+                  value={serviceForm.name}
+                  onChange={(e) => {
+                    setServiceForm({ ...serviceForm, name: e.target.value })
+                    if (serviceFormErrors.name) {
+                      setServiceFormErrors({ ...serviceFormErrors, name: '' })
+                    }
+                  }}
+                />
 
-                <InputWithError 
-                  label="Description" 
+                <ValidationTextarea
+                  label="Description"
                   error={serviceFormErrors.description}
-                >
-                  <textarea
-                    rows={3}
-                    value={serviceForm.description}
-                    onChange={(e) => setServiceForm({ ...serviceForm, description: e.target.value })}
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                  />
-                </InputWithError>
+                  rows={3}
+                  value={serviceForm.description}
+                  onChange={(e) => setServiceForm({ ...serviceForm, description: e.target.value })}
+                />
 
-                <InputWithError 
-                  label="Duration (minutes)" 
-                  required 
+                <ValidationInput
+                  label="Duration (minutes)"
+                  required
                   error={serviceFormErrors.duration_minutes}
-                >
-                  <input
-                    type="number"
-                    min="1"
-                    value={serviceForm.duration_minutes}
-                    onChange={(e) => {
-                      setServiceForm({ ...serviceForm, duration_minutes: parseInt(e.target.value) || 0 })
-                      if (serviceFormErrors.duration_minutes) {
-                        setServiceFormErrors({ ...serviceFormErrors, duration_minutes: '' })
-                      }
-                    }}
-                    className={`block w-full px-3 py-2 border rounded-md shadow-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-0 ${
-                      serviceFormErrors.duration_minutes 
-                        ? 'border-red-500 focus:ring-red-500 focus:border-red-500' 
-                        : 'border-gray-300 focus:ring-indigo-500 focus:border-indigo-500'
-                    }`}
-                  />
-                </InputWithError>
+                  type="number"
+                  min="1"
+                  value={serviceForm.duration_minutes}
+                  onChange={(e) => {
+                    setServiceForm({ ...serviceForm, duration_minutes: parseInt(e.target.value) || 0 })
+                    if (serviceFormErrors.duration_minutes) {
+                      setServiceFormErrors({ ...serviceFormErrors, duration_minutes: '' })
+                    }
+                  }}
+                />
 
-                <InputWithError 
-                  label="Price ($)" 
-                  required 
+                <ValidationInput
+                  label="Price"
+                  required
                   error={serviceFormErrors.price}
-                >
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={serviceForm.price}
-                    onChange={(e) => {
-                      setServiceForm({ ...serviceForm, price: parseFloat(e.target.value) || 0 })
-                      if (serviceFormErrors.price) {
-                        setServiceFormErrors({ ...serviceFormErrors, price: '' })
-                      }
-                    }}
-                    className={`block w-full px-3 py-2 border rounded-md shadow-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-0 ${
-                      serviceFormErrors.price 
-                        ? 'border-red-500 focus:ring-red-500 focus:border-red-500' 
-                        : 'border-gray-300 focus:ring-indigo-500 focus:border-indigo-500'
-                    }`}
-                  />
-                </InputWithError>
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={serviceForm.price}
+                  onChange={(e) => {
+                    setServiceForm({ ...serviceForm, price: parseFloat(e.target.value) || 0 })
+                    if (serviceFormErrors.price) {
+                      setServiceFormErrors({ ...serviceFormErrors, price: '' })
+                    }
+                  }}
+                />
 
-                <InputWithError 
-                  label="Category" 
-                  required 
+                <ValidationSelect
+                  label="Category"
+                  required
                   error={serviceFormErrors.category_id}
+                  value={serviceForm.category_id}
+                  onValueChange={(value) => {
+                    setServiceForm({ ...serviceForm, category_id: value })
+                    if (serviceFormErrors.category_id) {
+                      setServiceFormErrors({ ...serviceFormErrors, category_id: '' })
+                    }
+                  }}
+                  placeholder="Select a category"
                 >
-                  <select
-                    value={serviceForm.category_id}
-                    onChange={(e) => {
-                      setServiceForm({ ...serviceForm, category_id: e.target.value })
-                      if (serviceFormErrors.category_id) {
-                        setServiceFormErrors({ ...serviceFormErrors, category_id: '' })
-                      }
-                    }}
-                    className={`block w-full px-3 py-2 border rounded-md shadow-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-0 ${
-                      serviceFormErrors.category_id 
-                        ? 'border-red-500 focus:ring-red-500 focus:border-red-500' 
-                        : 'border-gray-300 focus:ring-indigo-500 focus:border-indigo-500'
-                    }`}
-                  >
-                    <option value="">Select a category</option>
-                    {categories.map((category) => (
-                      <option key={category.id} value={category.id}>
-                        {category.name}
-                      </option>
-                    ))}
-                  </select>
-                </InputWithError>
+                  {categories.map((category) => (
+                    <SelectItem key={category.id} value={category.id}>
+                      {category.name}
+                    </SelectItem>
+                  ))}
+                </ValidationSelect>
               </form>
             </div>
 
@@ -947,61 +856,40 @@ export default function AdminServicesPage() {
             {/* Form Content */}
             <div className="flex-1 overflow-y-auto px-6 py-4">
               <form onSubmit={handleSaveCategory} className="space-y-4" id="category-form">
-                <InputWithError 
-                  label="Category Name" 
-                  required 
+                <ValidationInput
+                  label="Category Name"
+                  required
                   error={categoryFormErrors.name}
-                >
-                  <input
-                    type="text"
-                    value={categoryForm.name}
-                    onChange={(e) => {
-                      setCategoryForm({ ...categoryForm, name: e.target.value })
-                      if (categoryFormErrors.name) {
-                        setCategoryFormErrors({ ...categoryFormErrors, name: '' })
-                      }
-                    }}
-                    className={`block w-full px-3 py-2 border rounded-md shadow-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-0 ${
-                      categoryFormErrors.name 
-                        ? 'border-red-500 focus:ring-red-500 focus:border-red-500' 
-                        : 'border-gray-300 focus:ring-indigo-500 focus:border-indigo-500'
-                    }`}
-                  />
-                </InputWithError>
+                  value={categoryForm.name}
+                  onChange={(e) => {
+                    setCategoryForm({ ...categoryForm, name: e.target.value })
+                    if (categoryFormErrors.name) {
+                      setCategoryFormErrors({ ...categoryFormErrors, name: '' })
+                    }
+                  }}
+                />
 
-                <InputWithError 
-                  label="Description" 
+                <ValidationTextarea
+                  label="Description"
                   error={categoryFormErrors.description}
-                >
-                  <textarea
-                    rows={3}
-                    value={categoryForm.description}
-                    onChange={(e) => setCategoryForm({ ...categoryForm, description: e.target.value })}
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                  />
-                </InputWithError>
+                  rows={3}
+                  value={categoryForm.description}
+                  onChange={(e) => setCategoryForm({ ...categoryForm, description: e.target.value })}
+                />
 
-                <InputWithError 
-                  label="Display Order" 
+                <ValidationInput
+                  label="Display Order"
                   error={categoryFormErrors.display_order}
-                >
-                  <input
-                    type="number"
-                    min="0"
-                    value={categoryForm.display_order}
-                    onChange={(e) => {
-                      setCategoryForm({ ...categoryForm, display_order: parseInt(e.target.value) || 0 })
-                      if (categoryFormErrors.display_order) {
-                        setCategoryFormErrors({ ...categoryFormErrors, display_order: '' })
-                      }
-                    }}
-                    className={`block w-full px-3 py-2 border rounded-md shadow-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-0 ${
-                      categoryFormErrors.display_order 
-                        ? 'border-red-500 focus:ring-red-500 focus:border-red-500' 
-                        : 'border-gray-300 focus:ring-indigo-500 focus:border-indigo-500'
-                    }`}
-                  />
-                </InputWithError>
+                  type="number"
+                  min="0"
+                  value={categoryForm.display_order}
+                  onChange={(e) => {
+                    setCategoryForm({ ...categoryForm, display_order: parseInt(e.target.value) || 0 })
+                    if (categoryFormErrors.display_order) {
+                      setCategoryFormErrors({ ...categoryFormErrors, display_order: '' })
+                    }
+                  }}
+                />
               </form>
             </div>
 

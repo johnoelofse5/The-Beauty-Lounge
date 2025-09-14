@@ -160,12 +160,33 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut()
-    if (error) {
-      throw new Error(error.message)
+    try {
+      const { error } = await supabase.auth.signOut()
+      if (error) {
+        // If the error is about session not found, it means the session is already invalid
+        // In this case, we should clear the local state and redirect to login page
+        if (error.message.includes('session_not_found') || error.message.includes('Session from session_id claim in JWT does not exist')) {
+          console.warn('Session already expired, clearing local state and redirecting to login')
+          // Clear local state manually
+          setSession(null)
+          setUser(null)
+          setUserRoleData(null)
+          router.push('/login')
+          return
+        }
+        throw new Error(error.message)
+      }
+      // Redirect to home page after successful sign out
+      router.push('/')
+    } catch (err) {
+      // If there's any error during logout, still clear the local state
+      // This ensures the user can't get stuck in a logged-in state
+      console.error('Error during logout:', err)
+      setSession(null)
+      setUser(null)
+      setUserRoleData(null)
+      router.push('/login')
     }
-    // Redirect to home page after successful sign out
-    router.push('/')
   }
 
   const resetPassword = async (email: string) => {

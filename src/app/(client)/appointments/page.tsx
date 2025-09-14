@@ -9,6 +9,7 @@ import { getServicesWithCategories, formatPrice, formatDuration } from '@/lib/se
 import { ServiceWithCategory } from '@/types'
 import { supabase } from '@/lib/supabase'
 import { DatePicker } from '@/components/date-picker'
+import { Textarea } from '@/components/ui/textarea'
 import { isPractitioner } from '@/lib/rbac'
 
 interface TimeSlot {
@@ -1015,12 +1016,12 @@ export default function AppointmentsPage() {
                 <label className="block text-sm font-medium text-gray-900 mb-3">
                   Notes (Optional)
                 </label>
-                <textarea
+                <Textarea
                   rows={3}
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="Any special requests or notes for your appointment..."
-                  className="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 hover:border-gray-400 transition-colors duration-200 text-base resize-none"
+                  className="resize-none"
                 />
               </div>
 

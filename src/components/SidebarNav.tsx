@@ -3,7 +3,8 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
-import { canViewAllAppointments, canViewAdmin, canManageServices, canManageUsers, isPractitioner } from '@/lib/rbac'  
+import { useToast } from '@/contexts/ToastContext'
+import { canViewAllAppointments, canViewAdmin, canManageServices, canManageUsers, isPractitioner, isSuperAdmin } from '@/lib/rbac'  
 import {
   Sidebar,
   SidebarContent,
@@ -28,6 +29,7 @@ import {
   LogOut,
   Sparkles,
   PlusCircle,
+  Image
 } from 'lucide-react'
 
 interface SidebarNavProps {
@@ -36,14 +38,19 @@ interface SidebarNavProps {
 
 export default function SidebarNav({ title = "The Beauty Lounge" }: SidebarNavProps) {
   const { user, userRoleData, signOut } = useAuth()
+  const { showSuccess, showError } = useToast()
   const pathname = usePathname()
   const { setOpenMobile, isMobile } = useSidebar()
 
   const handleSignOut = async () => {
     try {
       await signOut()
+      showSuccess('Successfully signed out')
     } catch (error) {
       console.error('Error signing out:', error)
+      // Even if there's an error, the AuthContext will handle clearing the state
+      // and redirecting to login page, so we don't need to do anything special here
+      showError('Session expired. Please sign in again.')
     }
   }
 
@@ -87,7 +94,19 @@ export default function SidebarNav({ title = "The Beauty Lounge" }: SidebarNavPr
       title: "Book for Client",
       url: "/appointments",
       icon: PlusCircle,
-      show: isPractitionerUser, // Show only for practitioners
+      show: isPractitionerUser || canViewAdminFeatures, // Show only for practitioners
+    },
+    {
+      title: "Portfolio",
+      url: "/portfolio",
+      icon: Image,
+      show: true, // Show for all logged-in users
+    },
+    {
+      title: "Manage Portfolio",
+      url: "/portfolio/manage",
+      icon: Image,
+      show: isPractitionerUser || canViewAdminFeatures, // Show only for practitioners and admins
     },
     {
       title: "Services",
@@ -166,21 +185,23 @@ export default function SidebarNav({ title = "The Beauty Lounge" }: SidebarNavPr
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton>
-                  <User className="h-4 w-4" />
-                  <div className="flex flex-col min-w-0 flex-1">
-                    <span className="text-sm font-medium truncate">
-                      {typeof user.user_metadata?.first_name === 'string' 
-                        ? user.user_metadata.first_name 
-                        : typeof user.email === 'string' 
-                        ? user.email 
-                        : 'User'}
-                    </span>
-                    <span className="text-xs text-sidebar-foreground/70 truncate">
-                      {typeof user.email === 'string' ? user.email : 'No email'}
-                    </span>
-                  </div>
-                </SidebarMenuButton>
+                <Link href="/profile" onClick={handleNavigationClick}>
+                  <SidebarMenuButton>
+                    <User className="h-4 w-4" />
+                    <div className="flex flex-col min-w-0 flex-1">
+                      <span className="text-sm font-medium truncate">
+                        {typeof user.user_metadata?.first_name === 'string' 
+                          ? user.user_metadata.first_name 
+                          : typeof user.email === 'string' 
+                          ? user.email 
+                          : 'User'}
+                      </span>
+                      <span className="text-xs text-sidebar-foreground/70 truncate">
+                        {typeof user.email === 'string' ? user.email : 'No email'}
+                      </span>
+                    </div>
+                  </SidebarMenuButton>
+                </Link>
               </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton onClick={() => {

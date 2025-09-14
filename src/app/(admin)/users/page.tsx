@@ -4,6 +4,14 @@ import { useState, useEffect, useCallback, memo, useRef } from 'react'
 import Link from 'next/link'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
+import { ValidationInput } from '@/components/validation/ValidationComponents'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
 interface User {
   id: string
@@ -339,37 +347,6 @@ export default function UserManagementPage() {
     }
   })
 
-  const InputWithError = memo(({ 
-    label, 
-    error, 
-    required = false, 
-    children 
-  }: { 
-    label: string
-    error?: string
-    required?: boolean
-    children: React.ReactNode 
-  }) => (
-    <div className="relative">
-      <label className="block text-sm font-medium text-gray-700 mb-1 sm:mb-2">
-        {label} {required && <span className="text-red-500">*</span>}
-      </label>
-      <div className="relative">
-        {children}
-        {error && (
-          <div className="absolute top-full left-0 mt-1 z-10">
-            <div className="bg-red-500 text-white text-xs rounded px-2 py-1 shadow-lg relative">
-              {error}
-              <div className="absolute -top-1 left-3 w-2 h-2 bg-red-500 transform rotate-45"></div>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  ))
-
-  InputWithError.displayName = 'InputWithError'
-
   if (authLoading || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -662,63 +639,85 @@ export default function UserManagementPage() {
               {/* Form Content */}
               <div className="flex-1 overflow-y-auto px-6 py-4">
                 <form onSubmit={(e) => { e.preventDefault(); handleAddUser(); }} className="space-y-4" id="add-user-form">
-                  <InputWithError label="Email" error={formErrors.email} required>
-                    <input
-                      ref={emailRef}
-                      type="email"
-                      className={`block w-full px-3 py-2 border rounded-md shadow-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-0 ${
-                        formErrors.email ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-indigo-500 focus:border-indigo-500'
-                      }`}
-                    />
-                  </InputWithError>
+                  <ValidationInput
+                    label="Email"
+                    required
+                    error={formErrors.email}
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => {
+                      setFormData({ ...formData, email: e.target.value })
+                      if (formErrors.email) {
+                        setFormErrors({ ...formErrors, email: '' })
+                      }
+                    }}
+                  />
 
                   <div className="grid grid-cols-2 gap-4">
-                    <InputWithError label="First Name" error={formErrors.first_name} required>
-                      <input
-                        ref={firstNameRef}
-                        type="text"
-                        className={`block w-full px-3 py-2 border rounded-md shadow-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-0 ${
-                          formErrors.first_name ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-indigo-500 focus:border-indigo-500'
-                        }`}
-                      />
-                    </InputWithError>
+                    <ValidationInput
+                      label="First Name"
+                      required
+                      error={formErrors.first_name}
+                      type="text"
+                      value={formData.first_name}
+                      onChange={(e) => {
+                        setFormData({ ...formData, first_name: e.target.value })
+                        if (formErrors.first_name) {
+                          setFormErrors({ ...formErrors, first_name: '' })
+                        }
+                      }}
+                    />
 
-                    <InputWithError label="Last Name" error={formErrors.last_name} required>
-                      <input
-                        ref={lastNameRef}
-                        type="text"
-                        className={`block w-full px-3 py-2 border rounded-md shadow-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-0 ${
-                          formErrors.last_name ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-indigo-500 focus:border-indigo-500'
-                        }`}
-                      />
-                    </InputWithError>
+                    <ValidationInput
+                      label="Last Name"
+                      required
+                      error={formErrors.last_name}
+                      type="text"
+                      value={formData.last_name}
+                      onChange={(e) => {
+                        setFormData({ ...formData, last_name: e.target.value })
+                        if (formErrors.last_name) {
+                          setFormErrors({ ...formErrors, last_name: '' })
+                        }
+                      }}
+                    />
                   </div>
 
-                  <InputWithError label="Phone" error={formErrors.phone} required>
-                    <input
-                      ref={phoneRef}
-                      type="tel"
-                      className={`block w-full px-3 py-2 border rounded-md shadow-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-0 ${
-                        formErrors.phone ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-indigo-500 focus:border-indigo-500'
-                      }`}
-                    />
-                  </InputWithError>
+                  <ValidationInput
+                    label="Phone"
+                    required
+                    error={formErrors.phone}
+                    type="tel"
+                    value={formData.phone}
+                    onChange={(e) => {
+                      setFormData({ ...formData, phone: e.target.value })
+                      if (formErrors.phone) {
+                        setFormErrors({ ...formErrors, phone: '' })
+                      }
+                    }}
+                  />
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Role
                     </label>
-                    <select
-                      ref={roleRef}
-                      className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    <Select 
+                      value={formData.role_id || ''} 
+                      onValueChange={(value) => {
+                        setFormData({ ...formData, role_id: value || null })
+                      }}
                     >
-                      <option value="">Select a role</option>
-                      {roles.map(role => (
-                        <option key={role.id} value={role.id}>
-                          {role.name} - {role.description}
-                        </option>
-                      ))}
-                    </select>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select a role" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-white border border-gray-300 shadow-lg">
+                        {roles.map(role => (
+                          <SelectItem key={role.id} value={role.id}>
+                            {role.name} - {role.description}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <div>
@@ -810,73 +809,70 @@ export default function UserManagementPage() {
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
-                    <InputWithError label="First Name" error={formErrors.first_name} required>
-                      <input
-                        type="text"
-                        value={formData.first_name}
-                        onChange={(e) => {
-                          setFormData({ ...formData, first_name: e.target.value })
-                          if (formErrors.first_name) {
-                            setFormErrors({ ...formErrors, first_name: '' })
-                          }
-                        }}
-                        className={`block w-full px-3 py-2 border rounded-md shadow-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-0 ${
-                          formErrors.first_name ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-indigo-500 focus:border-indigo-500'
-                        }`}
-                      />
-                    </InputWithError>
-
-                    <InputWithError label="Last Name" error={formErrors.last_name} required>
-                      <input
-                        type="text"
-                        value={formData.last_name}
-                        onChange={(e) => {
-                          setFormData({ ...formData, last_name: e.target.value })
-                          if (formErrors.last_name) {
-                            setFormErrors({ ...formErrors, last_name: '' })
-                          }
-                        }}
-                        className={`block w-full px-3 py-2 border rounded-md shadow-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-0 ${
-                          formErrors.last_name ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-indigo-500 focus:border-indigo-500'
-                        }`}
-                      />
-                    </InputWithError>
-                  </div>
-
-                  <InputWithError label="Phone" error={formErrors.phone} required>
-                    <input
-                      type="tel"
-                      value={formData.phone}
+                    <ValidationInput
+                      label="First Name"
+                      required
+                      error={formErrors.first_name}
+                      type="text"
+                      value={formData.first_name}
                       onChange={(e) => {
-                        setFormData({ ...formData, phone: e.target.value })
-                        if (formErrors.phone) {
-                          setFormErrors({ ...formErrors, phone: '' })
+                        setFormData({ ...formData, first_name: e.target.value })
+                        if (formErrors.first_name) {
+                          setFormErrors({ ...formErrors, first_name: '' })
                         }
                       }}
-                      className={`block w-full px-3 py-2 border rounded-md shadow-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-0 ${
-                        formErrors.phone ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-indigo-500 focus:border-indigo-500'
-                      }`}
                     />
-                  </InputWithError>
+
+                    <ValidationInput
+                      label="Last Name"
+                      required
+                      error={formErrors.last_name}
+                      type="text"
+                      value={formData.last_name}
+                      onChange={(e) => {
+                        setFormData({ ...formData, last_name: e.target.value })
+                        if (formErrors.last_name) {
+                          setFormErrors({ ...formErrors, last_name: '' })
+                        }
+                      }}
+                    />
+                  </div>
+
+                  <ValidationInput
+                    label="Phone"
+                    required
+                    error={formErrors.phone}
+                    type="tel"
+                    value={formData.phone}
+                    onChange={(e) => {
+                      setFormData({ ...formData, phone: e.target.value })
+                      if (formErrors.phone) {
+                        setFormErrors({ ...formErrors, phone: '' })
+                      }
+                    }}
+                  />
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Role
                     </label>
-                    <select
-                      value={formData.role_id || ''}
-                      onChange={(e) => {
-                        setFormData({ ...formData, role_id: e.target.value || null })
+                    <Select 
+                      value={formData.role_id || ''} 
+                      onValueChange={(value) => {
+                        setFormData({ ...formData, role_id: value || null })
                       }}
-                      className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                     >
-                      <option value="">Select a role</option>
-                      {roles.map(role => (
-                        <option key={role.id} value={role.id}>
-                          {role.name} - {role.description}
-                        </option>
-                      ))}
-                    </select>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select a role" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-white border border-gray-300 shadow-lg">
+                        {roles.map(role => (
+                          <SelectItem key={role.id} value={role.id}>
+                            {role.name} - {role.description}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <div>
