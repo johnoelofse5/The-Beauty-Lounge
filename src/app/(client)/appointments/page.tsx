@@ -14,6 +14,7 @@ import { isPractitioner } from '@/lib/rbac'
 import { ValidationInput } from '@/components/validation/ValidationComponents'
 import { ValidationService } from '@/lib/validation-service'
 import TimeSlotSelector from '@/components/TimeSlotSelector'
+import { BookingProgressService, BookingProgress } from '@/lib/booking-progress-service'
 
 interface TimeSlot {
   time: string
@@ -65,6 +66,15 @@ export default function AppointmentsPage() {
   })
   const [externalClientFormErrors, setExternalClientFormErrors] = useState<Record<string, string>>({})
   
+  // Progress tracking
+  const [currentStep, setCurrentStep] = useState<number>(1)
+  const [hasSavedProgress, setHasSavedProgress] = useState<boolean>(false)
+  const [savingProgress, setSavingProgress] = useState<boolean>(false)
+  const [progressLoaded, setProgressLoaded] = useState<boolean>(false)
+  const [savedServiceIds, setSavedServiceIds] = useState<string[]>([])
+  const [savedPractitionerId, setSavedPractitionerId] = useState<string | null>(null)
+  const [savedClientId, setSavedClientId] = useState<string | null>(null)
+  
   // Determine booking flow based on user role
   const isPractitionerUser = isPractitioner(userRoleData?.role || null)
   const [bookingStep, setBookingStep] = useState<'service' | 'practitioner' | 'client' | 'datetime' | 'confirm'>('service')
@@ -101,6 +111,41 @@ export default function AppointmentsPage() {
     }
   }, [services, searchParams, selectedServices])
 
+  // Load saved progress on component mount
+  useEffect(() => {
+    if (user) {
+      loadSavedProgress()
+    }
+  }, [user])
+
+  // Restore selected services after services are loaded
+  useEffect(() => {
+    if (services.length > 0 && hasSavedProgress && selectedServices.length === 0) {
+      restoreSelectedServices()
+    }
+  }, [services, hasSavedProgress, selectedServices.length])
+
+  // Restore selected practitioner after practitioners are loaded
+  useEffect(() => {
+    if (practitioners.length > 0 && hasSavedProgress && !selectedPractitioner) {
+      restoreSelectedPractitioner()
+    }
+  }, [practitioners, hasSavedProgress, selectedPractitioner])
+
+  // Restore selected client after clients are loaded
+  useEffect(() => {
+    if (clients.length > 0 && hasSavedProgress && !selectedClient) {
+      restoreSelectedClient()
+    }
+  }, [clients, hasSavedProgress, selectedClient])
+
+  // Save progress whenever form data changes
+  useEffect(() => {
+    if (user && currentStep > 1) {
+      saveProgress()
+    }
+  }, [selectedServices, selectedPractitioner, selectedClient, selectedDate, selectedTime, notes, isExternalClient, externalClientInfo, currentStep])
+
   // Helper functions for date handling
   const getTomorrowDate = () => {
     const today = new Date()
@@ -121,6 +166,170 @@ export default function AppointmentsPage() {
     const month = String(date.getMonth() + 1).padStart(2, '0')
     const day = String(date.getDate()).padStart(2, '0')
     return `${year}-${month}-${day}`
+  }
+
+  // Progress management functions
+  const restoreSelectedServices = () => {
+    if (savedServiceIds.length > 0 && services.length > 0) {
+      const restoredServices = services.filter(service => 
+        savedServiceIds.includes(service.id)
+      )
+      setSelectedServices(restoredServices)
+    }
+  }
+
+  const restoreSelectedPractitioner = () => {
+    if (savedPractitionerId && practitioners.length > 0 && !selectedPractitioner) {
+      const practitioner = practitioners.find(p => p.id === savedPractitionerId)
+      if (practitioner) {
+        setSelectedPractitioner(practitioner)
+      }
+    }
+  }
+
+  const restoreSelectedClient = () => {
+    if (savedClientId && clients.length > 0 && !selectedClient) {
+      const client = clients.find(c => c.id === savedClientId)
+      if (client) {
+        setSelectedClient(client)
+      }
+    }
+  }
+
+  const loadSavedProgress = async () => {
+    if (!user || progressLoaded) return
+
+    try {
+      const progress = await BookingProgressService.loadProgress(user.id)
+      if (progress) {
+        setCurrentStep(progress.current_step)
+        setHasSavedProgress(true)
+        setProgressLoaded(true)
+        
+        // Store selected service IDs for later restoration
+        if (progress.selected_services) {
+          setSavedServiceIds(progress.selected_services)
+        }
+        
+        // Store selected practitioner and client IDs for later restoration
+        if (progress.selected_practitioner_id) {
+          setSavedPractitionerId(progress.selected_practitioner_id)
+        }
+        
+        if (progress.selected_client_id) {
+          setSavedClientId(progress.selected_client_id)
+        }
+        
+        if (progress.selected_date) {
+          setSelectedDate(new Date(progress.selected_date))
+        }
+        
+        if (progress.selected_time) {
+          setSelectedTime(progress.selected_time)
+        }
+        
+        if (progress.notes) {
+          setNotes(progress.notes)
+        }
+        
+        if (progress.is_external_client) {
+          setIsExternalClient(true)
+          if (progress.external_client_info) {
+            setExternalClientInfo(progress.external_client_info)
+          }
+        }
+        
+        // Set the appropriate booking step based on current step
+        if (progress.current_step >= 4) {
+          updateCurrentStep('confirm')
+        } else if (progress.current_step >= 3) {
+          updateCurrentStep('datetime')
+        } else if (progress.current_step >= 2) {
+          if (isPractitionerUser) {
+            updateCurrentStep('client')
+          } else {
+            updateCurrentStep('practitioner')
+          }
+        } else {
+          updateCurrentStep('service')
+        }
+        
+      } else {
+        setProgressLoaded(true)
+      }
+    } catch (error) {
+      console.error('Error loading saved progress:', error)
+      setProgressLoaded(true)
+      // Don't show error to user as this is not critical
+    }
+  }
+
+  const saveProgress = async () => {
+    if (!user || savingProgress) return
+
+    try {
+      setSavingProgress(true)
+      
+      const progressData: Partial<BookingProgress> = {
+        current_step: currentStep,
+        selected_services: selectedServices.map(s => s.id),
+        selected_practitioner_id: selectedPractitioner?.id,
+        selected_client_id: selectedClient?.id,
+        selected_date: selectedDate ? formatDateForAPI(selectedDate) : undefined,
+        selected_time: selectedTime || undefined,
+        notes: notes || undefined,
+        is_external_client: isExternalClient,
+        external_client_info: isExternalClient ? externalClientInfo : undefined,
+        practitioner_id: isPractitionerUser ? user.id : selectedPractitioner?.id
+      }
+
+      await BookingProgressService.saveProgress(user.id, progressData)
+      setHasSavedProgress(true)
+    } catch (error) {
+      console.error('Error saving progress:', error)
+      // Don't show error to user as this is not critical
+    } finally {
+      setSavingProgress(false)
+    }
+  }
+
+  const clearProgress = async () => {
+    if (!user) return
+
+    try {
+      await BookingProgressService.clearProgress(user.id)
+      setHasSavedProgress(false)
+      setProgressLoaded(false) // Reset flag so progress can be loaded again if needed
+      setSavedServiceIds([]) // Clear saved service IDs
+      setSavedPractitionerId(null) // Clear saved practitioner ID
+      setSavedClientId(null) // Clear saved client ID
+      showSuccess('Booking progress cleared!')
+    } catch (error) {
+      // Check if it's a "no progress to clear" scenario
+      if (error instanceof Error && error.message.includes('No booking progress found')) {
+        setHasSavedProgress(false)
+        setProgressLoaded(false)
+        showSuccess('No booking progress to clear')
+      } else {
+        showError('Failed to clear booking progress. Please try again.')
+      }
+    }
+  }
+
+  // Update current step when booking step changes
+  const updateCurrentStep = (step: 'service' | 'practitioner' | 'client' | 'datetime' | 'confirm') => {
+    setBookingStep(step)
+    
+    // Map booking steps to step numbers
+    const stepMap = {
+      'service': 1,
+      'practitioner': 2,
+      'client': 2,
+      'datetime': 3,
+      'confirm': 4
+    }
+    
+    setCurrentStep(stepMap[step])
   }
 
   // Get existing appointments for conflict checking
@@ -263,9 +472,9 @@ export default function AppointmentsPage() {
   const handleContinueToPractitioner = () => {
     if (selectedServices.length > 0) {
       if (isPractitionerUser) {
-        setBookingStep('client')
+        updateCurrentStep('client')
       } else {
-        setBookingStep('practitioner')
+        updateCurrentStep('practitioner')
       }
     }
   }
@@ -279,7 +488,7 @@ export default function AppointmentsPage() {
   const handleContinueToDateTime = () => {
     if (isPractitionerUser) {
       if (selectedServices.length > 0 && selectedClient) {
-        setBookingStep('datetime')
+        updateCurrentStep('datetime')
       } else if (isExternalClient) {
         // Validate external client info using ValidationService
         const formData = {
@@ -292,21 +501,21 @@ export default function AppointmentsPage() {
         const validationResult = ValidationService.validateForm(formData, ValidationService.schemas.externalClient)
         
         if (validationResult.isValid) {
-          setBookingStep('datetime')
+          updateCurrentStep('datetime')
         } else {
           setExternalClientFormErrors(validationResult.errors)
         }
       }
     } else {
       if (selectedServices.length > 0 && selectedPractitioner) {
-        setBookingStep('datetime')
+        updateCurrentStep('datetime')
       }
     }
   }
 
   const handleDateTimeConfirm = () => {
     if (selectedDate && selectedTime) {
-      setBookingStep('confirm')
+      updateCurrentStep('confirm')
     }
   }
 
@@ -326,17 +535,22 @@ export default function AppointmentsPage() {
       const totalDurationMinutes = selectedServices.reduce((total, service) => total + service.duration_minutes, 0)
       
       // Calculate end time based on total duration
-      const startTime = new Date(`${formatDateForAPI(selectedDate)}T${selectedTime}`)
-      const endTime = new Date(startTime.getTime() + totalDurationMinutes * 60000)
-      const endTimeString = endTime.toTimeString().split(' ')[0]
+      // Parse time components to avoid timezone issues
+      const [hours, minutes] = selectedTime.split(':').map(Number)
+      const startTimeMinutes = hours * 60 + minutes
+      const endTimeMinutes = startTimeMinutes + totalDurationMinutes
+      const endHours = Math.floor(endTimeMinutes / 60)
+      const endMins = endTimeMinutes % 60
+      const endTimeString = `${endHours.toString().padStart(2, '0')}:${endMins.toString().padStart(2, '0')}`
 
       // Create appointment with all selected services
       const appointmentData = {
         user_id: isPractitionerUser ? (isExternalClient ? null : selectedClient!.id) : user.id,
         practitioner_id: isPractitionerUser ? user.id : selectedPractitioner!.id,
-        appointment_date: formatDateForAPI(selectedDate),
-        start_time: selectedTime,
-        end_time: endTimeString,
+        // Use timestamptz columns - store full datetime with timezone
+        appointment_date: new Date(`${formatDateForAPI(selectedDate)}T${selectedTime}`).toISOString(),
+        start_time: new Date(`${formatDateForAPI(selectedDate)}T${selectedTime}`).toISOString(),
+        end_time: new Date(`${formatDateForAPI(selectedDate)}T${endTimeString}`).toISOString(),
         status: 'scheduled',
         notes: notes || null,
         is_active: true,
@@ -376,7 +590,15 @@ export default function AppointmentsPage() {
         phone: ''
       })
       setExternalClientFormErrors({})
-      setBookingStep('service')
+      setSavedServiceIds([]) // Clear saved service IDs
+      setSavedPractitionerId(null) // Clear saved practitioner ID
+      setSavedClientId(null) // Clear saved client ID
+      updateCurrentStep('service')
+      
+      // Clear saved progress since appointment was successfully created
+      await BookingProgressService.clearProgress(user.id)
+      setHasSavedProgress(false)
+      setProgressLoaded(false) // Reset flag for future bookings
       
       // Redirect based on user role
       setTimeout(() => {
@@ -515,6 +737,46 @@ export default function AppointmentsPage() {
             </div>
           </div>
         </div>
+
+        {/* Progress Save/Clear Section */}
+        {currentStep > 1 && (
+          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm font-medium text-blue-800">
+                    {hasSavedProgress ? 'Progress automatically saved' : 'Saving progress...'}
+                  </p>
+                  <p className="text-sm text-blue-600">
+                    Your booking progress is saved and will be restored when you return.
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={clearProgress}
+                  className="px-3 py-2 text-sm font-medium text-blue-700 bg-blue-100 border border-blue-300 rounded-md hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+                >
+                  Clear Progress
+                </button>
+                {savingProgress && (
+                  <div className="flex items-center px-3 py-2 text-sm text-blue-600">
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Saving...
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Step 1: Service Selection */}
         {bookingStep === 'service' && (
@@ -715,7 +977,7 @@ export default function AppointmentsPage() {
           <div>
             <div className="mb-6">
               <button
-                onClick={() => setBookingStep('service')}
+                onClick={() => updateCurrentStep('service')}
                 className="text-indigo-600 hover:text-indigo-500 text-sm font-medium"
               >
                 ← Change Services
@@ -810,7 +1072,7 @@ export default function AppointmentsPage() {
           <div>
             <div className="mb-6">
               <button
-                onClick={() => setBookingStep('service')}
+                onClick={() => updateCurrentStep('service')}
                 className="text-indigo-600 hover:text-indigo-500 text-sm font-medium"
               >
                 ← Change Services
@@ -989,7 +1251,7 @@ export default function AppointmentsPage() {
           <div>
             <div className="mb-6">
               <button
-                onClick={() => setBookingStep(isPractitionerUser ? 'client' : 'practitioner')}
+                onClick={() => updateCurrentStep(isPractitionerUser ? 'client' : 'practitioner')}
                 className="text-indigo-600 hover:text-indigo-500 text-sm font-medium"
               >
                 ← Change {isPractitionerUser ? 'Client' : 'Practitioner'}
@@ -1147,7 +1409,7 @@ export default function AppointmentsPage() {
           <div>
             <div className="mb-6">
               <button
-                onClick={() => setBookingStep('datetime')}
+                onClick={() => updateCurrentStep('datetime')}
                 className="text-indigo-600 hover:text-indigo-500 text-sm font-medium"
               >
                 ← Change Date & Time
@@ -1242,7 +1504,16 @@ export default function AppointmentsPage() {
                 <div className="flex justify-between">
                   <span className="text-gray-900 font-medium">End Time:</span>
                   <span className="font-medium text-gray-900">
-                    {formatTimeDisplay(new Date(new Date(`${formatDateForAPI(selectedDate)}T${selectedTime}`).getTime() + selectedServices.reduce((total, service) => total + service.duration_minutes, 0) * 60000).toTimeString().split(' ')[0])}
+                    {(() => {
+                      const [hours, minutes] = selectedTime.split(':').map(Number)
+                      const startTimeMinutes = hours * 60 + minutes
+                      const totalDurationMinutes = selectedServices.reduce((total, service) => total + service.duration_minutes, 0)
+                      const endTimeMinutes = startTimeMinutes + totalDurationMinutes
+                      const endHours = Math.floor(endTimeMinutes / 60)
+                      const endMins = endTimeMinutes % 60
+                      const endTimeString = `${endHours.toString().padStart(2, '0')}:${endMins.toString().padStart(2, '0')}`
+                      return formatTimeDisplay(endTimeString)
+                    })()}
                   </span>
                 </div>
                 
@@ -1264,7 +1535,7 @@ export default function AppointmentsPage() {
 
             <div className="flex space-x-3">
               <button
-                onClick={() => setBookingStep('service')}
+                onClick={() => updateCurrentStep('service')}
                 className="flex-1 bg-gray-200 text-gray-700 px-3 py-2 lg:px-6 lg:py-2 rounded-lg hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 font-medium text-sm lg:text-base transition-colors"
               >
                 Start Over

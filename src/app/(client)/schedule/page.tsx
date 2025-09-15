@@ -4,9 +4,12 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { ScheduleService } from '@/lib/schedule-service'
 import { ScheduleFormData, DaySchedule } from '@/types/schedule'
-import { ValidationInput } from '@/components/validation/ValidationComponents'
+import { ValidationInput, ValidationSelect } from '@/components/validation/ValidationComponents'
+import { SelectItem } from '@/components/ui/select'
 import { useToast } from '@/contexts/ToastContext'
 import { isPractitioner } from '@/lib/rbac'
+import { LookupService } from '@/lib/lookup-service'
+import { Lookup } from '@/types/lookup'
 
 const DAYS_OF_WEEK = [
   { key: 'monday', name: 'Monday', dayOfWeek: 1 },
@@ -24,6 +27,8 @@ export default function ScheduleManagementPage() {
   const [scheduleData, setScheduleData] = useState<ScheduleFormData>(ScheduleService.getDefaultSchedule())
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [timeSlotIntervals, setTimeSlotIntervals] = useState<Lookup[]>([])
+  const [hours, setHours] = useState<Lookup[]>([])
 
   // Check if user is a practitioner
   const isPractitionerUser = isPractitioner(userRoleData?.role || null)
@@ -31,8 +36,65 @@ export default function ScheduleManagementPage() {
   useEffect(() => {
     if (!authLoading && user && isPractitionerUser) {
       loadSchedule()
+      loadTimeSlotIntervals()
+      loadHours()
     }
   }, [authLoading, user, isPractitionerUser])
+
+  const loadHours = async () => {
+    try {
+      const hoursData = await LookupService.getHours()
+      setHours(hoursData)
+    } catch (error) {
+      console.error('Error loading hours:', error)
+      // Fallback to default hours if lookup service fails
+      const fallbackHours: Lookup[] = []
+      for (let i = 0; i <= 23; i++) {
+        const hourValue = i.toString().padStart(2, '0')
+        let displayText = ''
+        if (i === 0) {
+          displayText = '12:00 AM (Midnight)'
+        } else if (i < 12) {
+          displayText = `${hourValue}:00 AM`
+        } else if (i === 12) {
+          displayText = '12:00 PM (Noon)'
+        } else {
+          displayText = `${(i - 12).toString().padStart(2, '0')}:00 PM`
+        }
+        
+        fallbackHours.push({
+          id: i.toString(),
+          lookup_type_id: '1',
+          value: hourValue,
+          secondary_value: displayText,
+          display_order: i + 1,
+          is_active: true,
+          is_deleted: false,
+          created_at: '',
+          updated_at: ''
+        })
+      }
+      setHours(fallbackHours)
+    }
+  }
+
+  const loadTimeSlotIntervals = async () => {
+    try {
+      const intervals = await LookupService.getTimeSlotIntervals()
+      setTimeSlotIntervals(intervals)
+    } catch (error) {
+      console.error('Error loading time slot intervals:', error)
+      // Fallback to default intervals if lookup service fails
+      setTimeSlotIntervals([
+        { id: '1', lookup_type_id: '1', value: '15', secondary_value: '15 minutes', display_order: 1, is_active: true, is_deleted: false, created_at: '', updated_at: '' },
+        { id: '2', lookup_type_id: '1', value: '30', secondary_value: '30 minutes', display_order: 2, is_active: true, is_deleted: false, created_at: '', updated_at: '' },
+        { id: '3', lookup_type_id: '1', value: '45', secondary_value: '45 minutes', display_order: 3, is_active: true, is_deleted: false, created_at: '', updated_at: '' },
+        { id: '4', lookup_type_id: '1', value: '60', secondary_value: '60 minutes', display_order: 4, is_active: true, is_deleted: false, created_at: '', updated_at: '' },
+        { id: '5', lookup_type_id: '1', value: '90', secondary_value: '90 minutes', display_order: 5, is_active: true, is_deleted: false, created_at: '', updated_at: '' },
+        { id: '6', lookup_type_id: '1', value: '120', secondary_value: '120 minutes', display_order: 6, is_active: true, is_deleted: false, created_at: '', updated_at: '' }
+      ])
+    }
+  }
 
   const loadSchedule = async () => {
     if (!user?.id) return
@@ -47,13 +109,14 @@ export default function ScheduleManagementPage() {
       workingSchedule.forEach(schedule => {
         const dayKey = DAYS_OF_WEEK.find(day => day.dayOfWeek === schedule.day_of_week)?.key as keyof ScheduleFormData
         if (dayKey) {
-          formData[dayKey] = {
-            day_of_week: schedule.day_of_week,
-            day_name: DAYS_OF_WEEK.find(day => day.dayOfWeek === schedule.day_of_week)?.name || '',
-            start_time: schedule.start_time,
-            end_time: schedule.end_time,
-            is_active: true
-          }
+        formData[dayKey] = {
+          day_of_week: schedule.day_of_week,
+          day_name: DAYS_OF_WEEK.find(day => day.dayOfWeek === schedule.day_of_week)?.name || '',
+          start_time: schedule.start_time,
+          end_time: schedule.end_time,
+          time_slot_interval_minutes: schedule.time_slot_interval_minutes || 30,
+          is_active: true
+        }
         }
       })
       
@@ -76,12 +139,25 @@ export default function ScheduleManagementPage() {
     }))
   }
 
-  const handleTimeChange = (dayKey: keyof ScheduleFormData, field: 'start_time' | 'end_time', value: string) => {
+  const handleTimeChange = (dayKey: keyof ScheduleFormData, field: 'start_time' | 'end_time', hourValue: string) => {
+    // Convert hour value (e.g., "08") to time format (e.g., "08:00")
+    const timeValue = `${hourValue}:00`
+    
     setScheduleData(prev => ({
       ...prev,
       [dayKey]: {
         ...prev[dayKey],
-        [field]: value
+        [field]: timeValue
+      }
+    }))
+  }
+
+  const handleIntervalChange = (dayKey: keyof ScheduleFormData, value: number) => {
+    setScheduleData(prev => ({
+      ...prev,
+      [dayKey]: {
+        ...prev[dayKey],
+        time_slot_interval_minutes: value
       }
     }))
   }
@@ -107,7 +183,7 @@ export default function ScheduleManagementPage() {
 
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
       </div>
     )
@@ -115,7 +191,7 @@ export default function ScheduleManagementPage() {
 
   if (!isPractitionerUser) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-gray-900 mb-4">Access Denied</h1>
           <p className="text-gray-600">Only practitioners can manage their working schedule.</p>
@@ -125,7 +201,7 @@ export default function ScheduleManagementPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-white">
       <div className="max-w-4xl mx-auto px-4 py-8">
         <div className="bg-white rounded-lg shadow-sm border border-gray-200">
           <div className="px-6 py-4 border-b border-gray-200">
@@ -164,31 +240,55 @@ export default function ScheduleManagementPage() {
                   </div>
 
                   {dayData.is_active && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Start Time
-                        </label>
-                        <ValidationInput
-                          type="time"
-                          value={dayData.start_time}
-                          onChange={(e) => handleTimeChange(key as keyof ScheduleFormData, 'start_time', e.target.value)}
-                          className="w-full"
-                          label="Start Time"
-                        />
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <ValidationSelect
+                            label="Start Time"
+                            value={dayData.start_time.split(':')[0]} // Extract hour part from "HH:MM" format
+                            onValueChange={(value) => handleTimeChange(key as keyof ScheduleFormData, 'start_time', value)}
+                            placeholder="Select start time"
+                          >
+                            {hours.map((hour) => (
+                              <SelectItem key={hour.id} value={hour.value}>
+                                {hour.secondary_value || `${hour.value}:00`}
+                              </SelectItem>
+                            ))}
+                          </ValidationSelect>
+                        </div>
+                        <div>
+                          <ValidationSelect
+                            label="End Time"
+                            value={dayData.end_time.split(':')[0]} // Extract hour part from "HH:MM" format
+                            onValueChange={(value) => handleTimeChange(key as keyof ScheduleFormData, 'end_time', value)}
+                            placeholder="Select end time"
+                          >
+                            {hours.map((hour) => (
+                              <SelectItem key={hour.id} value={hour.value}>
+                                {hour.secondary_value || `${hour.value}:00`}
+                              </SelectItem>
+                            ))}
+                          </ValidationSelect>
+                        </div>
                       </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          End Time
-                        </label>
-                        <ValidationInput
-                          type="time"
-                          value={dayData.end_time}
-                          onChange={(e) => handleTimeChange(key as keyof ScheduleFormData, 'end_time', e.target.value)}
-                          className="w-full"
-                          label="End Time"
-                        />
-                      </div>
+                      
+                        <div>
+                          <ValidationSelect
+                            label="Time Slot Interval"
+                            value={dayData.time_slot_interval_minutes.toString()}
+                            onValueChange={(value) => handleIntervalChange(key as keyof ScheduleFormData, parseInt(value))}
+                            placeholder="Select interval"
+                          >
+                            {timeSlotIntervals.map((interval) => (
+                              <SelectItem key={interval.id} value={interval.value}>
+                                {interval.secondary_value || `${interval.value} minutes`}
+                              </SelectItem>
+                            ))}
+                          </ValidationSelect>
+                          <p className="text-xs text-gray-500 mt-1">
+                            How often clients can book appointments (e.g., every 30 minutes)
+                          </p>
+                        </div>
                     </div>
                   )}
                 </div>
@@ -222,7 +322,7 @@ export default function ScheduleManagementPage() {
             <li>• Check the box next to each day you want to work</li>
             <li>• Set your start and end times for each working day</li>
             <li>• Clients can only book appointments during your working hours</li>
-            <li>• Time slots are generated in 30-minute intervals</li>
+            <li>• Time slots are generated based on your configured interval (15, 30, 45, 60, 90, or 120 minutes)</li>
             <li>• Changes take effect immediately after saving</li>
           </ul>
         </div>

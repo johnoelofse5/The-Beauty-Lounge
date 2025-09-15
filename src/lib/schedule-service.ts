@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import { WorkingSchedule, DaySchedule, ScheduleFormData } from '@/types/schedule'
+import { LookupService } from '@/lib/lookup-service'
 
 export class ScheduleService {
   // Get working schedule for a practitioner
@@ -24,46 +25,61 @@ export class ScheduleService {
   // Save working schedule for a practitioner
   static async savePractitionerSchedule(practitionerId: string, scheduleData: ScheduleFormData): Promise<void> {
     try {
-      // First, soft delete existing schedule
-      await supabase
+      // First, mark all existing schedules as deleted
+      const { error: deleteError } = await supabase
         .from('working_schedule')
-        .update({ is_deleted: true })
+        .update({ is_deleted: true, is_active: false })
         .eq('practitioner_id', practitionerId)
-        .eq('is_active', true)
+        .eq('is_deleted', false)
 
+      if (deleteError) {
+        console.error('Error deleting existing schedule:', deleteError)
+        throw new Error('Failed to delete existing schedule')
+      }
+
+      // Get days of the week from lookup data
+      const daysOfWeek = await LookupService.getDaysOfWeek()
+      
       // Prepare new schedule entries
       const scheduleEntries: Omit<WorkingSchedule, 'id' | 'created_at' | 'updated_at'>[] = []
       
-      const days = [
-        { key: 'sunday', dayOfWeek: 0 },
-        { key: 'monday', dayOfWeek: 1 },
-        { key: 'tuesday', dayOfWeek: 2 },
-        { key: 'wednesday', dayOfWeek: 3 },
-        { key: 'thursday', dayOfWeek: 4 },
-        { key: 'friday', dayOfWeek: 5 },
-        { key: 'saturday', dayOfWeek: 6 }
-      ]
+      // Map lookup data to schedule form data keys
+      const dayKeyMap: Record<string, keyof ScheduleFormData> = {
+        '1': 'monday',
+        '2': 'tuesday', 
+        '3': 'wednesday',
+        '4': 'thursday',
+        '5': 'friday',
+        '6': 'saturday',
+        '7': 'sunday'
+      }
 
-      days.forEach(({ key, dayOfWeek }) => {
-        const daySchedule = scheduleData[key as keyof ScheduleFormData]
-        if (daySchedule.is_active) {
-          // Validate time order
-          if (daySchedule.start_time >= daySchedule.end_time) {
-            throw new Error(`Invalid time range for ${daySchedule.day_name}: start time must be before end time`)
+      daysOfWeek.forEach((dayLookup) => {
+        const dayOfWeek = parseInt(dayLookup.value) - 1 // Convert to 0-based index (Monday=0, Sunday=6)
+        const dayKey = dayKeyMap[dayLookup.value] as keyof ScheduleFormData
+        
+        if (dayKey && scheduleData[dayKey]) {
+          const daySchedule = scheduleData[dayKey]
+          if (daySchedule.is_active) {
+            // Validate time order
+            if (daySchedule.start_time >= daySchedule.end_time) {
+              throw new Error(`Invalid time range for ${daySchedule.day_name}: start time must be before end time`)
+            }
+            
+            scheduleEntries.push({
+              practitioner_id: practitionerId,
+              day_of_week: dayOfWeek,
+              start_time: daySchedule.start_time,
+              end_time: daySchedule.end_time,
+              time_slot_interval_minutes: daySchedule.time_slot_interval_minutes || 30,
+              is_active: true,
+              is_deleted: false
+            })
           }
-          
-          scheduleEntries.push({
-            practitioner_id: practitionerId,
-            day_of_week: dayOfWeek,
-            start_time: daySchedule.start_time,
-            end_time: daySchedule.end_time,
-            is_active: true,
-            is_deleted: false
-          })
         }
       })
 
-      // Insert new schedule entries
+      // Insert new schedule entries only if there are any
       if (scheduleEntries.length > 0) {
         const { error } = await supabase
           .from('working_schedule')
@@ -120,7 +136,7 @@ export class ScheduleService {
     const endHour = parseInt(daySchedule.end_time.split(':')[0])
     const endMinute = parseInt(daySchedule.end_time.split(':')[1])
     
-    const intervalMinutes = 30
+    const intervalMinutes = daySchedule.time_slot_interval_minutes || 30
 
     for (let hour = startHour; hour <= endHour; hour++) {
       for (let minute = 0; minute < 60; minute += intervalMinutes) {
@@ -132,12 +148,24 @@ export class ScheduleService {
         const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}:00`
         
         // Calculate end time for this slot with service duration
-        const startTime = new Date(`${this.formatDateForAPI(selectedDate)}T${timeString}`)
-        const endTime = new Date(startTime.getTime() + serviceDurationMinutes * 60000)
-        const endTimeString = endTime.toTimeString().split(' ')[0]
+        // Parse time components to avoid timezone issues
+        const startTimeMinutes = hour * 60 + minute
+        const endTimeMinutes = startTimeMinutes + serviceDurationMinutes
+        const endHours = Math.floor(endTimeMinutes / 60)
+        const endMins = endTimeMinutes % 60
+        const endTimeString = `${endHours.toString().padStart(2, '0')}:${endMins.toString().padStart(2, '0')}`
         
         // Check if this slot conflicts with existing appointments
         const hasConflict = existingAppointments?.some(apt => {
+          // Handle timestamptz columns
+          if (apt.start_time && apt.start_time.includes('T')) {
+            const aptStartTime = new Date(apt.start_time)
+            const aptEndTime = new Date(apt.end_time)
+            const slotStartTime = new Date(`${this.formatDateForAPI(selectedDate)}T${timeString}`)
+            const slotEndTime = new Date(`${this.formatDateForAPI(selectedDate)}T${endTimeString}`)
+            return (slotStartTime < aptEndTime && slotEndTime > aptStartTime)
+          }
+          // Fallback for old format
           const aptStart = apt.start_time
           const aptEnd = apt.end_time
           return (timeString < aptEnd && endTimeString > aptStart)
@@ -159,16 +187,16 @@ export class ScheduleService {
     return date.toISOString().split('T')[0]
   }
 
-  // Get default schedule (8 AM to 7 PM, Monday to Friday)
+  // Get default schedule (8 AM to 7 PM, Monday to Friday, 30-minute intervals)
   static getDefaultSchedule(): ScheduleFormData {
     return {
-      monday: { day_of_week: 1, day_name: 'Monday', start_time: '08:00:00', end_time: '19:00:00', is_active: true },
-      tuesday: { day_of_week: 2, day_name: 'Tuesday', start_time: '08:00:00', end_time: '19:00:00', is_active: true },
-      wednesday: { day_of_week: 3, day_name: 'Wednesday', start_time: '08:00:00', end_time: '19:00:00', is_active: true },
-      thursday: { day_of_week: 4, day_name: 'Thursday', start_time: '08:00:00', end_time: '19:00:00', is_active: true },
-      friday: { day_of_week: 5, day_name: 'Friday', start_time: '08:00:00', end_time: '19:00:00', is_active: true },
-      saturday: { day_of_week: 6, day_name: 'Saturday', start_time: '08:00:00', end_time: '19:00:00', is_active: false },
-      sunday: { day_of_week: 0, day_name: 'Sunday', start_time: '08:00:00', end_time: '19:00:00', is_active: false }
+      monday: { day_of_week: 1, day_name: 'Monday', start_time: '08:00:00', end_time: '19:00:00', time_slot_interval_minutes: 30, is_active: true },
+      tuesday: { day_of_week: 2, day_name: 'Tuesday', start_time: '08:00:00', end_time: '19:00:00', time_slot_interval_minutes: 30, is_active: true },
+      wednesday: { day_of_week: 3, day_name: 'Wednesday', start_time: '08:00:00', end_time: '19:00:00', time_slot_interval_minutes: 30, is_active: true },
+      thursday: { day_of_week: 4, day_name: 'Thursday', start_time: '08:00:00', end_time: '19:00:00', time_slot_interval_minutes: 30, is_active: true },
+      friday: { day_of_week: 5, day_name: 'Friday', start_time: '08:00:00', end_time: '19:00:00', time_slot_interval_minutes: 30, is_active: true },
+      saturday: { day_of_week: 6, day_name: 'Saturday', start_time: '08:00:00', end_time: '19:00:00', time_slot_interval_minutes: 30, is_active: false },
+      sunday: { day_of_week: 0, day_name: 'Sunday', start_time: '08:00:00', end_time: '19:00:00', time_slot_interval_minutes: 30, is_active: false }
     }
   }
 }

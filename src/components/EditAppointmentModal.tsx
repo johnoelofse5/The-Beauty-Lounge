@@ -176,21 +176,28 @@ export default function EditAppointmentModal({
 
             // Calculate end time based on total service duration
             const totalDuration = selectedServices.reduce((sum, service) => sum + service.duration_minutes, 0)
-            const startTime = new Date(`2000-01-01T${selectedTimeSlot}`)
-            const endTime = new Date(startTime.getTime() + totalDuration * 60000)
-            const endTimeString = endTime.toTimeString().split(' ')[0]
+            // Parse time components to avoid timezone issues
+            const [hours, minutes] = selectedTimeSlot.split(':').map(Number)
+            const startTimeMinutes = hours * 60 + minutes
+            const endTimeMinutes = startTimeMinutes + totalDuration
+            const endHours = Math.floor(endTimeMinutes / 60)
+            const endMins = endTimeMinutes % 60
+            const endTimeString = `${endHours.toString().padStart(2, '0')}:${endMins.toString().padStart(2, '0')}`
 
             // Format date for database
             const dateString = selectedDate.toISOString().split('T')[0]
+            const appointmentDateTime = new Date(`${dateString}T${selectedTimeSlot}`).toISOString()
+            const endDateTime = new Date(`${dateString}T${endTimeString}`).toISOString()
 
             // Update the appointment
             const { error: updateError } = await supabase
                 .from('appointments')
                 .update({
                     service_ids: selectedServices.map(s => s.id),
-                    appointment_date: dateString,
-                    start_time: selectedTimeSlot,
-                    end_time: endTimeString,
+                    // Use timestamptz columns - store full datetime with timezone
+                    appointment_date: appointmentDateTime,
+                    start_time: appointmentDateTime,
+                    end_time: endDateTime,
                     updated_at: new Date().toISOString()
                 })
                 .eq('id', appointment.id)
@@ -256,7 +263,20 @@ export default function EditAppointmentModal({
     }
 
     const formatDate = (dateString: string) => {
-        return new Date(dateString).toLocaleDateString('en-US', {
+        // If we have the new datetime column, use it for proper timezone handling
+        if (dateString.includes('T') || dateString.includes('Z')) {
+            return new Date(dateString).toLocaleDateString('en-US', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+            })
+        }
+        // Fallback to old date parsing for backward compatibility
+        const [year, month, day] = dateString.split('-').map(Number)
+        const localDate = new Date(year, month - 1, day)
+        return localDate.toLocaleDateString('en-US', {
             weekday: 'long',
             year: 'numeric',
             month: 'long',

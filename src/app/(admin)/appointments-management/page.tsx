@@ -156,6 +156,17 @@ export default function AppointmentsPage() {
   }
 
   const formatTime = (time: string): string => {
+    // If we have a datetime string, extract time and convert to local timezone
+    if (time.includes('T') || time.includes('Z')) {
+      const date = new Date(time)
+      return date.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+      })
+    }
+    // Fallback to old time parsing for backward compatibility
     const [hours, minutes] = time.split(':').map(Number)
     const period = hours >= 12 ? 'PM' : 'AM'
     const displayHours = hours > 12 ? hours - 12 : hours === 0 ? 12 : hours
@@ -163,7 +174,19 @@ export default function AppointmentsPage() {
   }
 
   const formatDate = (date: string): string => {
-    return new Date(date).toLocaleDateString('en-US', {
+    // If we have the new datetime column, use it for proper timezone handling
+    if (date.includes('T') || date.includes('Z')) {
+      return new Date(date).toLocaleDateString('en-US', {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+      })
+    }
+    // Fallback to old date parsing for backward compatibility
+    const [year, month, day] = date.split('-').map(Number)
+    const localDate = new Date(year, month - 1, day)
+    return localDate.toLocaleDateString('en-US', {
       weekday: 'short',
       month: 'short',
       day: 'numeric'
@@ -267,11 +290,28 @@ export default function AppointmentsPage() {
   }
 
   const getAppointmentsForDate = (date: string) => {
-    return appointments.filter(apt => apt.appointment_date === date)
+    return appointments.filter(apt => {
+      // Handle timestamptz columns - extract date part for comparison
+      if (apt.appointment_date && apt.appointment_date.includes('T')) {
+        const aptDate = new Date(apt.appointment_date).toISOString().split('T')[0]
+        return aptDate === date
+      }
+      // Fallback for old format
+      return apt.appointment_date === date
+    })
   }
 
   const getAppointmentsForTimeSlot = (date: string, hour: number) => {
     return appointments.filter(apt => {
+      // Handle timestamptz columns
+      if (apt.appointment_date && apt.appointment_date.includes('T')) {
+        const aptDate = new Date(apt.appointment_date).toISOString().split('T')[0]
+        if (aptDate !== date) return false
+        const aptStartTime = new Date(apt.start_time)
+        const startHour = aptStartTime.getHours()
+        return startHour === hour
+      }
+      // Fallback for old format
       if (apt.appointment_date !== date) return false
       const startHour = parseInt(apt.start_time.split(':')[0])
       return startHour === hour
