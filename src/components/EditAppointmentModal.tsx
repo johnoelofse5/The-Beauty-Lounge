@@ -2,67 +2,11 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
-import { ServiceWithCategory } from '@/types'
+import { ServiceWithCategory, AppointmentExtended, EditAppointmentModalProps } from '@/types'
 import { formatDuration, formatPrice, getServicesWithCategories } from '@/lib/services'
 import { DatePicker } from '@/components/date-picker'
 import { hasPermission, isPractitioner } from '@/lib/rbac'
 import TimeSlotSelector from '@/components/TimeSlotSelector'
-
-interface Appointment {
-    id: string
-    user_id: string | null
-    practitioner_id: string
-    service_id: string | null
-    service_ids: string[]
-    appointment_date: string
-    start_time: string
-    end_time: string
-    status: string
-    notes: string | null
-    is_active: boolean
-    is_deleted: boolean
-    created_at: string
-    updated_at: string
-    // External client information
-    client_first_name?: string
-    client_last_name?: string
-    client_email?: string
-    client_phone?: string
-    is_external_client?: boolean
-    client: {
-        first_name: string
-        last_name: string
-        email: string
-        phone?: string
-    } | null
-    practitioner: {
-        first_name: string
-        last_name: string
-        email: string
-        phone?: string
-    } | null
-    services?: ServiceWithCategory[]
-}
-
-interface EditAppointmentModalProps {
-    appointment: Appointment
-    isClosing: boolean
-    onClose: () => void
-    onUpdate: () => void
-    userRoleData: {
-        role: {
-            id: string
-            name: string
-            description: string
-        } | null
-        permissions: Array<{
-            id: string
-            name: string
-            resource: string
-            action: string
-        }>
-    }
-}
 
 export default function EditAppointmentModal({
     appointment,
@@ -428,6 +372,7 @@ export default function EditAppointmentModal({
                                     date={selectedDate}
                                     onDateChange={setSelectedDate}
                                     placeholder="Choose appointment date"
+                                    allowSameDay={hasPermission(userRoleData.permissions, 'appointments', 'update')}
                                     className="w-full"
                                 />
                             </div>

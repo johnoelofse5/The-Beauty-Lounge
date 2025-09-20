@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/contexts/ToastContext'
 import { getServicesWithCategories, formatPrice, formatDuration } from '@/lib/services'
-import { ServiceWithCategory } from '@/types'
+import { ServiceWithCategory, TimeSlot, Practitioner, Client, BookingStep } from '@/types'
 import { supabase } from '@/lib/supabase'
 import { DatePicker } from '@/components/date-picker'
 import { Textarea } from '@/components/ui/textarea'
@@ -15,27 +15,6 @@ import { ValidationInput } from '@/components/validation/ValidationComponents'
 import { ValidationService } from '@/lib/validation-service'
 import TimeSlotSelector from '@/components/TimeSlotSelector'
 import { BookingProgressService, BookingProgress } from '@/lib/booking-progress-service'
-
-interface TimeSlot {
-  time: string
-  available: boolean
-}
-
-interface Practitioner {
-  id: string
-  first_name: string
-  last_name: string
-  email: string
-  phone: string
-}
-
-interface Client {
-  id: string
-  first_name: string
-  last_name: string
-  email: string
-  phone: string
-}
 
 export default function AppointmentsPage() {
   const { user, userRoleData, loading: authLoading } = useAuth()
@@ -77,7 +56,9 @@ export default function AppointmentsPage() {
   
   // Determine booking flow based on user role
   const isPractitionerUser = isPractitioner(userRoleData?.role || null)
-  const [bookingStep, setBookingStep] = useState<'service' | 'practitioner' | 'client' | 'datetime' | 'confirm'>('service')
+  const isSuperAdmin = userRoleData?.role?.name === 'super_admin'
+  const allowSameDayBooking = isPractitionerUser || isSuperAdmin
+  const [bookingStep, setBookingStep] = useState<BookingStep>('service')
   
   // Available time slots (now handled by TimeSlotSelector component)
   const [loadingSlots, setLoadingSlots] = useState(false)
@@ -317,7 +298,7 @@ export default function AppointmentsPage() {
   }
 
   // Update current step when booking step changes
-  const updateCurrentStep = (step: 'service' | 'practitioner' | 'client' | 'datetime' | 'confirm') => {
+  const updateCurrentStep = (step: BookingStep) => {
     setBookingStep(step)
     
     // Map booking steps to step numbers
@@ -344,10 +325,17 @@ export default function AppointmentsPage() {
     try {
       setLoadingSlots(true)
       
+      // Clear existing appointments first to prevent stale data
+      setExistingAppointments([])
+      
+      // Format the selected date for comparison
+      const selectedDateStr = formatDateForAPI(selectedDate)
+      
       const { data, error } = await supabase
         .from('appointments')
         .select('start_time, end_time')
-        .eq('appointment_date', formatDateForAPI(selectedDate))
+        .gte('appointment_date', `${selectedDateStr}T00:00:00`)
+        .lt('appointment_date', `${selectedDateStr}T23:59:59`)
         .eq('practitioner_id', selectedPractitioner.id)
         .eq('is_active', true)
         .eq('is_deleted', false)
@@ -479,12 +467,6 @@ export default function AppointmentsPage() {
     }
   }
 
-  const handleContinueToClient = () => {
-    if (selectedServices.length > 0) {
-      setBookingStep('client')
-    }
-  }
-
   const handleContinueToDateTime = () => {
     if (isPractitionerUser) {
       if (selectedServices.length > 0 && selectedClient) {
@@ -522,12 +504,62 @@ export default function AppointmentsPage() {
   const handleBookingConfirm = async () => {
     // Validate based on user role
     if (isPractitionerUser) {
-      if (selectedServices.length === 0 || !selectedDate || !selectedTime || !user) return
+      if (selectedServices.length === 0) {
+        showError('Please select at least one service')
+        return
+      }
+      if (!selectedDate) {
+        showError('Please select an appointment date')
+        return
+      }
+      if (!selectedTime) {
+        showError('Please select an appointment time')
+        return
+      }
+      if (!user) {
+        showError('User session expired. Please refresh the page')
+        return
+      }
       // For practitioners, either selectedClient or external client info must be provided
-      if (!selectedClient && !isExternalClient) return
-      if (isExternalClient && (!externalClientInfo.firstName || !externalClientInfo.lastName || (!externalClientInfo.email && !externalClientInfo.phone))) return
+      if (!selectedClient && !isExternalClient) {
+        showError('Please select a client or choose external client')
+        return
+      }
+      if (isExternalClient) {
+        if (!externalClientInfo.firstName.trim()) {
+          showError('Please enter the client\'s first name')
+          return
+        }
+        if (!externalClientInfo.lastName.trim()) {
+          showError('Please enter the client\'s last name')
+          return
+        }
+        if (!externalClientInfo.email.trim() && !externalClientInfo.phone.trim()) {
+          showError('Please enter either email or phone number for the client')
+          return
+        }
+      }
     } else {
-      if (selectedServices.length === 0 || !selectedDate || !selectedTime || !selectedPractitioner || !user) return
+      if (selectedServices.length === 0) {
+        showError('Please select at least one service')
+        return
+      }
+      if (!selectedDate) {
+        showError('Please select an appointment date')
+        return
+      }
+      if (!selectedTime) {
+        showError('Please select an appointment time')
+        return
+      }
+      if (!selectedPractitioner) {
+        showError('Please select a practitioner')
+        return
+      }
+      if (!user) {
+        showError('User session expired. Please refresh the page')
+        return
+      }
     }
 
     try {
@@ -1353,18 +1385,23 @@ export default function AppointmentsPage() {
                     setSelectedTime('')
                   }}
                   placeholder="Pick a date"
-                  minDate={getTomorrowDate()}
+                  minDate={allowSameDayBooking ? undefined : getTomorrowDate()}
                   maxDate={getMaxDate()}
+                  allowSameDay={allowSameDayBooking}
                   className="w-full max-w-sm"
                 />
                 <p className="mt-2 text-sm text-gray-500">
-                  You can book appointments from tomorrow up to 3 months in advance
+                  {allowSameDayBooking 
+                    ? "You can book appointments from today up to 3 months in advance"
+                    : "You can book appointments from tomorrow up to 3 months in advance"
+                  }
                 </p>
               </div>
 
               {/* Time Selection */}
               {selectedDate && selectedPractitioner && (
                 <TimeSlotSelector
+                  key={`${selectedDate?.toISOString()}-${selectedPractitioner.id}`}
                   selectedDate={selectedDate}
                   practitionerId={selectedPractitioner.id}
                   serviceDurationMinutes={selectedServices.reduce((total, service) => total + (service.duration_minutes || 0), 0)}

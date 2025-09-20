@@ -4,57 +4,19 @@ import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
-import { ServiceWithCategory } from '@/types'
+import { ServiceWithCategory, AppointmentExtended, ViewMode } from '@/types'
 import { formatDuration } from '@/lib/services'
 import { getFilteredAppointments, isPractitioner, canViewOwnAppointmentsOnly } from '@/lib/rbac'
 import EditAppointmentModal from '@/components/EditAppointmentModal'
 
-interface Appointment {
-  id: string
-  user_id: string | null
-  practitioner_id: string
-  service_id: string | null
-  service_ids: string[]
-  appointment_date: string
-  start_time: string
-  end_time: string
-  status: string
-  notes: string | null
-  is_active: boolean
-  is_deleted: boolean
-  created_at: string
-  updated_at: string
-  // External client information
-  client_first_name?: string
-  client_last_name?: string
-  client_email?: string
-  client_phone?: string
-  is_external_client?: boolean
-  client: {
-    first_name: string
-    last_name: string
-    email: string
-    phone?: string
-  } | null
-  practitioner: {
-    first_name: string
-    last_name: string
-    email: string
-    phone?: string
-  } | null
-  services?: ServiceWithCategory[]
-}
-
-type ViewMode = 'day' | 'week' | 'month'
-
 export default function AppointmentsPage() {
   const { user, loading: authLoading, userRoleData } = useAuth()
-  const [appointments, setAppointments] = useState<Appointment[]>([])
+  const [appointments, setAppointments] = useState<AppointmentExtended[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<ViewMode>('day')
   const [currentDate, setCurrentDate] = useState(new Date())
-  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null)
+  const [selectedAppointment, setSelectedAppointment] = useState<AppointmentExtended | null>(null)
   const [showAppointmentModal, setShowAppointmentModal] = useState(false)
   const [isAppointmentModalClosing, setIsAppointmentModalClosing] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
@@ -78,7 +40,9 @@ export default function AppointmentsPage() {
       // Filter by date range
       const filteredAppointments = appointmentsData.filter(apt => {
         const aptDate = apt.appointment_date
-        return aptDate >= startDate && aptDate <= endDate
+        // Extract just the date part from timestamptz for comparison
+        const aptDateOnly = aptDate.split('T')[0]
+        return aptDateOnly >= startDate && aptDateOnly <= endDate
       })
 
       // Load service details for each appointment
@@ -202,7 +166,7 @@ export default function AppointmentsPage() {
   }
 
   // Helper function to get the appropriate user info to display based on current user's role
-  const getDisplayUserInfo = (appointment: Appointment) => {
+  const getDisplayUserInfo = (appointment: AppointmentExtended) => {
     
     if (!userRoleData?.role) return appointment.client
 
@@ -254,7 +218,7 @@ export default function AppointmentsPage() {
     setCurrentDate(newDate)
   }
 
-  const handleAppointmentClick = (appointment: Appointment) => {
+  const handleAppointmentClick = (appointment: AppointmentExtended) => {
     setSelectedAppointment(appointment)
     setShowAppointmentModal(true)
   }

@@ -4,25 +4,11 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useAuth } from '@/contexts/AuthContext'
 import { getServicesWithCategories, getCategories, formatPrice, formatDuration } from '@/lib/services'
-import { ServiceWithCategory, Category } from '@/types'
+import { ServiceWithCategory, Category, ServiceFormData, CategoryFormData } from '@/types'
 import { supabase } from '@/lib/supabase'
 import { ValidationService } from '@/lib/validation-service'
 import { ValidationInput, ValidationTextarea, ValidationSelect } from '@/components/validation/ValidationComponents'
 import { SelectItem } from '@/components/ui/select'
-
-interface ServiceFormData {
-  name: string
-  description: string
-  duration_minutes: number
-  price: number
-  category_id: string
-}
-
-interface CategoryFormData {
-  name: string
-  description: string
-  display_order: number
-}
 
 export default function AdminServicesPage() {
   const { user, loading: authLoading } = useAuth()

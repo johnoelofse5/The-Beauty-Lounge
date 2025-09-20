@@ -12,16 +12,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils"
-
-interface DatePickerProps {
-  date?: Date
-  onDateChange?: (date: Date | undefined) => void
-  placeholder?: string
-  disabled?: boolean
-  minDate?: Date
-  maxDate?: Date
-  className?: string
-}
+import { DatePickerProps } from "@/types"
 
 export function DatePicker({
   date,
@@ -30,7 +21,8 @@ export function DatePicker({
   placeholder = "Select date",
   disabled = false,
   maxDate,
-  className
+  className,
+  allowSameDay = false
 }: DatePickerProps & { onChange?: (date: Date | null) => void }) {
   const [open, setOpen] = React.useState(false)
 
@@ -62,7 +54,13 @@ export function DatePicker({
           disabled={(date) => {
             const today = new Date()
             today.setHours(0, 0, 0, 0)
-            if (date <= today) return true
+            
+            // If allowSameDay is false, disable today and past dates
+            if (!allowSameDay && date <= today) return true
+            
+            // If allowSameDay is true, only disable past dates (allow today)
+            if (allowSameDay && date < today) return true
+            
             if (maxDate && date > maxDate) return true
             return false
           }}

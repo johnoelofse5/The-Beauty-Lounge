@@ -2,6 +2,7 @@
 
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar'
 import SidebarNav from '@/components/SidebarNav'
+import AppointmentCompletionNotification from '@/components/AppointmentCompletionNotification'
 import { useAuth } from '@/contexts/AuthContext'
 import { usePathname } from 'next/navigation'
 
@@ -46,6 +47,8 @@ export default function AppLayout({ children }: AppLayoutProps) {
         <div className="flex flex-1 flex-col gap-4 p-4">
           {children}
         </div>
+        {/* Appointment completion notifications */}
+        <AppointmentCompletionNotification />
       </SidebarInset>
     </SidebarProvider>
   )

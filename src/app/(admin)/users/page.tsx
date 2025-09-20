@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
 import { ValidationInput } from '@/components/validation/ValidationComponents'
+import { AdminUser, AdminRole, UserFormData, UserViewMode } from '@/types'
 import {
   Select,
   SelectContent,
@@ -13,51 +14,16 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 
-interface User {
-  id: string
-  email: string
-  first_name: string
-  last_name: string
-  phone: string
-  is_practitioner: boolean
-  is_active: boolean
-  is_deleted: boolean
-  role_id: string | null
-  role_name: string | null
-  role_description: string | null
-  created_at: string
-  updated_at: string
-}
-
-interface Role {
-  id: string
-  name: string
-  description: string
-  is_active: boolean
-  is_deleted: boolean
-}
-
-interface UserFormData {
-  email: string
-  first_name: string
-  last_name: string
-  phone: string
-  is_practitioner: boolean
-  role_id: string | null
-}
-
-type ViewMode = 'all' | 'practitioners' | 'clients'
-
 export default function UserManagementPage() {
   const { user, loading: authLoading } = useAuth()
-  const [users, setUsers] = useState<User[]>([])
-  const [roles, setRoles] = useState<Role[]>([])
+  const [users, setUsers] = useState<AdminUser[]>([])
+  const [roles, setRoles] = useState<AdminRole[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
-  const [viewMode] = useState<ViewMode>('all')
+  const [viewMode] = useState<UserViewMode>('all')
   const [searchTerm, setSearchTerm] = useState('')
-  const [selectedUser, setSelectedUser] = useState<User | null>(null)
+  const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null)
   const [showUserModal, setShowUserModal] = useState(false)
   const [showAddUserModal, setShowAddUserModal] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
@@ -292,7 +258,7 @@ export default function UserManagementPage() {
     setFormErrors({})
   }, [])
 
-  const openEditModal = (user: User) => {
+  const openEditModal = (user: AdminUser) => {
     setSelectedUser(user)
     setFormData({
       email: user.email,

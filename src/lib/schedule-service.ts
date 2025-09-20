@@ -137,7 +137,7 @@ export class ScheduleService {
     const endMinute = parseInt(daySchedule.end_time.split(':')[1])
     
     const intervalMinutes = daySchedule.time_slot_interval_minutes || 30
-
+    
     for (let hour = startHour; hour <= endHour; hour++) {
       for (let minute = 0; minute < 60; minute += intervalMinutes) {
         // Skip if this slot is after the end time
@@ -159,11 +159,24 @@ export class ScheduleService {
         const hasConflict = existingAppointments?.some(apt => {
           // Handle timestamptz columns
           if (apt.start_time && apt.start_time.includes('T')) {
-            const aptStartTime = new Date(apt.start_time)
-            const aptEndTime = new Date(apt.end_time)
-            const slotStartTime = new Date(`${this.formatDateForAPI(selectedDate)}T${timeString}`)
-            const slotEndTime = new Date(`${this.formatDateForAPI(selectedDate)}T${endTimeString}`)
-            return (slotStartTime < aptEndTime && slotEndTime > aptStartTime)
+            // Convert UTC appointment times to local timezone
+            const aptStartTimeUTC = new Date(apt.start_time)
+            const aptEndTimeUTC = new Date(apt.end_time)
+            
+            // Extract local time components (hours/minutes) from the UTC times
+            const aptStartHour = aptStartTimeUTC.getHours()
+            const aptStartMinute = aptStartTimeUTC.getMinutes()
+            const aptEndHour = aptEndTimeUTC.getHours()
+            const aptEndMinute = aptEndTimeUTC.getMinutes()
+            
+            // Create local time strings for comparison
+            const aptStartTimeString = `${aptStartHour.toString().padStart(2, '0')}:${aptStartMinute.toString().padStart(2, '0')}:00`
+            const aptEndTimeString = `${aptEndHour.toString().padStart(2, '0')}:${aptEndMinute.toString().padStart(2, '0')}:00`
+            
+            
+            // Compare time strings directly (both in local timezone)
+            const conflicts = (timeString < aptEndTimeString && endTimeString > aptStartTimeString)
+            return conflicts
           }
           // Fallback for old format
           const aptStart = apt.start_time
@@ -180,11 +193,6 @@ export class ScheduleService {
     }
 
     return slots
-  }
-
-  // Helper function to format date for API
-  private static formatDateForAPI(date: Date): string {
-    return date.toISOString().split('T')[0]
   }
 
   // Get default schedule (8 AM to 7 PM, Monday to Friday, 30-minute intervals)

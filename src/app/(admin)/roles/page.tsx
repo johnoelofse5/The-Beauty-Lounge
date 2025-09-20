@@ -3,14 +3,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
-import { Role, Permission, RoleWithPermissions } from '@/types'
-
-interface InputWithErrorProps {
-  label: string
-  error?: string
-  required?: boolean
-  children: React.ReactNode
-}
+import { Role, Permission, RoleWithPermissions, InputWithErrorProps } from '@/types'
 
 const InputWithError = ({ label, error, required, children }: InputWithErrorProps) => (
   <div>

@@ -1,19 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { TimeSlot } from '@/types/schedule'
+import { TimeSlot, WorkingSchedule, TimeSlotSelectorProps } from '@/types'
 import { ScheduleService } from '@/lib/schedule-service'
-import { WorkingSchedule } from '@/types/schedule'
-
-interface TimeSlotSelectorProps {
-  selectedDate: Date | undefined
-  practitionerId: string
-  serviceDurationMinutes: number
-  existingAppointments: any[]
-  onTimeSelect: (time: string) => void
-  selectedTime: string
-  disabled?: boolean
-}
+import { supabase } from '@/lib/supabase'
 
 export default function TimeSlotSelector({
   selectedDate,
@@ -27,6 +17,7 @@ export default function TimeSlotSelector({
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([])
   const [loading, setLoading] = useState(false)
   const [workingSchedule, setWorkingSchedule] = useState<WorkingSchedule[]>([])
+  const [currentAppointments, setCurrentAppointments] = useState<any[]>([])
 
   // Load working schedule for the practitioner
   useEffect(() => {
@@ -47,18 +38,54 @@ export default function TimeSlotSelector({
     loadWorkingSchedule()
   }, [practitionerId])
 
-  // Generate time slots when date or schedule changes
+  // Load appointments for the selected date
   useEffect(() => {
+    const loadAppointments = async () => {
+      if (!selectedDate || !practitionerId) {
+        setCurrentAppointments([])
+        return
+      }
+
+      try {
+        // Use local date string to avoid timezone issues
+        const selectedDateStr = selectedDate.toLocaleDateString('en-CA') // YYYY-MM-DD format
+        
+        const { data, error } = await supabase
+          .from('appointments')
+          .select('start_time, end_time')
+          .gte('appointment_date', `${selectedDateStr}T00:00:00`)
+          .lt('appointment_date', `${selectedDateStr}T23:59:59`)
+          .eq('practitioner_id', practitionerId)
+          .eq('is_active', true)
+          .eq('is_deleted', false)
+
+        if (error) throw error
+        setCurrentAppointments(data || [])
+      } catch (err) {
+        console.error('Error loading appointments in TimeSlotSelector:', err)
+        setCurrentAppointments([])
+      }
+    }
+
+    loadAppointments()
+  }, [selectedDate?.toLocaleDateString('en-CA'), practitionerId])
+
+  // Generate time slots when date, schedule, or appointments change
+  useEffect(() => {
+    
     if (!selectedDate || workingSchedule.length === 0) {
       setTimeSlots([])
       return
     }
 
+    // Clear time slots first to prevent stale data
+    setTimeSlots([])
+
     try {
       const slots = ScheduleService.generateTimeSlots(
         workingSchedule,
         selectedDate,
-        existingAppointments,
+        currentAppointments,
         serviceDurationMinutes
       )
       setTimeSlots(slots)
@@ -66,7 +93,7 @@ export default function TimeSlotSelector({
       console.error('Error generating time slots:', error)
       setTimeSlots([])
     }
-  }, [selectedDate, workingSchedule, existingAppointments, serviceDurationMinutes])
+  }, [selectedDate?.toLocaleDateString('en-CA'), workingSchedule, currentAppointments, serviceDurationMinutes])
 
   const formatTimeDisplay = (timeString: string): string => {
     const [hours, minutes] = timeString.split(':')
