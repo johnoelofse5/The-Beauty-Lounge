@@ -1,3 +1,5 @@
+import { TimeSlot } from './schedule'
+
 export interface ApiResponse<T> {
     data: T | null;
     error: string | null;
@@ -24,12 +26,6 @@ export interface PaginatedResponse<T> {
 export interface DateRange {
     start_date: string;
     end_date: string;
-}
-
-export interface TimeSlot {
-    start_time: string;
-    end_time: string;
-    available: boolean;
 }
 
 export interface AvailabilityResponse {

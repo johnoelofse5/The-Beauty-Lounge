@@ -12,13 +12,6 @@ export interface AppointmentFormData {
     email: string;
   }
   
-  export interface ServiceFormData {
-    name: string;
-    description?: string;
-    duration_minutes: number;
-    price?: number;
-    is_active: boolean;
-  }
   
   export interface SignUpFormData {
     email: string;
