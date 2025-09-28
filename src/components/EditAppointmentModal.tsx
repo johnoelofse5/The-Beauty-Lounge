@@ -7,6 +7,7 @@ import { formatDuration, formatPrice, getServicesWithCategories } from '@/lib/se
 import { DatePicker } from '@/components/date-picker'
 import { hasPermission, isPractitioner } from '@/lib/rbac'
 import TimeSlotSelector from '@/components/TimeSlotSelector'
+//import { AppointmentSMSService } from '@/lib/appointment-sms-service'
 
 export default function EditAppointmentModal({
     appointment,
@@ -151,6 +152,14 @@ export default function EditAppointmentModal({
 
             if (updateError) throw updateError
 
+            // Send reschedule SMS notifications for appointment update
+            // try {
+            //     await AppointmentSMSService.sendRescheduleSMS(appointment.id)
+            // } catch (smsError) {
+            //     console.error('Error sending reschedule SMS notifications:', smsError)
+            //     // Don't fail the appointment update if SMS fails
+            // }
+
             setSuccess(true)
             setTimeout(() => {
                 onUpdate()
@@ -182,6 +191,14 @@ export default function EditAppointmentModal({
                 .eq('id', appointment.id)
 
             if (deleteError) throw deleteError
+
+            // Send cancellation SMS notifications
+            // try {
+            //     await AppointmentSMSService.sendCancellationSMS(appointment.id)
+            // } catch (smsError) {
+            //     console.error('Error sending cancellation SMS notifications:', smsError)
+            //     // Don't fail the appointment deletion if SMS fails
+            // }
 
             setSuccess(true)
             setTimeout(() => {
@@ -243,8 +260,8 @@ export default function EditAppointmentModal({
             <div 
                 className={`fixed bottom-0 left-0 right-0 lg:top-1/2 lg:left-1/2 lg:transform lg:-translate-x-1/2 lg:-translate-y-1/2 lg:bottom-auto lg:right-auto lg:w-full lg:max-w-2xl bg-white rounded-t-xl lg:rounded-xl shadow-2xl transform transition-transform duration-300 ease-out max-h-[95vh] lg:max-h-[90vh] flex flex-col ${
                     isClosing
-                    ? 'translate-y-full lg:translate-y-full lg:translate-x-[-50%]'
-                    : 'translate-y-0 lg:translate-x-[-50%] lg:translate-y-[-50%] modal-enter lg:modal-enter-desktop'
+                        ? 'translate-y-full lg:translate-y-full lg:translate-x-[-50%]'
+                        : 'translate-y-0 lg:translate-x-[-50%] lg:translate-y-[-50%] modal-enter lg:modal-enter-desktop'
                 }`}
                 onClick={(e) => e.stopPropagation()}
             >

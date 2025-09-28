@@ -8,13 +8,16 @@ import { SignInFormData } from '@/types/form'
 
 export default function LoginPage() {
   const router = useRouter()
-  const { signIn } = useAuth()
+  const { signInWithPhone, sendOTP } = useAuth()
+  const [step, setStep] = useState<'phone' | 'otp'>('phone')
   const [formData, setFormData] = useState<SignInFormData>({
-    email: '',
-    password: '',
+    phone: '',
+    otp_code: '',
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [otpSent, setOtpSent] = useState(false)
+  const [countdown, setCountdown] = useState(0)
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -24,16 +27,103 @@ export default function LoginPage() {
     }))
   }
 
+  const validatePhoneNumber = (phone: string): boolean => {
+    const phoneRegex = /^[\+]?[0-9][\d]{0,15}$/
+    return phoneRegex.test(phone.replace(/\s/g, ''))
+  }
+
+  const validateForm = (): boolean => {
+    if (step === 'phone') {
+      if (!formData.phone) {
+        setError('Phone number is required')
+        return false
+      }
+      if (!validatePhoneNumber(formData.phone)) {
+        setError('Please enter a valid phone number (e.g., 0821234567)')
+        return false
+      }
+    } else if (step === 'otp') {
+      if (!formData.otp_code) {
+        setError('OTP code is required')
+        return false
+      }
+      if (!/^\d{6}$/.test(formData.otp_code)) {
+        setError('OTP code must be 6 digits')
+        return false
+      }
+    }
+
+    return true
+  }
+
+  const handleSendOTP = async () => {
+    if (!validateForm()) return
+
+    setLoading(true)
+    setError(null)
+
+    try {
+      await sendOTP(formData.phone, 'signin')
+      setOtpSent(true)
+      setStep('otp')
+      setCountdown(60) // 60 seconds countdown
+      
+      // Start countdown
+      const timer = setInterval(() => {
+        setCountdown(prev => {
+          if (prev <= 1) {
+            clearInterval(timer)
+            return 0
+          }
+          return prev - 1
+        })
+      }, 1000)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to send OTP')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
+
+    if (!validateForm()) return
+
     setLoading(true)
 
     try {
-      await signIn(formData.email, formData.password)
+      await signInWithPhone(formData.phone, formData.otp_code || '')
       router.push('/') // Redirect to home page after successful login
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred during login')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleResendOTP = async () => {
+    if (countdown > 0) return
+
+    setLoading(true)
+    setError(null)
+
+    try {
+      await sendOTP(formData.phone, 'signin')
+      setCountdown(60)
+      
+      const timer = setInterval(() => {
+        setCountdown(prev => {
+          if (prev <= 1) {
+            clearInterval(timer)
+            return 0
+          }
+          return prev - 1
+        })
+      }, 1000)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to resend OTP')
     } finally {
       setLoading(false)
     }
@@ -43,79 +133,138 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4 py-6 sm:px-6 lg:px-8">
       <div className="w-full max-w-md space-y-6 sm:space-y-8">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 sm:text-3xl">
-            Sign in to your account
-          </h2>
-          <p className="mt-2 text-sm text-gray-600 sm:text-base">
-            Or{' '}
-            <Link href="/signup" className="font-medium text-indigo-600 hover:text-indigo-500 underline">
-              create a new account
-            </Link>
+          <h2 className="text-3xl font-bold text-gray-900">Sign In</h2>
+          <p className="mt-2 text-sm text-gray-600">
+            Sign in with your mobile number
           </p>
         </div>
-        <form className="space-y-4 sm:space-y-6" onSubmit={handleSubmit}>
+
+        <div className="bg-white rounded-lg shadow-sm p-6 sm:p-8">
           {error && (
-            <div className="rounded-lg bg-red-50 border border-red-200 p-3 sm:p-4">
-              <div className="text-sm text-red-700 sm:text-base">{error}</div>
+            <div className="mb-4 rounded-md bg-red-50 p-4 border border-red-200">
+              <div className="text-sm text-red-700">{error}</div>
             </div>
           )}
 
-          <div className="space-y-4 sm:space-y-5">
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1 sm:mb-2">
-                Email Address
-              </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                value={formData.email}
-                onChange={handleInputChange}
-                className="block w-full px-3 py-3 sm:py-2 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 text-gray-900 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-                placeholder="Enter your email"
-              />
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {step === 'phone' && (
+              <>
+                <div>
+                  <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
+                    Mobile Number
+                  </label>
+                  <div className="mt-1">
+                    <input
+                      id="phone"
+                      name="phone"
+                      type="tel"
+                      required
+                      value={formData.phone}
+                      onChange={handleInputChange}
+                      placeholder="0821234567"
+                      className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    />
+                  </div>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Enter your mobile number (e.g., 0821234567)
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleSendOTP}
+                  disabled={loading}
+                  className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+                >
+                  {loading ? 'Sending...' : 'Send Verification Code'}
+                </button>
+              </>
+            )}
+
+            {step === 'otp' && (
+              <>
+                <div>
+                  <label htmlFor="otp_code" className="block text-sm font-medium text-gray-700">
+                    Verification Code
+                  </label>
+                  <div className="mt-1">
+                    <input
+                      id="otp_code"
+                      name="otp_code"
+                      type="text"
+                      required
+                      maxLength={6}
+                      value={formData.otp_code}
+                      onChange={handleInputChange}
+                      placeholder="123456"
+                      className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-center text-lg tracking-widest"
+                    />
+                  </div>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Enter the 6-digit code sent to {formData.phone}
+                  </p>
+                </div>
+
+                <div className="flex space-x-3">
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="flex-1 flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+                  >
+                    {loading ? 'Signing In...' : 'Sign In'}
+                  </button>
+                  
+                  <button
+                    type="button"
+                    onClick={handleResendOTP}
+                    disabled={loading || countdown > 0}
+                    className="flex-1 flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+                  >
+                    {countdown > 0 ? `Resend in ${countdown}s` : 'Resend'}
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setStep('phone')}
+                  className="w-full text-sm text-indigo-600 hover:text-indigo-500"
+                >
+                  Change phone number
+                </button>
+              </>
+            )}
+          </form>
+
+          <div className="mt-6">
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-300" />
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-white text-gray-500">Don't have an account?</span>
+              </div>
             </div>
 
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1 sm:mb-2">
-                Password
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="current-password"
-                required
-                value={formData.password}
-                onChange={handleInputChange}
-                className="block w-full px-3 py-3 sm:py-2 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 text-gray-900 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-                placeholder="Enter your password"
-              />
+            <div className="mt-6 space-y-3">
+              <Link
+                href="/signup"
+                className="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              >
+                Sign Up
+              </Link>
+              
+              <div className="text-center">
+                <Link
+                  href="/legacy-login"
+                  className="text-sm text-indigo-600 hover:text-indigo-500"
+                >
+                  Use email and password instead
+                </Link>
+              </div>
             </div>
           </div>
-
-          <div className="flex items-center justify-between">
-            <Link
-              href="/forgot-password"
-              className="text-sm font-medium text-indigo-600 hover:text-indigo-500 underline"
-            >
-              Forgot your password?
-            </Link>
-          </div>
-
-          <div className="pt-2">
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full flex justify-center py-3 sm:py-2 px-4 border border-transparent rounded-lg shadow-sm text-base sm:text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
-            >
-              {loading ? 'Signing in...' : 'Sign in'}
-            </button>
-          </div>
-        </form>
+        </div>
       </div>
     </div>
   )
-} 
+}

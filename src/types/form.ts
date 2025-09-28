@@ -12,17 +12,20 @@ export interface AppointmentFormData {
     email: string;
   }
   
-  
   export interface SignUpFormData {
-    email: string;
-    password: string;
-    confirmPassword: string;
+    phone: string;
     first_name: string;
     last_name: string;
-    phone?: string;
+    otp_code?: string;
   }
   
   export interface SignInFormData {
-    email: string;
-    password: string;
+    phone: string;
+    otp_code?: string;
+  }
+
+  export interface OTPVerificationData {
+    phone: string;
+    otp_code: string;
+    purpose: 'signup' | 'signin' | 'password_reset';
   }
