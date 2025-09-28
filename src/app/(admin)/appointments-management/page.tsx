@@ -11,7 +11,7 @@ import { getFilteredAppointments, isPractitioner, canViewOwnAppointmentsOnly } f
 import EditAppointmentModal from '@/components/EditAppointmentModal'
 import { DatePicker } from '@/components/date-picker'
 import TimeSlotSelector from '@/components/TimeSlotSelector'
-import { AppointmentSMSService } from '@/lib/appointment-sms-service'
+//import { AppointmentSMSService } from '@/lib/appointment-sms-service'
 
 export default function AppointmentsPage() {
   const { user, loading: authLoading, userRoleData } = useAuth()
@@ -1433,11 +1433,11 @@ function CreateAppointmentModal({
       }
 
       // Send SMS notifications
-      try {
-        await AppointmentSMSService.sendAppointmentNotifications(insertedAppointment.id, 'confirmation')
-      } catch (smsError) {
-        console.error('Error sending SMS notifications:', smsError)
-      }
+      // try {
+      //   await AppointmentSMSService.sendAppointmentNotifications(insertedAppointment.id, 'confirmation')
+      // } catch (smsError) {
+      //   console.error('Error sending SMS notifications:', smsError)
+      // }
 
       showSuccess('Appointment created successfully!')
       setSuccess(true)
