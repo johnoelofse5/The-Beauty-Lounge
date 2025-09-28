@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { ScheduleService } from '@/lib/schedule-service'
 import { ScheduleFormData, DaySchedule } from '@/types/schedule'
@@ -8,7 +8,7 @@ import { ValidationInput, ValidationSelect } from '@/components/validation/Valid
 import { SelectItem } from '@/components/ui/select'
 import { useToast } from '@/contexts/ToastContext'
 import { isPractitioner } from '@/lib/rbac'
-import { LookupService } from '@/lib/lookup-service'
+import { lookupServiceCached } from '@/lib/lookup-service-cached'
 import { Lookup } from '@/types/lookup'
 
 const DAYS_OF_WEEK = [
@@ -29,6 +29,8 @@ export default function ScheduleManagementPage() {
   const [saving, setSaving] = useState(false)
   const [timeSlotIntervals, setTimeSlotIntervals] = useState<Lookup[]>([])
   const [hours, setHours] = useState<Lookup[]>([])
+  const [visibleElements, setVisibleElements] = useState<Set<string>>(new Set())
+  const observerRef = useRef<IntersectionObserver | null>(null)
 
   // Check if user is a practitioner
   const isPractitionerUser = isPractitioner(userRoleData?.role || null)
@@ -41,9 +43,51 @@ export default function ScheduleManagementPage() {
     }
   }, [authLoading, user, isPractitionerUser])
 
+  // Set up intersection observer for scroll animations
+  useEffect(() => {
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          const elementId = entry.target.getAttribute('data-animate-id')
+          if (elementId) {
+            setVisibleElements(prev => {
+              const newSet = new Set(prev)
+              if (entry.isIntersecting) {
+                newSet.add(elementId)
+              } else {
+                newSet.delete(elementId)
+              }
+              return newSet
+            })
+          }
+        })
+      },
+      {
+        threshold: 0.1,
+        rootMargin: '0px 0px -50px 0px'
+      }
+    )
+
+    return () => {
+      if (observerRef.current) {
+        observerRef.current.disconnect()
+      }
+    }
+  }, [])
+
+  // Observe elements when they're rendered
+  useEffect(() => {
+    if (observerRef.current && !loading) {
+      const elementsToObserve = document.querySelectorAll('[data-animate-id]')
+      elementsToObserve.forEach(element => {
+        observerRef.current?.observe(element)
+      })
+    }
+  }, [loading, scheduleData])
+
   const loadHours = async () => {
     try {
-      const hoursData = await LookupService.getHours()
+      const hoursData = await lookupServiceCached.getHours()
       setHours(hoursData)
     } catch (error) {
       console.error('Error loading hours:', error)
@@ -80,7 +124,7 @@ export default function ScheduleManagementPage() {
 
   const loadTimeSlotIntervals = async () => {
     try {
-      const intervals = await LookupService.getTimeSlotIntervals()
+      const intervals = await lookupServiceCached.getTimeSlotIntervals()
       setTimeSlotIntervals(intervals)
     } catch (error) {
       console.error('Error loading time slot intervals:', error)
@@ -203,7 +247,14 @@ export default function ScheduleManagementPage() {
   return (
     <div className="min-h-screen bg-white">
       <div className="max-w-4xl mx-auto px-4 py-8">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div 
+          className="bg-white rounded-lg shadow-sm border border-gray-200 transition-all duration-700 ease-out"
+          data-animate-id="schedule-container"
+          style={{
+            opacity: visibleElements.has('schedule-container') ? 1 : 0,
+            transform: visibleElements.has('schedule-container') ? 'translateY(0)' : 'translateY(30px)'
+          }}
+        >
           <div className="px-6 py-4 border-b border-gray-200">
             <h1 className="text-2xl font-bold text-gray-900">Working Schedule Management</h1>
             <p className="text-gray-600 mt-1">
@@ -212,11 +263,20 @@ export default function ScheduleManagementPage() {
           </div>
 
           <div className="p-6 space-y-6">
-            {DAYS_OF_WEEK.map(({ key, name }) => {
+            {DAYS_OF_WEEK.map(({ key, name }, index) => {
               const dayData = scheduleData[key as keyof ScheduleFormData]
               
               return (
-                <div key={key} className="border border-gray-200 rounded-lg p-4">
+                <div 
+                  key={key} 
+                  className="border border-gray-200 rounded-lg p-4 transition-all duration-700 ease-out"
+                  data-animate-id={`day-${key}`}
+                  style={{
+                    opacity: visibleElements.has(`day-${key}`) ? 1 : 0,
+                    transform: visibleElements.has(`day-${key}`) ? 'translateY(0)' : 'translateY(30px)',
+                    transition: `all 0.6s ease-out ${index * 0.1}s`
+                  }}
+                >
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center space-x-3">
                       <input
@@ -295,7 +355,14 @@ export default function ScheduleManagementPage() {
               )
             })}
 
-            <div className="flex items-center justify-between pt-6 border-t border-gray-200">
+            <div 
+              className="flex items-center justify-between pt-6 border-t border-gray-200 transition-all duration-700 ease-out"
+              data-animate-id="schedule-actions"
+              style={{
+                opacity: visibleElements.has('schedule-actions') ? 1 : 0,
+                transform: visibleElements.has('schedule-actions') ? 'translateY(0)' : 'translateY(20px)'
+              }}
+            >
               <button
                 onClick={handleReset}
                 disabled={saving}
@@ -316,7 +383,14 @@ export default function ScheduleManagementPage() {
         </div>
 
         {/* Help section */}
-        <div className="mt-8 bg-blue-50 rounded-lg p-6">
+        <div 
+          className="mt-8 bg-blue-50 rounded-lg p-6 transition-all duration-700 ease-out"
+          data-animate-id="help-section"
+          style={{
+            opacity: visibleElements.has('help-section') ? 1 : 0,
+            transform: visibleElements.has('help-section') ? 'translateY(0)' : 'translateY(30px)'
+          }}
+        >
           <h3 className="text-lg font-medium text-blue-900 mb-2">How it works</h3>
           <ul className="text-blue-800 space-y-1 text-sm">
             <li>• Check the box next to each day you want to work</li>

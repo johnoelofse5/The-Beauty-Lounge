@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/contexts/ToastContext'
 import { PortfolioService } from '@/lib/portfolio-service'
@@ -39,10 +39,44 @@ export default function PortfolioPage() {
   const [selectedCategory, setSelectedCategory] = useState('')
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [selectedImage, setSelectedImage] = useState<PortfolioWithPractitioner | null>(null)
+  const [visibleElements, setVisibleElements] = useState<Set<string>>(new Set())
+  const observerRef = useRef<IntersectionObserver | null>(null)
 
   useEffect(() => {
     loadPortfolioItems()
     loadCategories()
+  }, [])
+
+  // Set up intersection observer for scroll animations
+  useEffect(() => {
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          const elementId = entry.target.getAttribute('data-animate-id')
+          if (elementId) {
+            setVisibleElements(prev => {
+              const newSet = new Set(prev)
+              if (entry.isIntersecting) {
+                newSet.add(elementId)
+              } else {
+                newSet.delete(elementId)
+              }
+              return newSet
+            })
+          }
+        })
+      },
+      {
+        threshold: 0.1,
+        rootMargin: '0px 0px -50px 0px'
+      }
+    )
+
+    return () => {
+      if (observerRef.current) {
+        observerRef.current.disconnect()
+      }
+    }
   }, [])
 
   const loadPortfolioItems = async () => {
@@ -84,6 +118,16 @@ export default function PortfolioPage() {
     return matchesSearch && matchesCategory
   })
 
+  // Observe elements when they're rendered
+  useEffect(() => {
+    if (observerRef.current && !loading) {
+      const elementsToObserve = document.querySelectorAll('[data-animate-id]')
+      elementsToObserve.forEach(element => {
+        observerRef.current?.observe(element)
+      })
+    }
+  }, [loading, filteredItems, viewMode])
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -99,7 +143,14 @@ export default function PortfolioPage() {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="mb-8">
+        <div 
+          className="mb-8 transition-all duration-700 ease-out"
+          data-animate-id="portfolio-header"
+          style={{
+            opacity: visibleElements.has('portfolio-header') ? 1 : 0,
+            transform: visibleElements.has('portfolio-header') ? 'translateY(0)' : 'translateY(30px)'
+          }}
+        >
           <Link 
             href="/" 
             className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700 mb-4"
@@ -112,7 +163,14 @@ export default function PortfolioPage() {
         </div>
 
         {/* Search and Filters */}
-        <div className="bg-white shadow-sm rounded-lg p-6 mb-8">
+        <div 
+          className="bg-white shadow-sm rounded-lg p-6 mb-8 transition-all duration-700 ease-out"
+          data-animate-id="search-filters"
+          style={{
+            opacity: visibleElements.has('search-filters') ? 1 : 0,
+            transform: visibleElements.has('search-filters') ? 'translateY(0)' : 'translateY(20px)'
+          }}
+        >
           <div className="flex flex-col sm:flex-row gap-4">
             {/* Search */}
             <div className="flex-1">
@@ -164,7 +222,14 @@ export default function PortfolioPage() {
         </div>
 
         {/* Results Count */}
-        <div className="mb-6">
+        <div 
+          className="mb-6 transition-all duration-700 ease-out"
+          data-animate-id="results-count"
+          style={{
+            opacity: visibleElements.has('results-count') ? 1 : 0,
+            transform: visibleElements.has('results-count') ? 'translateY(0)' : 'translateY(15px)'
+          }}
+        >
           <p className="text-sm text-gray-600">
             Showing {filteredItems.length} of {portfolioItems.length} items
           </p>
@@ -172,7 +237,14 @@ export default function PortfolioPage() {
 
         {/* Portfolio Items */}
         {filteredItems.length === 0 ? (
-          <div className="bg-white shadow-sm rounded-lg p-8 text-center">
+          <div 
+            className="bg-white shadow-sm rounded-lg p-8 text-center transition-all duration-700 ease-out"
+            data-animate-id="empty-state"
+            style={{
+              opacity: visibleElements.has('empty-state') ? 1 : 0,
+              transform: visibleElements.has('empty-state') ? 'translateY(0)' : 'translateY(30px)'
+            }}
+          >
             <div className="text-gray-400 mb-4">
               <Search className="h-12 w-12 mx-auto" />
             </div>
@@ -180,13 +252,30 @@ export default function PortfolioPage() {
             <p className="text-gray-600">Try adjusting your search or filter criteria</p>
           </div>
         ) : (
-          <div className={
-            viewMode === 'grid' 
-              ? "grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-              : "space-y-6"
-          }>
-            {filteredItems.map((item) => (
-              <div key={item.id} className="bg-white shadow-sm rounded-lg overflow-hidden hover:shadow-md transition-shadow">
+          <div 
+            className={
+              viewMode === 'grid' 
+                ? "grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+                : "space-y-6"
+            }
+            data-animate-id="portfolio-grid"
+            style={{
+              opacity: visibleElements.has('portfolio-grid') ? 1 : 0,
+              transform: visibleElements.has('portfolio-grid') ? 'translateY(0)' : 'translateY(40px)',
+              transition: 'all 0.7s ease-out'
+            }}
+          >
+            {filteredItems.map((item, index) => (
+              <div 
+                key={item.id} 
+                className="bg-white shadow-sm rounded-lg overflow-hidden hover:shadow-md transition-all duration-300"
+                data-animate-id={`portfolio-item-${item.id}`}
+                style={{
+                  opacity: visibleElements.has(`portfolio-item-${item.id}`) ? 1 : 0,
+                  transform: visibleElements.has(`portfolio-item-${item.id}`) ? 'translateY(0)' : 'translateY(30px)',
+                  transition: `all 0.6s ease-out ${index * 0.1}s`
+                }}
+              >
                 {viewMode === 'grid' ? (
                   // Grid View
                   <>

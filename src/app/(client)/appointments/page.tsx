@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
@@ -25,6 +25,8 @@ export default function AppointmentsPage() {
   const [practitioners, setPractitioners] = useState<Practitioner[]>([])
   const [clients, setClients] = useState<Client[]>([])
   const [loading, setLoading] = useState(true)
+  const [visibleElements, setVisibleElements] = useState<Set<string>>(new Set())
+  const observerRef = useRef<IntersectionObserver | null>(null)
 
   
   // Booking form state
@@ -501,6 +503,48 @@ export default function AppointmentsPage() {
     }
   }
 
+  // Set up intersection observer for scroll animations
+  useEffect(() => {
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          const elementId = entry.target.getAttribute('data-animate-id')
+          if (elementId) {
+            setVisibleElements(prev => {
+              const newSet = new Set(prev)
+              if (entry.isIntersecting) {
+                newSet.add(elementId)
+              } else {
+                newSet.delete(elementId)
+              }
+              return newSet
+            })
+          }
+        })
+      },
+      {
+        threshold: 0.1,
+        rootMargin: '0px 0px -50px 0px'
+      }
+    )
+
+    return () => {
+      if (observerRef.current) {
+        observerRef.current.disconnect()
+      }
+    }
+  }, [])
+
+  // Observe elements when they're rendered
+  useEffect(() => {
+    if (observerRef.current && !loading) {
+      const elementsToObserve = document.querySelectorAll('[data-animate-id]')
+      elementsToObserve.forEach(element => {
+        observerRef.current?.observe(element)
+      })
+    }
+  }, [loading, bookingStep])
+
   const handleBookingConfirm = async () => {
     // Validate based on user role
     if (isPractitionerUser) {
@@ -599,7 +643,7 @@ export default function AppointmentsPage() {
         client_phone: isPractitionerUser && isExternalClient ? externalClientInfo.phone : null
       }
 
-      const { error } = await supabase
+      const { data: insertedAppointment, error } = await supabase
         .from('appointments')
         .insert([appointmentData])
 
@@ -687,7 +731,14 @@ export default function AppointmentsPage() {
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
         {/* Progress Steps */}
-        <div className="mb-8">
+        <div 
+          className="mb-8 transition-all duration-700 ease-out"
+          data-animate-id="progress-steps"
+          style={{
+            opacity: visibleElements.has('progress-steps') ? 1 : 0,
+            transform: visibleElements.has('progress-steps') ? 'translateY(0)' : 'translateY(30px)'
+          }}
+        >
           {/* Desktop Progress Steps */}
           <div className="hidden md:flex items-center justify-center space-x-6">
             <div className={`flex items-center ${bookingStep === 'service' ? 'text-indigo-600' : bookingStep === 'practitioner' || bookingStep === 'client' || bookingStep === 'datetime' || bookingStep === 'confirm' ? 'text-green-600' : 'text-gray-400'}`}>
@@ -772,7 +823,14 @@ export default function AppointmentsPage() {
 
         {/* Progress Save/Clear Section */}
         {currentStep > 1 && (
-          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <div 
+            className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg transition-all duration-700 ease-out"
+            data-animate-id="progress-save"
+            style={{
+              opacity: visibleElements.has('progress-save') ? 1 : 0,
+              transform: visibleElements.has('progress-save') ? 'translateY(0)' : 'translateY(20px)'
+            }}
+          >
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
@@ -812,7 +870,14 @@ export default function AppointmentsPage() {
 
         {/* Step 1: Service Selection */}
         {bookingStep === 'service' && (
-          <div>
+          <div
+            data-animate-id="service-selection"
+            style={{
+              opacity: visibleElements.has('service-selection') ? 1 : 0,
+              transform: visibleElements.has('service-selection') ? 'translateY(0)' : 'translateY(40px)',
+              transition: 'all 0.7s ease-out'
+            }}
+          >
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
               <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2 sm:mb-0">Choose Services</h2>
               {selectedServices.length > 0 && (
@@ -883,12 +948,18 @@ export default function AppointmentsPage() {
 
                     {/* Services Grid for this category */}
                     <div className="grid grid-cols-1 gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                      {categoryServices.map((service) => {
+                      {categoryServices.map((service, serviceIndex) => {
                         const isSelected = selectedServices.some(s => s.id === service.id)
                         return (
                           <div
                             key={service.id}
                             onClick={() => handleServiceSelect(service)}
+                            data-animate-id={`service-card-${service.id}`}
+                            style={{
+                              opacity: visibleElements.has(`service-card-${service.id}`) ? 1 : 0,
+                              transform: visibleElements.has(`service-card-${service.id}`) ? 'translateY(0)' : 'translateY(30px)',
+                              transition: `all 0.6s ease-out ${serviceIndex * 0.1}s`
+                            }}
                             className={`bg-white rounded-lg border shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer ${
                               isSelected 
                                 ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-200' 
@@ -1006,7 +1077,14 @@ export default function AppointmentsPage() {
 
         {/* Step 2: Practitioner Selection */}
         {bookingStep === 'practitioner' && (
-          <div>
+          <div
+            data-animate-id="practitioner-selection"
+            style={{
+              opacity: visibleElements.has('practitioner-selection') ? 1 : 0,
+              transform: visibleElements.has('practitioner-selection') ? 'translateY(0)' : 'translateY(40px)',
+              transition: 'all 0.7s ease-out'
+            }}
+          >
             <div className="mb-6">
               <button
                 onClick={() => updateCurrentStep('service')}
@@ -1101,7 +1179,14 @@ export default function AppointmentsPage() {
 
         {/* Step 2.5: Client Selection (for practitioners) */}
         {bookingStep === 'client' && isPractitionerUser && (
-          <div>
+          <div
+            data-animate-id="client-selection"
+            style={{
+              opacity: visibleElements.has('client-selection') ? 1 : 0,
+              transform: visibleElements.has('client-selection') ? 'translateY(0)' : 'translateY(40px)',
+              transition: 'all 0.7s ease-out'
+            }}
+          >
             <div className="mb-6">
               <button
                 onClick={() => updateCurrentStep('service')}
@@ -1280,7 +1365,14 @@ export default function AppointmentsPage() {
 
         {/* Step 3: Date & Time Selection */}
         {bookingStep === 'datetime' && selectedServices.length > 0 && ((isPractitionerUser && (selectedClient || isExternalClient)) || (!isPractitionerUser && selectedPractitioner)) && (
-          <div>
+          <div
+            data-animate-id="datetime-selection"
+            style={{
+              opacity: visibleElements.has('datetime-selection') ? 1 : 0,
+              transform: visibleElements.has('datetime-selection') ? 'translateY(0)' : 'translateY(40px)',
+              transition: 'all 0.7s ease-out'
+            }}
+          >
             <div className="mb-6">
               <button
                 onClick={() => updateCurrentStep(isPractitionerUser ? 'client' : 'practitioner')}
@@ -1443,7 +1535,14 @@ export default function AppointmentsPage() {
 
         {/* Step 4: Confirmation */}
         {bookingStep === 'confirm' && selectedServices.length > 0 && ((isPractitionerUser && (selectedClient || isExternalClient)) || (!isPractitionerUser && selectedPractitioner)) && selectedDate && selectedTime && (
-          <div>
+          <div
+            data-animate-id="confirmation"
+            style={{
+              opacity: visibleElements.has('confirmation') ? 1 : 0,
+              transform: visibleElements.has('confirmation') ? 'translateY(0)' : 'translateY(40px)',
+              transition: 'all 0.7s ease-out'
+            }}
+          >
             <div className="mb-6">
               <button
                 onClick={() => updateCurrentStep('datetime')}

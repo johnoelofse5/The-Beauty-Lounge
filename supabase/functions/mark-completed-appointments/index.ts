@@ -32,8 +32,6 @@ serve(async (req) => {
         }
       )
     }
-
-    console.log('Successfully marked completed appointments')
     
     return new Response(
       JSON.stringify({ 

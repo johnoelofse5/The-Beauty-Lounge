@@ -38,7 +38,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
     <SidebarProvider>
       <SidebarNav />
       <SidebarInset>
-        <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
+        <header className="sticky top-0 z-50 flex h-16 shrink-0 items-center gap-2 border-b bg-white px-4">
           <SidebarTrigger className="-ml-1 bg-gray-100 hover:bg-gray-200 border border-gray-300 shadow-sm" />
           <div className="flex items-center gap-2">
             <h1 className="text-lg font-semibold">The Beauty Lounge</h1>

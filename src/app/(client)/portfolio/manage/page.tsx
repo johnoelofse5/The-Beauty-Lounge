@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/contexts/ToastContext'
 import { PortfolioService } from '@/lib/portfolio-service'
@@ -47,6 +47,8 @@ export default function PortfolioManagementPage() {
   const [editingItem, setEditingItem] = useState<PortfolioItem | null>(null)
   const [uploading, setUploading] = useState(false)
   const [categories, setCategories] = useState<string[]>([])
+  const [visibleElements, setVisibleElements] = useState<Set<string>>(new Set())
+  const observerRef = useRef<IntersectionObserver | null>(null)
 
   const [formData, setFormData] = useState({
     title: '',
@@ -66,6 +68,48 @@ export default function PortfolioManagementPage() {
       loadCategories()
     }
   }, [user])
+
+  // Set up intersection observer for scroll animations
+  useEffect(() => {
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          const elementId = entry.target.getAttribute('data-animate-id')
+          if (elementId) {
+            setVisibleElements(prev => {
+              const newSet = new Set(prev)
+              if (entry.isIntersecting) {
+                newSet.add(elementId)
+              } else {
+                newSet.delete(elementId)
+              }
+              return newSet
+            })
+          }
+        })
+      },
+      {
+        threshold: 0.1,
+        rootMargin: '0px 0px -50px 0px'
+      }
+    )
+
+    return () => {
+      if (observerRef.current) {
+        observerRef.current.disconnect()
+      }
+    }
+  }, [])
+
+  // Observe elements when they're rendered
+  useEffect(() => {
+    if (observerRef.current && !loading) {
+      const elementsToObserve = document.querySelectorAll('[data-animate-id]')
+      elementsToObserve.forEach(element => {
+        observerRef.current?.observe(element)
+      })
+    }
+  }, [loading, portfolioItems, showAddForm])
 
   const loadPortfolioItems = async () => {
     if (!user) return
@@ -258,7 +302,14 @@ export default function PortfolioManagementPage() {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="mb-8">
+        <div 
+          className="mb-8 transition-all duration-700 ease-out"
+          data-animate-id="portfolio-header"
+          style={{
+            opacity: visibleElements.has('portfolio-header') ? 1 : 0,
+            transform: visibleElements.has('portfolio-header') ? 'translateY(0)' : 'translateY(30px)'
+          }}
+        >
           <Link 
             href="/" 
             className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700 mb-4"
@@ -287,7 +338,14 @@ export default function PortfolioManagementPage() {
 
         {/* Add/Edit Form */}
         {showAddForm && (
-          <div className="bg-white shadow-sm rounded-lg mb-8">
+          <div 
+            className="bg-white shadow-sm rounded-lg mb-8 transition-all duration-700 ease-out"
+            data-animate-id="portfolio-form"
+            style={{
+              opacity: visibleElements.has('portfolio-form') ? 1 : 0,
+              transform: visibleElements.has('portfolio-form') ? 'translateY(0)' : 'translateY(40px)'
+            }}
+          >
             <div className="px-6 py-8 sm:px-8">
               <h2 className="text-xl font-semibold text-gray-900 mb-6">
                 {editingItem ? 'Edit Portfolio Item' : 'Add New Portfolio Item'}
@@ -395,7 +453,14 @@ export default function PortfolioManagementPage() {
 
         {/* Portfolio Grid */}
         {portfolioItems.length === 0 ? (
-          <div className="bg-white shadow-sm rounded-lg p-8 text-center">
+          <div 
+            className="bg-white shadow-sm rounded-lg p-8 text-center transition-all duration-700 ease-out"
+            data-animate-id="empty-state"
+            style={{
+              opacity: visibleElements.has('empty-state') ? 1 : 0,
+              transform: visibleElements.has('empty-state') ? 'translateY(0)' : 'translateY(30px)'
+            }}
+          >
             <ImageIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">No portfolio items yet</h3>
             <p className="text-gray-600 mb-4">Start building your portfolio by adding your work</p>
@@ -408,8 +473,16 @@ export default function PortfolioManagementPage() {
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {portfolioItems.map((item) => (
+          <div 
+            className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+            data-animate-id="portfolio-grid"
+            style={{
+              opacity: visibleElements.has('portfolio-grid') ? 1 : 0,
+              transform: visibleElements.has('portfolio-grid') ? 'translateY(0)' : 'translateY(40px)',
+              transition: 'all 0.7s ease-out'
+            }}
+          >
+            {portfolioItems.map((item, index) => (
               <div key={item.id} className="bg-white shadow-sm rounded-lg overflow-hidden">
                 <div className="relative">
                   <Image

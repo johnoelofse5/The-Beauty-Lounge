@@ -128,8 +128,11 @@ export default function EditAppointmentModal({
             const endMins = endTimeMinutes % 60
             const endTimeString = `${endHours.toString().padStart(2, '0')}:${endMins.toString().padStart(2, '0')}`
 
-            // Format date for database
-            const dateString = selectedDate.toISOString().split('T')[0]
+            // Format date for database using local date formatting to avoid timezone issues
+            const year = selectedDate.getFullYear()
+            const month = String(selectedDate.getMonth() + 1).padStart(2, '0')
+            const day = String(selectedDate.getDate()).padStart(2, '0')
+            const dateString = `${year}-${month}-${day}`
             const appointmentDateTime = new Date(`${dateString}T${selectedTimeSlot}`).toISOString()
             const endDateTime = new Date(`${dateString}T${endTimeString}`).toISOString()
 
@@ -229,12 +232,22 @@ export default function EditAppointmentModal({
     }
 
     return (
-        <div className="fixed inset-0 z-50 pointer-events-none">
-            {/* Modal */}
-            <div className={`fixed bottom-0 left-0 right-0 lg:top-1/2 lg:left-1/2 lg:transform lg:-translate-x-1/2 lg:-translate-y-1/2 lg:bottom-auto lg:right-auto lg:w-full lg:max-w-2xl bg-white rounded-t-xl lg:rounded-xl shadow-2xl transform transition-transform duration-300 ease-out max-h-[95vh] lg:max-h-[90vh] flex flex-col pointer-events-auto ${isClosing
+        <div className="fixed inset-0 z-50 pointer-events-auto">
+            {/* Backdrop - invisible but blocks clicks */}
+            <div 
+                className="absolute inset-0" 
+                onClick={onClose}
+            />
+            
+            {/* Modal Content */}
+            <div 
+                className={`fixed bottom-0 left-0 right-0 lg:top-1/2 lg:left-1/2 lg:transform lg:-translate-x-1/2 lg:-translate-y-1/2 lg:bottom-auto lg:right-auto lg:w-full lg:max-w-2xl bg-white rounded-t-xl lg:rounded-xl shadow-2xl transform transition-transform duration-300 ease-out max-h-[95vh] lg:max-h-[90vh] flex flex-col ${
+                    isClosing
                     ? 'translate-y-full lg:translate-y-full lg:translate-x-[-50%]'
                     : 'translate-y-0 lg:translate-x-[-50%] lg:translate-y-[-50%] modal-enter lg:modal-enter-desktop'
-                }`}>
+                }`}
+                onClick={(e) => e.stopPropagation()}
+            >
 
                 {/* Handle bar (Mobile only) */}
                 <div className="flex justify-center pt-3 pb-2 lg:hidden">

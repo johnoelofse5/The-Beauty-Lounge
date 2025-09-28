@@ -30,7 +30,10 @@ import {
   Sparkles,
   PlusCircle,
   Image,
-  Clock
+  Clock,
+  Package,
+  TrendingUp,
+  DollarSign
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
@@ -145,6 +148,12 @@ export default function SidebarNav({ title = "The Beauty Lounge" }: SidebarNavPr
       url: "/schedule",
       icon: Clock,
       show: permissions.canManageSchedule, // Show based on permission
+    },
+    {
+      title: "Inventory & Finance",
+      url: "/inventory-finance",
+      icon: TrendingUp,
+      show: canViewAdminFeatures || isPractitionerUser, // Show for super admin and practitioners
     },
     {
       title: "Services",

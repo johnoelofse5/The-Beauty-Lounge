@@ -34,9 +34,16 @@ export const LOOKUP_TYPE_CODES = {
   PAYMENT_METHODS: 'PAYMENT_METHODS',
   PAYMENT_STATUS: 'PAYMENT_STATUS',
   
+  // Revenue-related lookups
+  REVENUE_TYPES: 'REVENUE_TYPES',
+  TRANSACTION_TYPES: 'TRANSACTION_TYPES',
+  
   // Notification-related lookups
   NOTIFICATION_TYPES: 'NOTIFICATION_TYPES',
   NOTIFICATION_FREQUENCY: 'NOTIFICATION_FREQUENCY',
+  
+  // Inventory-related lookups
+  MEASUREMENTS: 'MEASUREMENTS',
   
   // General lookups
   YES_NO: 'YES_NO',

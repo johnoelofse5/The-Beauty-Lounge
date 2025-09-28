@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useAuth } from '@/contexts/AuthContext'
 import { getServicesByCategory, formatPrice, formatDuration } from '@/lib/services'
@@ -11,6 +11,8 @@ export default function HomePage() {
   const [servicesByCategory, setServicesByCategory] = useState<{ [categoryName: string]: ServiceWithCategory[] }>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [visibleElements, setVisibleElements] = useState<Set<string>>(new Set())
+  const observerRef = useRef<IntersectionObserver | null>(null)
 
   useEffect(() => {
     async function fetchServices() {
@@ -28,6 +30,48 @@ export default function HomePage() {
 
     fetchServices()
   }, [])
+
+  // Set up intersection observer for scroll animations
+  useEffect(() => {
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          const elementId = entry.target.getAttribute('data-animate-id')
+          if (elementId) {
+            setVisibleElements(prev => {
+              const newSet = new Set(prev)
+              if (entry.isIntersecting) {
+                newSet.add(elementId)
+              } else {
+                newSet.delete(elementId)
+              }
+              return newSet
+            })
+          }
+        })
+      },
+      {
+        threshold: 0.1,
+        rootMargin: '0px 0px -50px 0px'
+      }
+    )
+
+    return () => {
+      if (observerRef.current) {
+        observerRef.current.disconnect()
+      }
+    }
+  }, [])
+
+  // Observe elements when they're rendered
+  useEffect(() => {
+    if (observerRef.current && !loading) {
+      const elementsToObserve = document.querySelectorAll('[data-animate-id]')
+      elementsToObserve.forEach(element => {
+        observerRef.current?.observe(element)
+      })
+    }
+  }, [loading, servicesByCategory])
 
   if (authLoading) {
     return (
@@ -75,7 +119,14 @@ export default function HomePage() {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Hero Section */}
-        <div className="text-center mb-12">
+        <div 
+          className="text-center mb-12 transition-all duration-700 ease-out"
+          data-animate-id="hero"
+          style={{
+            opacity: visibleElements.has('hero') ? 1 : 0,
+            transform: visibleElements.has('hero') ? 'translateY(0)' : 'translateY(30px)'
+          }}
+        >
           <h2 className="text-3xl font-bold text-gray-900 sm:text-4xl">
             Services
           </h2>
@@ -105,7 +156,14 @@ export default function HomePage() {
         ) : (
           <div>
             {/* Sticky Category Navigation Bar */}
-            <div className="sticky top-0 z-10 bg-gray-50 py-4 mb-6 -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+            <div 
+              className="sticky top-0 z-10 bg-gray-50 py-4 mb-6 -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 transition-all duration-700 ease-out"
+              data-animate-id="category-nav"
+              style={{
+                opacity: visibleElements.has('category-nav') ? 1 : 0,
+                transform: visibleElements.has('category-nav') ? 'translateY(0)' : 'translateY(20px)'
+              }}
+            >
               <div className="flex overflow-x-auto scrollbar-hide space-x-2 pb-2">
                 {Object.entries(servicesByCategory)
                   .sort(([, servicesA], [, servicesB]) => {
@@ -135,8 +193,18 @@ export default function HomePage() {
                   const orderB = servicesB[0]?.category_display_order || 999
                   return orderA - orderB
                 })
-                .map(([categoryName, categoryServices]) => (
-                  <div key={categoryName} id={`category-${categoryName.replace(/\s+/g, '-').toLowerCase()}`} className="space-y-6">
+                .map(([categoryName, categoryServices], categoryIndex) => (
+                  <div 
+                    key={categoryName} 
+                    id={`category-${categoryName.replace(/\s+/g, '-').toLowerCase()}`} 
+                    className="space-y-6"
+                    data-animate-id={`category-${categoryName}`}
+                    style={{
+                      opacity: visibleElements.has(`category-${categoryName}`) ? 1 : 0,
+                      transform: visibleElements.has(`category-${categoryName}`) ? 'translateY(0)' : 'translateY(50px)',
+                      transition: `all 0.7s ease-out ${categoryIndex * 0.1}s`
+                    }}
+                  >
                     {/* Category Header */}
                     <div className="flex items-center space-x-3">
             <div>
@@ -149,10 +217,16 @@ export default function HomePage() {
 
                   {/* Services Grid for this category */}
                   <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                    {categoryServices.map((service) => (
+                    {categoryServices.map((service, serviceIndex) => (
                       <div
                         key={service.id}
-                        className="bg-white overflow-hidden shadow-sm rounded-lg border border-gray-200 hover:shadow-md transition-shadow duration-200"
+                        className="bg-white overflow-hidden shadow-sm rounded-lg border border-gray-200 hover:shadow-md transition-all duration-500 ease-out"
+                        data-animate-id={`service-${service.id}`}
+                        style={{
+                          opacity: visibleElements.has(`service-${service.id}`) ? 1 : 0,
+                          transform: visibleElements.has(`service-${service.id}`) ? 'translateY(0)' : 'translateY(30px)',
+                          transition: `all 0.6s ease-out ${(categoryIndex * 0.1) + (serviceIndex * 0.05)}s`
+                        }}
                       >
                         <div className="p-6">
                           <div className="flex items-start justify-between">
@@ -207,7 +281,14 @@ export default function HomePage() {
 
         {/* Call to Action */}
         {!user && Object.keys(servicesByCategory).length > 0 && (
-          <div className="mt-16 text-center">
+          <div 
+            className="mt-16 text-center transition-all duration-700 ease-out"
+            data-animate-id="cta"
+            style={{
+              opacity: visibleElements.has('cta') ? 1 : 0,
+              transform: visibleElements.has('cta') ? 'translateY(0)' : 'translateY(40px)'
+            }}
+          >
             <div className="bg-indigo-50 rounded-lg p-8">
               <h3 className="text-lg font-semibold text-gray-900 mb-2">
                 Ready to book your appointment?

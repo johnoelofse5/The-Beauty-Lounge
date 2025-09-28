@@ -131,7 +131,7 @@ export function ValidationSelect({
         )}>
           <SelectValue placeholder={placeholder} />
         </SelectTrigger>
-        <SelectContent className="bg-white border border-gray-300 shadow-lg">
+        <SelectContent className="bg-white border border-gray-300 shadow-lg z-[70]">
           {children}
         </SelectContent>
       </Select>
