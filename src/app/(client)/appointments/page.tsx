@@ -647,8 +647,14 @@ export default function AppointmentsPage() {
       const { data: insertedAppointment, error } = await supabase
         .from('appointments')
         .insert([appointmentData])
+        .select()
+        .single()
 
       if (error) throw error
+
+      if (!insertedAppointment) {
+        throw new Error('Failed to create appointment')
+      }
 
       // Send SMS notifications to both client and practitioner
       try {
