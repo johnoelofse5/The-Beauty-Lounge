@@ -15,7 +15,7 @@ import { ValidationInput } from '@/components/validation/ValidationComponents'
 import { ValidationService } from '@/lib/validation-service'
 import TimeSlotSelector from '@/components/TimeSlotSelector'
 import { BookingProgressService, BookingProgress } from '@/lib/booking-progress-service'
-//import { AppointmentSMSService } from '@/lib/appointment-sms-service'
+import { AppointmentSMSService } from '@/lib/appointment-sms-service'
 
 export default function AppointmentsPage() {
   const { user, userRoleData, loading: authLoading } = useAuth()
@@ -651,11 +651,11 @@ export default function AppointmentsPage() {
       if (error) throw error
 
       // Send SMS notifications to both client and practitioner
-      // try {
-      //   await AppointmentSMSService.sendAppointmentNotifications(insertedAppointment.id)
-      // } catch (smsError) {
-      //   console.error('Error sending SMS notifications:', smsError)
-      // }
+      try {
+        await AppointmentSMSService.sendAppointmentNotifications(insertedAppointment.id)
+      } catch (smsError) {
+        console.error('Error sending SMS notifications:', smsError)
+      }
 
       showSuccess('Appointment booked successfully! Redirecting...')
       

@@ -7,7 +7,7 @@ import { formatDuration, formatPrice, getServicesWithCategories } from '@/lib/se
 import { DatePicker } from '@/components/date-picker'
 import { hasPermission, isPractitioner } from '@/lib/rbac'
 import TimeSlotSelector from '@/components/TimeSlotSelector'
-//import { AppointmentSMSService } from '@/lib/appointment-sms-service'
+import { AppointmentSMSService } from '@/lib/appointment-sms-service'
 
 export default function EditAppointmentModal({
     appointment,
@@ -153,12 +153,12 @@ export default function EditAppointmentModal({
             if (updateError) throw updateError
 
             // Send reschedule SMS notifications for appointment update
-            // try {
-            //     await AppointmentSMSService.sendRescheduleSMS(appointment.id)
-            // } catch (smsError) {
-            //     console.error('Error sending reschedule SMS notifications:', smsError)
-            //     // Don't fail the appointment update if SMS fails
-            // }
+            try {
+                await AppointmentSMSService.sendRescheduleSMS(appointment.id)
+            } catch (smsError) {
+                console.error('Error sending reschedule SMS notifications:', smsError)
+                // Don't fail the appointment update if SMS fails
+            }
 
             setSuccess(true)
             setTimeout(() => {
@@ -193,12 +193,12 @@ export default function EditAppointmentModal({
             if (deleteError) throw deleteError
 
             // Send cancellation SMS notifications
-            // try {
-            //     await AppointmentSMSService.sendCancellationSMS(appointment.id)
-            // } catch (smsError) {
-            //     console.error('Error sending cancellation SMS notifications:', smsError)
-            //     // Don't fail the appointment deletion if SMS fails
-            // }
+            try {
+                await AppointmentSMSService.sendCancellationSMS(appointment.id)
+            } catch (smsError) {
+                console.error('Error sending cancellation SMS notifications:', smsError)
+                // Don't fail the appointment deletion if SMS fails
+            }
 
             setSuccess(true)
             setTimeout(() => {
