@@ -302,37 +302,60 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     // If user was created successfully, create a user record in the database
     if (authData.user) {
-      try {
-        // Get the client role ID
-        const { data: clientRole, error: roleError } = await supabase
-          .from('roles')
-          .select('id')
-          .eq('name', 'client')
-          .single()
+      // First check if user already exists in our database
+      const { data: existingUser, error: checkError } = await supabase
+        .from('users')
+        .select('id, phone, first_name, last_name')
+        .eq('id', authData.user.id)
+        .single()
 
-        if (roleError) {
-          console.error('Error fetching client role:', roleError)
+      if (existingUser && !checkError) {
+        // User exists, check if phone number matches
+        if (existingUser.phone === phone) {
+          throw new Error('User already exists with this phone number. Please try logging in instead.')
+        } else {
+          throw new Error('User already exists with a different phone number. Please contact support.')
         }
+      }
 
-        // Create user record in the users table
-        const { error: userError } = await supabase
-          .from('users')
-          .insert({
-            id: authData.user.id,
-            email: `${phone}@temp.mobile`, // Store phone as email for compatibility
-            first_name: firstName,
-            last_name: lastName,
-            phone: phone,
-            role_id: clientRole?.id || null,
-            is_active: true,
-            is_deleted: false
-          })
+      // Get the client role ID
+      const { data: clientRole, error: roleError } = await supabase
+        .from('roles')
+        .select('id')
+        .eq('name', 'client')
+        .single()
 
-        if (userError) {
-          console.error('Error creating user record:', userError)
+      if (roleError) {
+        console.error('Error fetching client role:', roleError)
+        // Continue without role assignment - the database trigger will handle it
+      }
+
+      // Create or update user record in the users table
+      // Use upsert to handle case where user might already exist
+      const { error: userError } = await supabase
+        .from('users')
+        .upsert({
+          id: authData.user.id,
+          email: `${phone}@temp.mobile`, // Store phone as email for compatibility
+          first_name: firstName,
+          last_name: lastName,
+          phone: phone,
+          role_id: clientRole?.id || null,
+          is_active: true,
+          is_deleted: false
+        }, {
+          onConflict: 'id' // If user ID exists, update the record
+        })
+
+      if (userError) {
+        // Provide more specific error messaging
+        if (userError.code === '23505') {
+          throw new Error('User already exists. Please try logging in instead.')
+        } else if (userError.code === '42703') {
+          throw new Error('Database error: missing required columns. Please contact support.')
+        } else {
+          throw new Error('Database error saving new user')
         }
-      } catch (err) {
-        console.error('Error in user creation process:', err)
       }
     }
   }

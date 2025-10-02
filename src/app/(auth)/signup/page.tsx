@@ -4,12 +4,14 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/contexts/AuthContext'
+import { useToast } from '@/contexts/ToastContext'
 import { SignUpFormData } from '@/types/form'
 
 export default function SignUpPage() {
   const router = useRouter()
   const { signUpWithPhone, sendOTP } = useAuth()
-  const [step, setStep] = useState<'phone' | 'otp' | 'details'>('phone')
+  const { showError, showSuccess } = useToast()
+  const [step, setStep] = useState<'form' | 'otp'>('form')
   const [formData, setFormData] = useState<SignUpFormData>({
     phone: '',
     first_name: '',
@@ -36,13 +38,21 @@ export default function SignUpPage() {
   }
 
   const validateForm = (): boolean => {
-    if (step === 'phone') {
+    if (step === 'form') {
       if (!formData.phone) {
         setError('Phone number is required')
         return false
       }
       if (!validatePhoneNumber(formData.phone)) {
         setError('Please enter a valid phone number (e.g., 0821234567)')
+        return false
+      }
+      if (!formData.first_name) {
+        setError('First name is required')
+        return false
+      }
+      if (!formData.last_name) {
+        setError('Last name is required')
         return false
       }
     } else if (step === 'otp') {
@@ -52,11 +62,6 @@ export default function SignUpPage() {
       }
       if (!/^\d{6}$/.test(formData.otp_code)) {
         setError('OTP code must be 6 digits')
-        return false
-      }
-    } else if (step === 'details') {
-      if (!formData.first_name || !formData.last_name) {
-        setError('First name and last name are required')
         return false
       }
     }
@@ -72,6 +77,7 @@ export default function SignUpPage() {
 
     try {
       await sendOTP(formData.phone, 'signup')
+      showSuccess('OTP sent successfully! Please check your phone.')
       setOtpSent(true)
       setStep('otp')
       setCountdown(60) // 60 seconds countdown
@@ -87,7 +93,9 @@ export default function SignUpPage() {
         })
       }, 1000)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to send OTP')
+      const errorMessage = err instanceof Error ? err.message : 'Failed to send OTP'
+      setError(errorMessage)
+      showError(errorMessage)
     } finally {
       setLoading(false)
     }
@@ -100,11 +108,17 @@ export default function SignUpPage() {
     setError(null)
 
     try {
-      // For now, we'll just move to the next step
-      // In a real implementation, you'd verify the OTP here
-      setStep('details')
+      // Verify OTP and complete signup
+      await signUpWithPhone(formData.phone, formData.first_name, formData.last_name, formData.otp_code || '')
+      showSuccess('Account created successfully! Redirecting to login...')
+      setSuccess(true)
+      setTimeout(() => {
+        router.push('/login')
+      }, 2000)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to verify OTP')
+      const errorMessage = err instanceof Error ? err.message : 'Failed to verify OTP and create account'
+      setError(errorMessage)
+      showError(errorMessage)
     } finally {
       setLoading(false)
     }
@@ -116,18 +130,12 @@ export default function SignUpPage() {
 
     if (!validateForm()) return
 
-    setLoading(true)
-
-    try {
-      await signUpWithPhone(formData.phone, formData.first_name, formData.last_name, formData.otp_code || '')
-      setSuccess(true)
-      setTimeout(() => {
-        router.push('/login')
-      }, 2000)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred during signup')
-    } finally {
-      setLoading(false)
+    // If we're on the form step, send OTP
+    if (step === 'form') {
+      await handleSendOTP()
+    } else {
+      // If we're on the OTP step, verify and complete signup
+      await handleVerifyOTP()
     }
   }
 
@@ -195,95 +203,7 @@ export default function SignUpPage() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            {step === 'phone' && (
-              <>
-                <div>
-                  <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
-                    Mobile Number
-                  </label>
-                  <div className="mt-1">
-                    <input
-                      id="phone"
-                      name="phone"
-                      type="tel"
-                      required
-                      value={formData.phone}
-                      onChange={handleInputChange}
-                      placeholder="0821234567"
-                      className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                    />
-                  </div>
-                  <p className="mt-1 text-xs text-gray-500">
-                    Enter your mobile number (e.g., 0821234567)
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={handleSendOTP}
-                  disabled={loading}
-                  className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
-                >
-                  {loading ? 'Sending...' : 'Send Verification Code'}
-                </button>
-              </>
-            )}
-
-            {step === 'otp' && (
-              <>
-                <div>
-                  <label htmlFor="otp_code" className="block text-sm font-medium text-gray-700">
-                    Verification Code
-                  </label>
-                  <div className="mt-1">
-                    <input
-                      id="otp_code"
-                      name="otp_code"
-                      type="text"
-                      required
-                      maxLength={6}
-                      value={formData.otp_code}
-                      onChange={handleInputChange}
-                      placeholder="123456"
-                      className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-center text-lg tracking-widest"
-                    />
-                  </div>
-                  <p className="mt-1 text-xs text-gray-500">
-                    Enter the 6-digit code sent to {formData.phone}
-                  </p>
-                </div>
-
-                <div className="flex space-x-3">
-                  <button
-                    type="button"
-                    onClick={handleVerifyOTP}
-                    disabled={loading}
-                    className="flex-1 flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
-                  >
-                    {loading ? 'Verifying...' : 'Verify Code'}
-                  </button>
-                  
-                  <button
-                    type="button"
-                    onClick={handleResendOTP}
-                    disabled={loading || countdown > 0}
-                    className="flex-1 flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
-                  >
-                    {countdown > 0 ? `Resend in ${countdown}s` : 'Resend'}
-                  </button>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setStep('phone')}
-                  className="w-full text-sm text-indigo-600 hover:text-indigo-500"
-                >
-                  Change phone number
-                </button>
-              </>
-            )}
-
-            {step === 'details' && (
+            {step === 'form' && (
               <>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -321,15 +241,61 @@ export default function SignUpPage() {
                   </div>
                 </div>
 
+                <div>
+                  <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
+                    Mobile Number
+                  </label>
+                  <div className="mt-1">
+                    <input
+                      id="phone"
+                      name="phone"
+                      type="tel"
+                      required
+                      value={formData.phone}
+                      onChange={handleInputChange}
+                      className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    />
+                  </div>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Enter your mobile number (e.g., 0821234567)
+                  </p>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+                >
+                  {loading ? 'Sending...' : 'Send Verification Code'}
+                </button>
+              </>
+            )}
+
+            {step === 'otp' && (
+              <>
+                <div>
+                  <label htmlFor="otp_code" className="block text-sm font-medium text-gray-700">
+                    Verification Code
+                  </label>
+                  <div className="mt-1">
+                    <input
+                      id="otp_code"
+                      name="otp_code"
+                      type="text"
+                      required
+                      maxLength={6}
+                      value={formData.otp_code}
+                      onChange={handleInputChange}
+                      placeholder="123456"
+                      className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-center text-lg tracking-widest"
+                    />
+                  </div>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Enter the 6-digit code sent to {formData.phone}
+                  </p>
+                </div>
+
                 <div className="flex space-x-3">
-                  <button
-                    type="button"
-                    onClick={() => setStep('otp')}
-                    className="flex-1 flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                  >
-                    Back
-                  </button>
-                  
                   <button
                     type="submit"
                     disabled={loading}
@@ -337,9 +303,27 @@ export default function SignUpPage() {
                   >
                     {loading ? 'Creating Account...' : 'Create Account'}
                   </button>
+                  
+                  <button
+                    type="button"
+                    onClick={handleResendOTP}
+                    disabled={loading || countdown > 0}
+                    className="flex-1 flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+                  >
+                    {countdown > 0 ? `Resend in ${countdown}s` : 'Resend'}
+                  </button>
                 </div>
+
+                <button
+                  type="button"
+                  onClick={() => setStep('form')}
+                  className="w-full text-sm text-indigo-600 hover:text-indigo-500"
+                >
+                  Change details
+                </button>
               </>
             )}
+
           </form>
 
           <div className="mt-6">
