@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/contexts/AuthContext'
@@ -18,6 +18,10 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [otpSent, setOtpSent] = useState(false)
   const [countdown, setCountdown] = useState(0)
+  
+  // Hold functionality for legacy login (hidden)
+  const holdIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const holdStartTimeRef = useRef<number | null>(null)
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -25,6 +29,31 @@ export default function LoginPage() {
       ...prev,
       [name]: value
     }))
+  }
+
+  const handleHoldStart = () => {
+    holdStartTimeRef.current = Date.now()
+    
+    holdIntervalRef.current = setInterval(() => {
+      const elapsed = Date.now() - (holdStartTimeRef.current || 0)
+      
+      if (elapsed >= 5000) { // 5 seconds
+        handleHoldComplete()
+      }
+    }, 100) // Check every 100ms
+  }
+
+  const handleHoldEnd = () => {
+    if (holdIntervalRef.current) {
+      clearInterval(holdIntervalRef.current)
+      holdIntervalRef.current = null
+    }
+    holdStartTimeRef.current = null
+  }
+
+  const handleHoldComplete = () => {
+    handleHoldEnd()
+    router.push('/legacy-login')
   }
 
   const validatePhoneNumber = (phone: string): boolean => {
@@ -133,7 +162,16 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4 py-6 sm:px-6 lg:px-8">
       <div className="w-full max-w-md space-y-6 sm:space-y-8">
         <div className="text-center">
-          <h2 className="text-3xl font-bold text-gray-900">Sign In</h2>
+          <h2 
+            className="text-3xl font-bold text-gray-900"
+            onMouseDown={handleHoldStart}
+            onMouseUp={handleHoldEnd}
+            onMouseLeave={handleHoldEnd}
+            onTouchStart={handleHoldStart}
+            onTouchEnd={handleHoldEnd}
+          >
+            Sign In
+          </h2>
           <p className="mt-2 text-sm text-gray-600">
             Sign in with your mobile number
           </p>
@@ -245,22 +283,13 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <div className="mt-6 space-y-3">
+            <div className="mt-6">
               <Link
                 href="/signup"
                 className="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
               >
                 Sign Up
               </Link>
-              
-              <div className="text-center">
-                <Link
-                  href="/legacy-login"
-                  className="text-sm text-indigo-600 hover:text-indigo-500"
-                >
-                  Use email and password instead
-                </Link>
-              </div>
             </div>
           </div>
         </div>
