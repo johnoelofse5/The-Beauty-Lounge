@@ -243,9 +243,6 @@ export default function SidebarNav({ title = "The Beauty Lounge" }: SidebarNavPr
                           ? user.email 
                           : 'User'}
                       </span>
-                      <span className="text-xs text-sidebar-foreground/70 truncate">
-                        {typeof user.email === 'string' ? user.email : 'No email'}
-                      </span>
                     </div>
                   </SidebarMenuButton>
                 </Link>
