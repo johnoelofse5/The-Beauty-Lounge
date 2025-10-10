@@ -27,14 +27,13 @@ serve(async (req) => {
 
   try {
     // Get environment variables
-    const twilioAccountSid = Deno.env.get('TWILIO_ACCOUNT_SID')
-    const twilioAuthToken = Deno.env.get('TWILIO_AUTH_TOKEN')
-    const twilioPhoneNumber = Deno.env.get('TWILIO_PHONE_NUMBER')
+    const bulksmsTokenId = Deno.env.get('BULKSMS_TOKEN_ID')
+    const bulksmsTokenSecret = Deno.env.get('BULKSMS_TOKEN_SECRET')
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
 
-    if (!twilioAccountSid || !twilioAuthToken || !twilioPhoneNumber) {
-      throw new Error('Missing Twilio configuration')
+    if (!bulksmsTokenId || !bulksmsTokenSecret) {
+      throw new Error('Missing BulkSMS configuration')
     }
 
     if (!supabaseUrl || !supabaseServiceKey) {
@@ -163,53 +162,49 @@ serve(async (req) => {
       duration_minutes: durationMinutes
     }
 
-    // Helper function to format phone number for Twilio
+    // Helper function to format phone number for BulkSMS
     const formatPhoneNumber = (phone: string): string => {
       let formatted = phone.replace(/\s/g, '')
       
-      // If it starts with 0, replace with +27 (South Africa country code)
+      // If it starts with 0, replace with 27 (South Africa country code without +)
       if (formatted.startsWith('0')) {
-        formatted = '+27' + formatted.substring(1)
+        formatted = '27' + formatted.substring(1)
       }
-      // If it doesn't start with +, add it
-      else if (!formatted.startsWith('+')) {
-        formatted = '+' + formatted
+      // If it starts with +, remove it
+      else if (formatted.startsWith('+')) {
+        formatted = formatted.substring(1)
       }
       
       return formatted
     }
 
-    // Helper function to send SMS
-    const sendSMS = async (to: string, message: string): Promise<boolean> => {
+    // Helper function to send batch SMS via BulkSMS
+    const sendBatchSMS = async (messages: Array<{to: string, body: string}>): Promise<{success: boolean, error?: string}> => {
       try {
-        const formattedPhone = formatPhoneNumber(to)
+        const formattedMessages = messages.map(msg => ({
+          to: formatPhoneNumber(msg.to),
+          body: msg.body
+        }))
         
-        const response = await fetch(
-          `https://api.twilio.com/2010-04-01/Accounts/${twilioAccountSid}/Messages.json`,
-          {
-            method: 'POST',
-            headers: {
-              'Authorization': 'Basic ' + btoa(twilioAccountSid + ':' + twilioAuthToken),
-              'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: new URLSearchParams({
-              'From': twilioPhoneNumber,
-              'To': formattedPhone,
-              'Body': message,
-            }),
-          }
-        )
+        const response = await fetch('https://api.bulksms.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Basic ' + btoa(bulksmsTokenId + ':' + bulksmsTokenSecret),
+          },
+          body: JSON.stringify(formattedMessages)
+        })
 
         if (!response.ok) {
           const errorData = await response.text()
-          console.error('Twilio API error:', errorData)
-          return false
+          console.error('BulkSMS API error:', errorData)
+          return { success: false, error: errorData }
         }
 
-        return true
+        return { success: true }
       } catch (error) {
-        console.error('Error sending SMS:', error)
-        return false
+        console.error('Error sending batch SMS:', error)
+        return { success: false, error: error.message }
       }
     }
     
@@ -239,27 +234,34 @@ serve(async (req) => {
         break
     }
 
-    // Send SMS to client
-    let clientSMSResult = false
-    let clientSMSError = null
+    // Prepare batch SMS messages
+    const batchMessages: Array<{to: string, body: string}> = []
+    
     if (smsData.client_phone) {
-      try {
-        clientSMSResult = await sendSMS(smsData.client_phone, clientMessage)
-      } catch (error) {
-        clientSMSError = error.message
-      }
+      batchMessages.push({
+        to: smsData.client_phone,
+        body: clientMessage
+      })
+    }
+    
+    if (smsData.practitioner_phone) {
+      batchMessages.push({
+        to: smsData.practitioner_phone,
+        body: practitionerMessage
+      })
     }
 
-    // Send SMS to practitioner
-    let practitionerSMSResult = false
-    let practitionerSMSError = null
-    if (smsData.practitioner_phone) {
-      try {
-        practitionerSMSResult = await sendSMS(smsData.practitioner_phone, practitionerMessage)
-      } catch (error) {
-        practitionerSMSError = error.message
-      }
+    // Send batch SMS
+    let batchResult: {success: boolean, error?: string} = { success: false }
+    if (batchMessages.length > 0) {
+      batchResult = await sendBatchSMS(batchMessages)
     }
+
+    // Determine individual results for logging
+    const clientSMSResult = smsData.client_phone ? batchResult.success : false
+    const practitionerSMSResult = smsData.practitioner_phone ? batchResult.success : false
+    const clientSMSError = smsData.client_phone && !batchResult.success ? batchResult.error : null
+    const practitionerSMSError = smsData.practitioner_phone && !batchResult.success ? batchResult.error : null
 
     // Log the SMS sending attempt
     await supabase

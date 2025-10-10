@@ -43,16 +43,16 @@ serve(async (req) => {
       )
     }
 
-    // Convert South African phone number to international format for Twilio
+    // Convert South African phone number to international format for BulkSMS
     let formattedPhoneNumber = phoneNumber.replace(/\s/g, '')
     
-    // If it starts with 0, replace with +27 (South Africa country code)
+    // If it starts with 0, replace with 27 (South Africa country code without +)
     if (formattedPhoneNumber.startsWith('0')) {
-      formattedPhoneNumber = '+27' + formattedPhoneNumber.substring(1)
+      formattedPhoneNumber = '27' + formattedPhoneNumber.substring(1)
     }
-    // If it doesn't start with +, add it
-    else if (!formattedPhoneNumber.startsWith('+')) {
-      formattedPhoneNumber = '+' + formattedPhoneNumber
+    // If it starts with +, remove it
+    else if (formattedPhoneNumber.startsWith('+')) {
+      formattedPhoneNumber = formattedPhoneNumber.substring(1)
     }
 
     // Create or update OTP in database
@@ -65,41 +65,39 @@ serve(async (req) => {
       throw new Error(`Database error: ${otpError.message}`)
     }
 
-    // Send SMS via Twilio
-    const twilioAccountSid = Deno.env.get('TWILIO_ACCOUNT_SID')
-    const twilioAuthToken = Deno.env.get('TWILIO_AUTH_TOKEN')
-    const twilioPhoneNumber = Deno.env.get('TWILIO_PHONE_NUMBER')
+    // Send SMS via BulkSMS
+    const bulksmsTokenId = Deno.env.get('BULKSMS_TOKEN_ID')
+    const bulksmsTokenSecret = Deno.env.get('BULKSMS_TOKEN_SECRET')
 
-    if (!twilioAccountSid || !twilioAuthToken || !twilioPhoneNumber) {
-      throw new Error('Twilio configuration is missing')
+    if (!bulksmsTokenId || !bulksmsTokenSecret) {
+      throw new Error('BulkSMS configuration is missing')
     }
 
-    // Use the already converted formattedPhoneNumber for Twilio
+    // Use the already converted formattedPhoneNumber for BulkSMS
     const formattedPhone = formattedPhoneNumber
 
     // Create SMS message
     const message = `Your verification code is: ${otpCode}. This code expires in 10 minutes.`
 
-    // Send SMS via Twilio
-    const twilioResponse = await fetch(
-      `https://api.twilio.com/2010-04-01/Accounts/${twilioAccountSid}/Messages.json`,
+    // Send SMS via BulkSMS
+    const bulksmsResponse = await fetch(
+      'https://api.bulksms.com/v1/messages',
       {
         method: 'POST',
         headers: {
-          'Authorization': 'Basic ' + btoa(twilioAccountSid + ':' + twilioAuthToken),
-          'Content-Type': 'application/x-www-form-urlencoded',
+          'Content-Type': 'application/json',
+          'Authorization': 'Basic ' + btoa(bulksmsTokenId + ':' + bulksmsTokenSecret),
         },
-        body: new URLSearchParams({
-          'From': twilioPhoneNumber,
-          'To': formattedPhone,
-          'Body': message,
-        }),
+        body: JSON.stringify({
+          to: formattedPhone,
+          body: message
+        })
       }
     )
 
-    if (!twilioResponse.ok) {
-      const errorData = await twilioResponse.json()
-      throw new Error(`Twilio API error: ${errorData.message || twilioResponse.statusText}`)
+    if (!bulksmsResponse.ok) {
+      const errorData = await bulksmsResponse.text()
+      throw new Error(`BulkSMS API error: ${errorData}`)
     }
 
     return new Response(
