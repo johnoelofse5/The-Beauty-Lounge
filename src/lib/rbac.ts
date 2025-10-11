@@ -25,7 +25,7 @@ export interface UserWithRoleAndPermissions {
  */
 export async function getUserRoleAndPermissions(userId: string): Promise<UserWithRoleAndPermissions | null> {
   try {
-    // Get user with role information
+    
     const { data: userData, error: userError } = await supabase
       .from('users_with_roles')
       .select('*')
@@ -42,7 +42,7 @@ export async function getUserRoleAndPermissions(userId: string): Promise<UserWit
       return null
     }
 
-    // If user has no role assigned, return basic user data
+    
     if (!userData.role_id) {
       console.warn('User has no role assigned:', userId)
       return {
@@ -52,7 +52,7 @@ export async function getUserRoleAndPermissions(userId: string): Promise<UserWit
       }
     }
 
-    // Get user's permissions through their role
+    
     const { data: permissionsData, error: permissionsError } = await supabase
       .from('role_permissions')
       .select(`
@@ -159,26 +159,26 @@ export function canViewOwnAppointmentsOnly(userRole: UserRole | null): boolean {
  */
 export async function getFilteredAppointments(userId: string, userRole: UserRole | null) {
   try {
-    // First, get the appointments with basic filtering
+    
     let query = supabase
       .from('appointments')
       .select('*')
       .eq('is_active', true)
       .eq('is_deleted', false)
 
-    // If user is a client, show appointments they booked
+    
     if (canViewOwnAppointmentsOnly(userRole)) {
       query = query.eq('user_id', userId)
     }
-    // If user is a practitioner, show appointments assigned to them as practitioner
+    
     else if (isPractitioner(userRole)) {
       query = query.eq('practitioner_id', userId)
     }
-    // If user is super admin, show all appointments
+    
     else if (isSuperAdmin(userRole)) {
-      // No additional filtering needed
+      
     }
-    // If user has no role or unknown role, show appointments where they are either client or practitioner
+    
     else {
       query = query.or(`user_id.eq.${userId},practitioner_id.eq.${userId}`)
     }
@@ -194,7 +194,7 @@ export async function getFilteredAppointments(userId: string, userRole: UserRole
       return []
     }
 
-    // Now get the user details for all unique user IDs (filter out null values)
+    
     const userIds = [...new Set([
       ...appointments.map(apt => apt.user_id).filter(id => id !== null),
       ...appointments.map(apt => apt.practitioner_id).filter(id => id !== null)
@@ -207,15 +207,15 @@ export async function getFilteredAppointments(userId: string, userRole: UserRole
 
     if (usersError) {
       console.error('Error fetching users:', usersError)
-      // Return appointments without user details if users query fails
+      
       return appointments
     }
 
 
-    // Create a map of user details
+    
     const usersMap = new Map(users?.map(user => [user.id, user]) || [])
 
-    // Combine appointments with user details
+    
     const appointmentsWithUsers = appointments.map(appointment => ({
       ...appointment,
       client: usersMap.get(appointment.user_id) || null,
@@ -261,7 +261,7 @@ export async function canManagePortfolio(userId: string): Promise<boolean> {
     const role = data.role as any
     if (!role) return false
 
-    // Check if user has portfolio.manage permission
+    
     const hasPermission = role.permissions?.some((rp: any) =>
       rp.permission?.name === 'portfolio.manage'
     )
@@ -305,7 +305,7 @@ export async function canViewPortfolio(userId: string): Promise<boolean> {
     const role = data.role as any
     if (!role) return false
 
-    // Check if user has portfolio.view permission
+    
     const hasPermission = role.permissions?.some((rp: any) =>
       rp.permission?.name === 'portfolio.view'
     )
@@ -349,7 +349,7 @@ export async function canManageSchedule(userId: string): Promise<boolean> {
     const role = data.role as any
     if (!role) return false
 
-    // Check if user has schedule.manage permission
+    
     const hasPermission = role.permissions?.some((rp: any) =>
       rp.permission?.name === 'schedule.manage'
     )
@@ -393,7 +393,7 @@ export async function canViewSchedule(userId: string): Promise<boolean> {
     const role = data.role as any
     if (!role) return false
 
-    // Check if user has schedule.view permission
+    
     const hasPermission = role.permissions?.some((rp: any) =>
       rp.permission?.name === 'schedule.view'
     )

@@ -18,42 +18,42 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [otpSent, setOtpSent] = useState(false)
   const [countdown, setCountdown] = useState(0)
-  
-  // Hold functionality for legacy login (hidden)
+
+
   const holdIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const holdStartTimeRef = useRef<number | null>(null)
 
-  // Keyboard handling for mobile
+
   useEffect(() => {
     const handleResize = () => {
-      // Check if we're on mobile and keyboard is likely open
+
       if (window.innerHeight < window.screen.height * 0.75) {
-        // Keyboard is likely open, scroll to active input
+
         const activeElement = document.activeElement as HTMLElement
         if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA')) {
           setTimeout(() => {
-            activeElement.scrollIntoView({ 
-              behavior: 'smooth', 
-              block: 'center' 
+            activeElement.scrollIntoView({
+              behavior: 'smooth',
+              block: 'center'
             })
           }, 100)
         }
       }
     }
 
-    // Listen for resize events (keyboard open/close)
+
     window.addEventListener('resize', handleResize)
-    
-    // Also listen for focus events on inputs
+
+
     const inputs = document.querySelectorAll('input, textarea')
     const handleInputFocus = (e: Event) => {
       setTimeout(() => {
         const target = e.target as HTMLElement
-        target.scrollIntoView({ 
-          behavior: 'smooth', 
-          block: 'center' 
+        target.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center'
         })
-      }, 300) // Delay to allow keyboard to appear
+      }, 300)
     }
 
     inputs.forEach(input => {
@@ -66,7 +66,7 @@ export default function LoginPage() {
         input.removeEventListener('focus', handleInputFocus)
       })
     }
-  }, [step]) // Re-run when step changes to attach to new inputs
+  }, [step])
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -78,14 +78,14 @@ export default function LoginPage() {
 
   const handleHoldStart = () => {
     holdStartTimeRef.current = Date.now()
-    
+
     holdIntervalRef.current = setInterval(() => {
       const elapsed = Date.now() - (holdStartTimeRef.current || 0)
-      
-      if (elapsed >= 5000) { // 5 seconds
+
+      if (elapsed >= 5000) {
         handleHoldComplete()
       }
-    }, 100) // Check every 100ms
+    }, 100)
   }
 
   const handleHoldEnd = () => {
@@ -140,9 +140,9 @@ export default function LoginPage() {
       await sendOTP(formData.phone, 'signin')
       setOtpSent(true)
       setStep('otp')
-      setCountdown(60) // 60 seconds countdown
-      
-      // Start countdown
+      setCountdown(60)
+
+
       const timer = setInterval(() => {
         setCountdown(prev => {
           if (prev <= 1) {
@@ -169,7 +169,7 @@ export default function LoginPage() {
 
     try {
       await signInWithPhone(formData.phone, formData.otp_code || '')
-      router.push('/') // Redirect to home page after successful login
+      router.push('/')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred during login')
     } finally {
@@ -186,7 +186,7 @@ export default function LoginPage() {
     try {
       await sendOTP(formData.phone, 'signin')
       setCountdown(60)
-      
+
       const timer = setInterval(() => {
         setCountdown(prev => {
           if (prev <= 1) {
@@ -211,11 +211,13 @@ export default function LoginPage() {
         <div className="w-[70%] bg-gradient-to-br from-[#F2C7EB] to-[#E8A8D8] flex items-center justify-center">
           <div className="text-center">
             {/* Company Logo Placeholder */}
-            <div className="w-32 h-32 mx-auto mb-8 bg-white rounded-full flex items-center justify-center shadow-lg">
-              <span className="text-4xl font-bold text-[#F2C7EB]">BL</span>
+            <div className="w-100 h-100 mx-auto mb-8">
+              <img
+                src="/assets/the beauty lounge logo.png"
+                alt="The Beauty Lounge Logo"
+                className="w-full h-full object-contain"
+              />
             </div>
-            <h1 className="text-4xl font-bold text-white mb-4">The Beauty Lounge</h1>
-            <p className="text-xl text-white/90">Your beauty journey starts here</p>
           </div>
         </div>
 
@@ -223,7 +225,7 @@ export default function LoginPage() {
         <div className="w-[30%] flex items-center justify-center p-8">
           <div className="w-full max-w-md space-y-6">
             <div className="text-center">
-              <h2 
+              <h2
                 className="text-3xl font-bold text-gray-900"
                 onMouseDown={handleHoldStart}
                 onMouseUp={handleHoldEnd}
@@ -312,7 +314,7 @@ export default function LoginPage() {
                       >
                         {loading ? 'Signing In...' : 'Sign In'}
                       </button>
-                      
+
                       <button
                         type="button"
                         onClick={handleResendOTP}
@@ -362,15 +364,16 @@ export default function LoginPage() {
       <div className="lg:hidden min-h-screen bg-gray-50 px-4 py-6 sm:px-6 lg:px-8">
         <div className="w-full max-w-md mx-auto space-y-6 sm:space-y-8">
           {/* Company Logo for Mobile */}
-          <div className="text-center pt-8">
-            <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-[#F2C7EB] to-[#E8A8D8] rounded-full flex items-center justify-center shadow-lg">
-              <span className="text-2xl font-bold text-white">BL</span>
-            </div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">The Beauty Lounge</h1>
+          <div className="w-40 h-40 mx-auto mb-4">
+            <img
+              src="/assets/the beauty lounge logo.png"
+              alt="The Beauty Lounge Logo"
+              className="w-full h-full object-contain"
+            />
           </div>
 
           <div className="text-center">
-            <h2 
+            <h2
               className="text-3xl font-bold text-gray-900"
               onMouseDown={handleHoldStart}
               onMouseUp={handleHoldEnd}
@@ -459,7 +462,7 @@ export default function LoginPage() {
                     >
                       {loading ? 'Signing In...' : 'Sign In'}
                     </button>
-                    
+
                     <button
                       type="button"
                       onClick={handleResendOTP}

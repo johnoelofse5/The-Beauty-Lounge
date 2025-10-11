@@ -1,4 +1,4 @@
-// TimeSlot is imported from schedule types
+
 
 export interface Practitioner {
   id: string

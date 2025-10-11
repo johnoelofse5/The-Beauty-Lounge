@@ -43,7 +43,7 @@ export default function LegacyLoginPage() {
     setLoading(true)
 
     try {
-      // Check if user exists in your public.users table
+      
       const { data: userData, error: userError } = await supabase
         .from('users')
         .select('*')
@@ -56,11 +56,11 @@ export default function LegacyLoginPage() {
         throw new Error('User not found. Please check your email or sign up first.')
       }
 
-      // For now, we'll skip password verification since your system doesn't store passwords
-      // In a real implementation, you'd verify the password here
-      // For testing purposes, we'll just check if the user exists
+      
+      
+      
 
-      // Create a session using your existing mobile session function
+      
       const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/create-mobile-session`, {
         method: 'POST',
         headers: {
@@ -80,7 +80,7 @@ export default function LegacyLoginPage() {
         throw new Error(data.message || 'Failed to create session')
       }
 
-      // Use the temporary password returned by the Edge Function
+      
       const tempPassword = data.tempPassword
       
       const { error: signInError } = await supabase.auth.signInWithPassword({
@@ -92,8 +92,8 @@ export default function LegacyLoginPage() {
         throw new Error('Session creation failed. Please try again.')
       }
 
-      // If we get here, the sign-in was successful
-      router.push('/') // Redirect to home page after successful login
+      
+      router.push('/') 
       
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred during login')

@@ -51,10 +51,10 @@ export class PortfolioService {
     imageFile: File,
     data: CreatePortfolioItemData
   ): Promise<PortfolioItem> {
-    // Upload image first
+    
     const { path, url } = await this.uploadImage(imageFile, practitionerId)
 
-    // Create portfolio item
+    
     const { data: portfolioItem, error } = await supabase
       .from('portfolio')
       .insert({
@@ -71,7 +71,7 @@ export class PortfolioService {
       .single()
 
     if (error) {
-      // If portfolio creation fails, clean up the uploaded image
+      
       await this.deleteImage(path)
       throw new Error(`Failed to create portfolio item: ${error.message}`)
     }
@@ -211,7 +211,7 @@ export class PortfolioService {
    * Delete a portfolio item
    */
   static async deletePortfolioItem(itemId: string): Promise<void> {
-    // First get the item to get the image path
+    
     const { data: item, error: fetchError } = await supabase
       .from('portfolio')
       .select('image_path')
@@ -222,7 +222,7 @@ export class PortfolioService {
       throw new Error(`Failed to fetch portfolio item: ${fetchError.message}`)
     }
 
-    // Delete from database (soft delete)
+    
     const { error: deleteError } = await supabase
       .from('portfolio')
       .update({
@@ -236,7 +236,7 @@ export class PortfolioService {
       throw new Error(`Failed to delete portfolio item: ${deleteError.message}`)
     }
 
-    // Delete image from storage
+    
     if (item?.image_path) {
       await this.deleteImage(item.image_path)
     }

@@ -1,4 +1,4 @@
-// Admin-specific interfaces and types
+
 
 export interface InputWithErrorProps {
   label: string

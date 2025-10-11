@@ -38,7 +38,7 @@ export function ToastProvider({ children }: ToastProviderProps) {
     const newToast: Toast = {
       ...toast,
       id,
-      duration: toast.duration ?? 5000, // Default 5 seconds
+      duration: toast.duration ?? 5000, 
     }
     
     setToasts(prev => [...prev, newToast])

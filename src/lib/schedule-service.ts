@@ -3,7 +3,7 @@ import { WorkingSchedule, DaySchedule, ScheduleFormData } from '@/types/schedule
 import { LookupService } from '@/lib/lookup-service'
 
 export class ScheduleService {
-  // Get working schedule for a practitioner
+  
   static async getPractitionerSchedule(practitionerId: string): Promise<WorkingSchedule[]> {
     const { data, error } = await supabase
       .from('working_schedule')
@@ -22,10 +22,10 @@ export class ScheduleService {
     return data || []
   }
 
-  // Save working schedule for a practitioner
+  
   static async savePractitionerSchedule(practitionerId: string, scheduleData: ScheduleFormData): Promise<void> {
     try {
-      // First, mark all existing schedules as deleted
+      
       const { error: deleteError } = await supabase
         .from('working_schedule')
         .update({ is_deleted: true, is_active: false })
@@ -37,13 +37,13 @@ export class ScheduleService {
         throw new Error('Failed to delete existing schedule')
       }
 
-      // Get days of the week from lookup data
+      
       const daysOfWeek = await LookupService.getDaysOfWeek()
       
-      // Prepare new schedule entries
+      
       const scheduleEntries: Omit<WorkingSchedule, 'id' | 'created_at' | 'updated_at'>[] = []
       
-      // Map lookup data to schedule form data keys
+      
       const dayKeyMap: Record<string, keyof ScheduleFormData> = {
         '1': 'monday',
         '2': 'tuesday', 
@@ -55,13 +55,13 @@ export class ScheduleService {
       }
 
       daysOfWeek.forEach((dayLookup) => {
-        const dayOfWeek = parseInt(dayLookup.value) - 1 // Convert to 0-based index (Monday=0, Sunday=6)
+        const dayOfWeek = parseInt(dayLookup.value) - 1 
         const dayKey = dayKeyMap[dayLookup.value] as keyof ScheduleFormData
         
         if (dayKey && scheduleData[dayKey]) {
           const daySchedule = scheduleData[dayKey]
           if (daySchedule.is_active) {
-            // Validate time order
+            
             if (daySchedule.start_time >= daySchedule.end_time) {
               throw new Error(`Invalid time range for ${daySchedule.day_name}: start time must be before end time`)
             }
@@ -79,7 +79,7 @@ export class ScheduleService {
         }
       })
 
-      // Insert new schedule entries only if there are any
+      
       if (scheduleEntries.length > 0) {
         const { error } = await supabase
           .from('working_schedule')
@@ -96,7 +96,7 @@ export class ScheduleService {
     }
   }
 
-  // Get working hours for a specific day
+  
   static async getWorkingHoursForDay(practitionerId: string, dayOfWeek: number): Promise<WorkingSchedule[]> {
     const { data, error } = await supabase
       .from('working_schedule')
@@ -115,7 +115,7 @@ export class ScheduleService {
     return data || []
   }
 
-  // Generate time slots based on working schedule
+  
   static generateTimeSlots(
     workingSchedules: WorkingSchedule[],
     selectedDate: Date,
@@ -125,9 +125,9 @@ export class ScheduleService {
     const dayOfWeek = selectedDate.getDay()
     const daySchedule = workingSchedules.find(schedule => schedule.day_of_week === dayOfWeek)
     
-    // If no working schedule exists for this day, return empty array
+    
     if (!daySchedule) {
-      return [] // No working hours for this day
+      return [] 
     }
 
     const slots: { time: string; available: boolean; is_working_hours: boolean }[] = []
@@ -140,45 +140,45 @@ export class ScheduleService {
     
     for (let hour = startHour; hour <= endHour; hour++) {
       for (let minute = 0; minute < 60; minute += intervalMinutes) {
-        // Skip if this slot is after the end time
+        
         if (hour === endHour && minute >= endMinute) {
           break
         }
 
         const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}:00`
         
-        // Calculate end time for this slot with service duration
-        // Parse time components to avoid timezone issues
+        
+        
         const startTimeMinutes = hour * 60 + minute
         const endTimeMinutes = startTimeMinutes + serviceDurationMinutes
         const endHours = Math.floor(endTimeMinutes / 60)
         const endMins = endTimeMinutes % 60
         const endTimeString = `${endHours.toString().padStart(2, '0')}:${endMins.toString().padStart(2, '0')}`
         
-        // Check if this slot conflicts with existing appointments
+        
         const hasConflict = existingAppointments?.some(apt => {
-          // Handle timestamptz columns
+          
           if (apt.start_time && apt.start_time.includes('T')) {
-            // Convert UTC appointment times to local timezone
+            
             const aptStartTimeUTC = new Date(apt.start_time)
             const aptEndTimeUTC = new Date(apt.end_time)
             
-            // Extract local time components (hours/minutes) from the UTC times
+            
             const aptStartHour = aptStartTimeUTC.getHours()
             const aptStartMinute = aptStartTimeUTC.getMinutes()
             const aptEndHour = aptEndTimeUTC.getHours()
             const aptEndMinute = aptEndTimeUTC.getMinutes()
             
-            // Create local time strings for comparison
+            
             const aptStartTimeString = `${aptStartHour.toString().padStart(2, '0')}:${aptStartMinute.toString().padStart(2, '0')}:00`
             const aptEndTimeString = `${aptEndHour.toString().padStart(2, '0')}:${aptEndMinute.toString().padStart(2, '0')}:00`
             
             
-            // Compare time strings directly (both in local timezone)
+            
             const conflicts = (timeString < aptEndTimeString && endTimeString > aptStartTimeString)
             return conflicts
           }
-          // Fallback for old format
+          
           const aptStart = apt.start_time
           const aptEnd = apt.end_time
           return (timeString < aptEnd && endTimeString > aptStart)
@@ -187,7 +187,7 @@ export class ScheduleService {
         slots.push({
           time: timeString,
           available: !hasConflict,
-          is_working_hours: true // All slots within working hours are considered working hours
+          is_working_hours: true 
         })
       }
     }
@@ -195,7 +195,7 @@ export class ScheduleService {
     return slots
   }
 
-  // Get default schedule (8 AM to 7 PM, Monday to Friday, 30-minute intervals)
+  
   static getDefaultSchedule(): ScheduleFormData {
     return {
       monday: { day_of_week: 1, day_name: 'Monday', start_time: '08:00:00', end_time: '19:00:00', time_slot_interval_minutes: 30, is_active: true },

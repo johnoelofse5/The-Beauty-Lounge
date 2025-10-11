@@ -19,7 +19,7 @@ export default function TimeSlotSelector({
   const [workingSchedule, setWorkingSchedule] = useState<WorkingSchedule[]>([])
   const [currentAppointments, setCurrentAppointments] = useState<any[]>([])
 
-  // Load working schedule for the practitioner
+  
   useEffect(() => {
     const loadWorkingSchedule = async () => {
       if (!practitionerId) return
@@ -38,7 +38,7 @@ export default function TimeSlotSelector({
     loadWorkingSchedule()
   }, [practitionerId])
 
-  // Load appointments for the selected date
+  
   useEffect(() => {
     const loadAppointments = async () => {
       if (!selectedDate || !practitionerId) {
@@ -47,8 +47,8 @@ export default function TimeSlotSelector({
       }
 
       try {
-        // Use local date string to avoid timezone issues
-        const selectedDateStr = selectedDate.toLocaleDateString('en-CA') // YYYY-MM-DD format
+        
+        const selectedDateStr = selectedDate.toLocaleDateString('en-CA') 
         
         const { data, error } = await supabase
           .from('appointments')
@@ -70,7 +70,7 @@ export default function TimeSlotSelector({
     loadAppointments()
   }, [selectedDate?.toLocaleDateString('en-CA'), practitionerId])
 
-  // Generate time slots when date, schedule, or appointments change
+  
   useEffect(() => {
     
     if (!selectedDate || workingSchedule.length === 0) {
@@ -78,7 +78,7 @@ export default function TimeSlotSelector({
       return
     }
 
-    // Clear time slots first to prevent stale data
+    
     setTimeSlots([])
 
     try {

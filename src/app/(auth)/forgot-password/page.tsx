@@ -13,7 +13,7 @@ export default function ForgotPasswordPage() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setEmail(e.target.value)
-    if (error) setError(null) // Clear error when user starts typing
+    if (error) setError(null) 
   }
 
   const validateEmail = (email: string): boolean => {

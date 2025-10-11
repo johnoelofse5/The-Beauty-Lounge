@@ -16,7 +16,7 @@ export const useIndexedDBCache = () => {
     lastCleanup: null
   })
 
-  // Initialize IndexedDB
+  
   useEffect(() => {
     const initializeCache = async () => {
       try {
@@ -27,7 +27,7 @@ export const useIndexedDBCache = () => {
           isAvailable: true
         }))
         
-        // Clean up expired cache entries on initialization
+        
         await cleanupExpiredCache()
       } catch (error) {
         console.error('Failed to initialize IndexedDB:', error)
@@ -42,7 +42,7 @@ export const useIndexedDBCache = () => {
     initializeCache()
   }, [])
 
-  // Clean up expired cache entries
+  
   const cleanupExpiredCache = useCallback(async () => {
     try {
       await indexedDBService.cleanupExpiredCache()
@@ -55,7 +55,7 @@ export const useIndexedDBCache = () => {
     }
   }, [])
 
-  // Clear all cache data
+  
   const clearAllCache = useCallback(async () => {
     try {
       await indexedDBService.clearAllData()
@@ -64,7 +64,7 @@ export const useIndexedDBCache = () => {
     }
   }, [])
 
-  // Clear specific lookup cache
+  
   const clearLookupCache = useCallback(async (lookupType: string) => {
     try {
       await indexedDBService.clearLookupData(lookupType)
@@ -73,7 +73,7 @@ export const useIndexedDBCache = () => {
     }
   }, [])
 
-  // Store data in cache
+  
   const storeCacheData = useCallback(async (
     key: string, 
     data: any, 
@@ -86,7 +86,7 @@ export const useIndexedDBCache = () => {
     }
   }, [])
 
-  // Retrieve data from cache
+  
   const getCacheData = useCallback(async (key: string) => {
     try {
       return await indexedDBService.getCacheData(key)
@@ -96,7 +96,7 @@ export const useIndexedDBCache = () => {
     }
   }, [])
 
-  // Remove specific cache data
+  
   const removeCacheData = useCallback(async (key: string) => {
     try {
       await indexedDBService.removeCacheData(key)

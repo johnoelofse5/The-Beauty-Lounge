@@ -1,5 +1,5 @@
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { serve } from 'https:
+import { createClient } from 'https:
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -20,13 +20,13 @@ interface AppointmentSMSData {
 }
 
 serve(async (req) => {
-  // Handle CORS preflight requests
+  
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    // Get environment variables
+    
     const bulksmsTokenId = Deno.env.get('BULKSMS_TOKEN_ID')
     const bulksmsTokenSecret = Deno.env.get('BULKSMS_TOKEN_SECRET')
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
@@ -40,12 +40,12 @@ serve(async (req) => {
       throw new Error('Missing Supabase configuration')
     }
 
-    // Create Supabase client
+    
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-    // Parse request body
+    
     const { appointment_id, sms_type = 'confirmation' } = await req.json()
-    // Normalize sms type to lowercase for consistent handling
+    
     const normalizedSmsType = String(sms_type || 'confirmation').toLowerCase()
 
     if (!appointment_id) {
@@ -58,7 +58,7 @@ serve(async (req) => {
       )
     }
 
-    // Validate SMS type
+    
     const validSmsTypes = ['confirmation', 'reschedule', 'cancellation', 'reminder']
     if (!validSmsTypes.includes(normalizedSmsType)) {
       return new Response(
@@ -70,7 +70,7 @@ serve(async (req) => {
       )
     }
 
-    // Get appointment details with client and practitioner info
+    
     const { data: appointment, error: appointmentError } = await supabase
       .from('appointments')
       .select(`
@@ -105,7 +105,7 @@ serve(async (req) => {
       throw new Error('Appointment not found')
     }
 
-    // Get service details
+    
     const { data: services, error: servicesError } = await supabase
       .from('services')
       .select('name')
@@ -117,10 +117,10 @@ serve(async (req) => {
 
     const serviceNames = services?.map(s => s.name).join(', ') || 'Service'
 
-    // Format appointment date and time in South African timezone (GMT+2)
+    
     const startTime = new Date(appointment.start_time)
 
-    // Format directly in Africa/Johannesburg without intermediate conversion
+    
     const appointmentDate = startTime.toLocaleDateString('en-ZA', {
       weekday: 'long',
       year: 'numeric',
@@ -135,12 +135,12 @@ serve(async (req) => {
       timeZone: 'Africa/Johannesburg'
     })
 
-    // Calculate duration
+    
     const endTime = new Date(appointment.end_time)
     const durationMs = endTime.getTime() - startTime.getTime()
     const durationMinutes = Math.round(durationMs / (1000 * 60))
 
-    // Prepare SMS data - handle both registered users and external clients
+    
     const clientName = appointment.is_external_client 
       ? `${appointment.client_first_name || ''} ${appointment.client_last_name || ''}`.trim()
       : `${appointment.clients?.first_name || ''} ${appointment.clients?.last_name || ''}`.trim()
@@ -162,15 +162,15 @@ serve(async (req) => {
       duration_minutes: durationMinutes
     }
 
-    // Helper function to format phone number for BulkSMS
+    
     const formatPhoneNumber = (phone: string): string => {
       let formatted = phone.replace(/\s/g, '')
       
-      // If it starts with 0, replace with 27 (South Africa country code without +)
+      
       if (formatted.startsWith('0')) {
         formatted = '27' + formatted.substring(1)
       }
-      // If it starts with +, remove it
+      
       else if (formatted.startsWith('+')) {
         formatted = formatted.substring(1)
       }
@@ -178,7 +178,7 @@ serve(async (req) => {
       return formatted
     }
 
-    // Helper function to send batch SMS via BulkSMS
+    
     const sendBatchSMS = async (messages: Array<{to: string, body: string}>): Promise<{success: boolean, error?: string}> => {
       try {
         const formattedMessages = messages.map(msg => ({
@@ -186,7 +186,7 @@ serve(async (req) => {
           body: msg.body
         }))
         
-        const response = await fetch('https://api.bulksms.com/v1/messages', {
+        const response = await fetch('https:
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -234,7 +234,7 @@ serve(async (req) => {
         break
     }
 
-    // Prepare batch SMS messages
+    
     const batchMessages: Array<{to: string, body: string}> = []
     
     if (smsData.client_phone) {
@@ -251,19 +251,19 @@ serve(async (req) => {
       })
     }
 
-    // Send batch SMS
+    
     let batchResult: {success: boolean, error?: string} = { success: false }
     if (batchMessages.length > 0) {
       batchResult = await sendBatchSMS(batchMessages)
     }
 
-    // Determine individual results for logging
+    
     const clientSMSResult = smsData.client_phone ? batchResult.success : false
     const practitionerSMSResult = smsData.practitioner_phone ? batchResult.success : false
     const clientSMSError = smsData.client_phone && !batchResult.success ? batchResult.error : null
     const practitionerSMSError = smsData.practitioner_phone && !batchResult.success ? batchResult.error : null
 
-    // Log the SMS sending attempt
+    
     await supabase
       .from('sms_logs')
       .upsert({

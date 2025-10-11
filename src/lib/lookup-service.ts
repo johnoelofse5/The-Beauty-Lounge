@@ -36,7 +36,7 @@ export class LookupService {
 
     if (error) {
       if (error.code === 'PGRST116') {
-        return null // No lookup type found
+        return null 
       }
       console.error('Error fetching lookup type by code:', error)
       throw new Error('Failed to fetch lookup type')
@@ -69,7 +69,7 @@ export class LookupService {
    * Get lookups by lookup type code
    */
   static async getLookupsByTypeCode(typeCode: LookupTypeCode): Promise<Lookup[]> {
-    // First get the lookup type ID
+    
     const { data: lookupType, error: typeError } = await supabase
       .from('lookup_type')
       .select('id')
@@ -87,7 +87,7 @@ export class LookupService {
       return []
     }
 
-    // Then get the lookups for that type
+    
     const { data, error } = await supabase
       .from('lookup')
       .select('*')
@@ -108,7 +108,7 @@ export class LookupService {
    * Get a specific lookup by type code and value
    */
   static async getLookupByTypeCodeAndValue(typeCode: LookupTypeCode, value: string): Promise<Lookup | null> {
-    // First get the lookup type ID
+    
     const { data: lookupType, error: typeError } = await supabase
       .from('lookup_type')
       .select('id')
@@ -126,7 +126,7 @@ export class LookupService {
       return null
     }
 
-    // Then get the specific lookup
+    
     const { data, error } = await supabase
       .from('lookup')
       .select('*')
@@ -138,7 +138,7 @@ export class LookupService {
 
     if (error) {
       if (error.code === 'PGRST116') {
-        return null // No lookup found
+        return null 
       }
       console.error('Error fetching lookup by type code and value:', error)
       throw new Error('Failed to fetch lookup')

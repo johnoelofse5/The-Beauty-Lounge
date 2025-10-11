@@ -45,7 +45,7 @@ export async function getServicesByCategory(): Promise<{ [categoryName: string]:
   try {
     const services = await getServicesWithCategories()
     
-    // Group services by category
+    
     const servicesByCategory: { [categoryName: string]: ServiceWithCategory[] } = {}
     
     services.forEach(service => {

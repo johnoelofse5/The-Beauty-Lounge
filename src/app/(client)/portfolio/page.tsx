@@ -47,7 +47,7 @@ export default function PortfolioPage() {
     loadCategories()
   }, [])
 
-  // Set up intersection observer for scroll animations
+  
   useEffect(() => {
     observerRef.current = new IntersectionObserver(
       (entries) => {
@@ -97,7 +97,7 @@ export default function PortfolioPage() {
       setCategories(cats)
     } catch (error) {
       console.error('Error loading categories:', error)
-      // If database fails, show empty categories
+      
       setCategories([])
     }
   }
@@ -118,7 +118,7 @@ export default function PortfolioPage() {
     return matchesSearch && matchesCategory
   })
 
-  // Observe elements when they're rendered
+  
   useEffect(() => {
     if (observerRef.current && !loading) {
       const elementsToObserve = document.querySelectorAll('[data-animate-id]')
@@ -277,7 +277,7 @@ export default function PortfolioPage() {
                 }}
               >
                 {viewMode === 'grid' ? (
-                  // Grid View
+                  
                   <>
                     <div className="relative cursor-pointer" onClick={() => setSelectedImage(item)}>
                       <Image
@@ -324,7 +324,7 @@ export default function PortfolioPage() {
                     </div>
                   </>
                 ) : (
-                  // List View
+                  
                   <div className="flex">
                     <div className="relative w-32 h-32 flex-shrink-0 cursor-pointer" onClick={() => setSelectedImage(item)}>
                       <Image

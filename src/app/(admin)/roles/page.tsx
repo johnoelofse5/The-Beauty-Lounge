@@ -29,7 +29,7 @@ export default function RolesPage() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
-  // Role form state
+  
   const [showRoleModal, setShowRoleModal] = useState(false)
   const [editingRole, setEditingRole] = useState<Role | null>(null)
   const [isRoleModalClosing, setIsRoleModalClosing] = useState(false)
@@ -39,7 +39,7 @@ export default function RolesPage() {
   })
   const [roleFormErrors, setRoleFormErrors] = useState<{ [key: string]: string }>({})
 
-  // Permission form state
+  
   const [showPermissionModal, setShowPermissionModal] = useState(false)
   const [editingPermission, setEditingPermission] = useState<Permission | null>(null)
   const [isPermissionModalClosing, setIsPermissionModalClosing] = useState(false)
@@ -51,7 +51,7 @@ export default function RolesPage() {
   })
   const [permissionFormErrors, setPermissionFormErrors] = useState<{ [key: string]: string }>({})
 
-  // Role permissions assignment state
+  
   const [showRolePermissionsModal, setShowRolePermissionsModal] = useState(false)
   const [selectedRole, setSelectedRole] = useState<Role | null>(null)
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>([])
@@ -66,7 +66,7 @@ export default function RolesPage() {
     try {
       setLoading(true)
       
-      // Load roles
+      
       const { data: rolesData, error: rolesError } = await supabase
         .from('roles')
         .select('*')
@@ -76,7 +76,7 @@ export default function RolesPage() {
 
       if (rolesError) throw rolesError
 
-      // Load permissions
+      
       const { data: permissionsData, error: permissionsError } = await supabase
         .from('permissions')
         .select('*')
@@ -87,7 +87,7 @@ export default function RolesPage() {
 
       if (permissionsError) throw permissionsError
 
-      // Load role permissions
+      
       const { data: rolePermissionsData, error: rolePermissionsError } = await supabase
         .from('role_permissions')
         .select(`
@@ -190,7 +190,7 @@ export default function RolesPage() {
 
     try {
       if (editingRole) {
-        // Update existing role
+        
         const { error } = await supabase
           .from('roles')
           .update({
@@ -203,7 +203,7 @@ export default function RolesPage() {
         if (error) throw error
         showMessage('Role updated successfully!', 'success')
       } else {
-        // Create new role
+        
         const { error } = await supabase
           .from('roles')
           .insert([{
@@ -230,7 +230,7 @@ export default function RolesPage() {
 
     try {
       if (editingPermission) {
-        // Update existing permission
+        
         const { error } = await supabase
           .from('permissions')
           .update({
@@ -245,7 +245,7 @@ export default function RolesPage() {
         if (error) throw error
         showMessage('Permission updated successfully!', 'success')
       } else {
-        // Create new permission
+        
         const { error } = await supabase
           .from('permissions')
           .insert([{
@@ -362,7 +362,7 @@ export default function RolesPage() {
   const openRolePermissionsModal = (role: Role) => {
     setSelectedRole(role)
     
-    // Get current permissions for this role
+    
     const roleWithPermissions = rolePermissions.find(rp => rp.id === role.id)
     
     if (roleWithPermissions) {
@@ -410,7 +410,7 @@ export default function RolesPage() {
     if (!selectedRole) return
 
     try {
-      // First, remove all existing permissions for this role
+      
       const { error: deleteError } = await supabase
         .from('role_permissions')
         .delete()
@@ -418,7 +418,7 @@ export default function RolesPage() {
 
       if (deleteError) throw deleteError
 
-      // Then, add the selected permissions
+      
       if (selectedPermissions.length > 0) {
         const rolePermissionInserts = selectedPermissions.map(permissionId => ({
           role_id: selectedRole.id,

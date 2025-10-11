@@ -19,7 +19,7 @@ export interface NotificationData {
 }
 
 export class NotificationService {
-  // Get user notifications
+  
   static async getUserNotifications(userId: string, limit: number = 50): Promise<Notification[]> {
     const { data, error } = await supabase.rpc('get_user_notifications', {
       p_user_id: userId,
@@ -30,7 +30,7 @@ export class NotificationService {
     return data || []
   }
 
-  // Mark notification as read
+  
   static async markAsRead(notificationId: string, userId: string): Promise<boolean> {
     const { data, error } = await supabase.rpc('mark_notification_read', {
       p_notification_id: notificationId,
@@ -41,7 +41,7 @@ export class NotificationService {
     return data
   }
 
-  // Mark all notifications as read for a user
+  
   static async markAllAsRead(userId: string): Promise<void> {
     const { error } = await supabase
       .from('notifications')
@@ -53,7 +53,7 @@ export class NotificationService {
     if (error) throw error
   }
 
-  // Get unread notification count
+  
   static async getUnreadCount(userId: string): Promise<number> {
     const { count, error } = await supabase
       .from('notifications')
@@ -67,7 +67,7 @@ export class NotificationService {
     return count || 0
   }
 
-  // Get notifications by type
+  
   static async getNotificationsByType(
     userId: string, 
     type: string, 
@@ -87,7 +87,7 @@ export class NotificationService {
     return data || []
   }
 
-  // Delete notification
+  
   static async deleteNotification(notificationId: string, userId: string): Promise<void> {
     const { error } = await supabase
       .from('notifications')
@@ -98,22 +98,22 @@ export class NotificationService {
     if (error) throw error
   }
 
-  // Get low stock notifications
+  
   static async getLowStockNotifications(userId: string): Promise<Notification[]> {
     return this.getNotificationsByType(userId, 'low_stock')
   }
 
-  // Get out of stock notifications
+  
   static async getOutOfStockNotifications(userId: string): Promise<Notification[]> {
     return this.getNotificationsByType(userId, 'out_of_stock')
   }
 
-  // Get inventory alerts
+  
   static async getInventoryAlerts(userId: string): Promise<Notification[]> {
     return this.getNotificationsByType(userId, 'inventory_alert')
   }
 
-  // Format notification message for display
+  
   static formatNotificationMessage(notification: Notification): string {
     switch (notification.type) {
       case 'low_stock':
@@ -127,7 +127,7 @@ export class NotificationService {
     }
   }
 
-  // Get notification icon based on type
+  
   static getNotificationIcon(type: string): string {
     switch (type) {
       case 'low_stock':
@@ -141,13 +141,13 @@ export class NotificationService {
     }
   }
 
-  // Check if notification is urgent
+  
   static isUrgent(notification: Notification): boolean {
     return notification.type === 'out_of_stock' || 
            (notification.data?.alert_type === 'out_of_stock')
   }
 
-  // Get notification priority
+  
   static getPriority(notification: Notification): 'high' | 'medium' | 'low' {
     if (this.isUrgent(notification)) return 'high'
     if (notification.type === 'low_stock') return 'medium'

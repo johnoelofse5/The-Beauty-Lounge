@@ -32,7 +32,7 @@ export default function ScheduleManagementPage() {
   const [visibleElements, setVisibleElements] = useState<Set<string>>(new Set())
   const observerRef = useRef<IntersectionObserver | null>(null)
 
-  // Check if user is a practitioner
+  
   const isPractitionerUser = isPractitioner(userRoleData?.role || null)
 
   useEffect(() => {
@@ -43,7 +43,7 @@ export default function ScheduleManagementPage() {
     }
   }, [authLoading, user, isPractitionerUser])
 
-  // Set up intersection observer for scroll animations
+  
   useEffect(() => {
     observerRef.current = new IntersectionObserver(
       (entries) => {
@@ -75,7 +75,7 @@ export default function ScheduleManagementPage() {
     }
   }, [])
 
-  // Observe elements when they're rendered
+  
   useEffect(() => {
     if (observerRef.current && !loading) {
       const elementsToObserve = document.querySelectorAll('[data-animate-id]')
@@ -91,7 +91,7 @@ export default function ScheduleManagementPage() {
       setHours(hoursData)
     } catch (error) {
       console.error('Error loading hours:', error)
-      // Fallback to default hours if lookup service fails
+      
       const fallbackHours: Lookup[] = []
       for (let i = 0; i <= 23; i++) {
         const hourValue = i.toString().padStart(2, '0')
@@ -128,7 +128,7 @@ export default function ScheduleManagementPage() {
       setTimeSlotIntervals(intervals)
     } catch (error) {
       console.error('Error loading time slot intervals:', error)
-      // Fallback to default intervals if lookup service fails
+      
       setTimeSlotIntervals([
         { id: '1', lookup_type_id: '1', value: '15', secondary_value: '15 minutes', display_order: 1, is_active: true, is_deleted: false, created_at: '', updated_at: '' },
         { id: '2', lookup_type_id: '1', value: '30', secondary_value: '30 minutes', display_order: 2, is_active: true, is_deleted: false, created_at: '', updated_at: '' },
@@ -147,7 +147,7 @@ export default function ScheduleManagementPage() {
       setLoading(true)
       const workingSchedule = await ScheduleService.getPractitionerSchedule(user.id)
       
-      // Convert working schedule to form data
+      
       const formData: ScheduleFormData = ScheduleService.getDefaultSchedule()
       
       workingSchedule.forEach(schedule => {
@@ -184,7 +184,7 @@ export default function ScheduleManagementPage() {
   }
 
   const handleTimeChange = (dayKey: keyof ScheduleFormData, field: 'start_time' | 'end_time', hourValue: string) => {
-    // Convert hour value (e.g., "08") to time format (e.g., "08:00")
+    
     const timeValue = `${hourValue}:00`
     
     setScheduleData(prev => ({
@@ -305,7 +305,7 @@ export default function ScheduleManagementPage() {
                         <div>
                           <ValidationSelect
                             label="Start Time"
-                            value={dayData.start_time.split(':')[0]} // Extract hour part from "HH:MM" format
+                            value={dayData.start_time.split(':')[0]} 
                             onValueChange={(value) => handleTimeChange(key as keyof ScheduleFormData, 'start_time', value)}
                             placeholder="Select start time"
                           >
@@ -319,7 +319,7 @@ export default function ScheduleManagementPage() {
                         <div>
                           <ValidationSelect
                             label="End Time"
-                            value={dayData.end_time.split(':')[0]} // Extract hour part from "HH:MM" format
+                            value={dayData.end_time.split(':')[0]} 
                             onValueChange={(value) => handleTimeChange(key as keyof ScheduleFormData, 'end_time', value)}
                             placeholder="Select end time"
                           >

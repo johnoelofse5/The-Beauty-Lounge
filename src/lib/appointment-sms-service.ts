@@ -136,8 +136,8 @@ export class AppointmentSMSService {
    */
   static async scheduleReminderSMS(appointmentId: string) {
     try {
-      // Log that we want to send a reminder for this appointment
-      // The cron job will pick this up and send the actual SMS
+      
+      
       const { error } = await supabase
         .from('sms_logs')
         .insert({
@@ -168,7 +168,7 @@ export class AppointmentSMSService {
    */
   static async cancelScheduledSMS(appointmentId: string, smsType: 'confirmation' | 'reschedule' | 'cancellation' | 'reminder' = 'reminder') {
     try {
-      // Mark as cancelled in our database
+      
       const { error: updateError } = await supabase
         .from('sms_logs')
         .update({ 
@@ -202,10 +202,10 @@ export class AppointmentSMSService {
    */
   static async rescheduleSMS(appointmentId: string, smsType: 'confirmation' | 'reschedule' | 'cancellation' | 'reminder' = 'reminder') {
     try {
-      // First cancel any existing scheduled SMS
+      
       await this.cancelScheduledSMS(appointmentId, smsType)
       
-      // Then schedule new SMS
+      
       if (smsType === 'reminder') {
         return this.scheduleReminderSMS(appointmentId)
       } else {

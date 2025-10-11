@@ -14,7 +14,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
   const { user, loading } = useAuth()
   const pathname = usePathname()
 
-  // Show loading state
+  
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -26,7 +26,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
     )
   }
 
-  // Don't show sidebar for auth pages or if user is not logged in
+  
   const authPages = ['/login', '/signup']
   const shouldShowSidebar = user && !authPages.includes(pathname)
 
@@ -38,10 +38,10 @@ export default function AppLayout({ children }: AppLayoutProps) {
     <SidebarProvider>
       <SidebarNav />
       <SidebarInset>
-        <header className="sticky top-0 z-50 flex h-16 shrink-0 items-center gap-2 border-b bg-white px-4">
-          <SidebarTrigger className="-ml-1 bg-gray-100 hover:bg-gray-200 border border-gray-300 shadow-sm" />
+        <header className="sticky top-0 z-50 flex h-16 shrink-0 items-center gap-2 border-b bg-white dark:bg-gray-900 px-4">
+          <SidebarTrigger className="-ml-1 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-white dark:border-gray-600 border border-gray-300 shadow-sm" />
           <div className="flex items-center gap-2">
-            <h1 className="text-lg font-semibold">The Beauty Lounge</h1>
+            <h1 className="text-lg font-semibold text-gray-900 dark:text-white">The Beauty Lounge</h1>
           </div>
         </header>
         <div className="flex flex-1 flex-col gap-4 p-4">

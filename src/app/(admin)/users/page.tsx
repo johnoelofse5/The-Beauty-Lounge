@@ -38,7 +38,7 @@ export default function UserManagementPage() {
   const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({})
   const [isModalClosing, setIsModalClosing] = useState(false)
 
-  // Refs for form inputs
+  
   const emailRef = useRef<HTMLInputElement>(null)
   const firstNameRef = useRef<HTMLInputElement>(null)
   const lastNameRef = useRef<HTMLInputElement>(null)
@@ -46,7 +46,7 @@ export default function UserManagementPage() {
   const practitionerRef = useRef<HTMLInputElement>(null)
   const roleRef = useRef<HTMLSelectElement>(null)
 
-  // Auto-dismiss messages after 3 seconds
+  
   useEffect(() => {
     if (error) {
       const timer = setTimeout(() => setError(null), 3000)
@@ -61,7 +61,7 @@ export default function UserManagementPage() {
     }
   }, [success])
 
-  // Load users and roles
+  
   useEffect(() => {
     if (user) {
       loadUsers()
@@ -88,7 +88,7 @@ export default function UserManagementPage() {
 
       if (error) throw error
 
-      // Transform the data to include role information
+      
       const transformedUsers = usersData?.map(user => ({
         ...user,
         role_name: user.role?.name || null,
@@ -124,7 +124,7 @@ export default function UserManagementPage() {
   const validateForm = (): boolean => {
     const errors: { [key: string]: string } = {}
 
-    // Use formData for edit mode, refs for add mode
+    
     const email = isEditing ? formData.email : (emailRef.current?.value || '')
     const firstName = isEditing ? formData.first_name : (firstNameRef.current?.value || '')
     const lastName = isEditing ? formData.last_name : (lastNameRef.current?.value || '')
@@ -163,8 +163,8 @@ export default function UserManagementPage() {
       const isPractitioner = practitionerRef.current?.checked || false
       const roleId = roleRef.current?.value || null
 
-      // Create user record directly in the users table
-      // The user will need to set up their password via password reset
+      
+      
       const { error } = await supabase
         .from('users')
         .insert([{
@@ -197,7 +197,7 @@ export default function UserManagementPage() {
     if (!selectedUser || !validateForm()) return
 
     try {
-      // Update user record
+      
       const { error } = await supabase
         .from('users')
         .update({

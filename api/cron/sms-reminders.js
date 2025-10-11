@@ -4,12 +4,10 @@
  */
 
 export default async function handler(req, res) {
-  // Only allow POST requests
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // Verify the request is from Vercel Cron (optional security)
   const cronSecret = process.env.CRON_SECRET;
   if (cronSecret && req.headers.authorization !== `Bearer ${cronSecret}`) {
     return res.status(401).json({ error: 'Unauthorized' });
@@ -18,7 +16,6 @@ export default async function handler(req, res) {
   try {
     console.log('🕛 Daily SMS Reminder Cron Job Started');
     
-    // Get environment variables
     const supabaseUrl = process.env.SUPABASE_URL;
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     
@@ -26,13 +23,11 @@ export default async function handler(req, res) {
       throw new Error('Missing Supabase configuration');
     }
 
-    // Extract project reference from Supabase URL
     const projectRef = supabaseUrl.replace('https://', '').replace('.supabase.co', '');
     const functionUrl = `https://${projectRef}.supabase.co/functions/v1/process-scheduled-sms`;
 
     console.log(`Calling SMS function: ${functionUrl}`);
 
-    // Call the Supabase Edge Function
     const response = await fetch(functionUrl, {
       method: 'POST',
       headers: {

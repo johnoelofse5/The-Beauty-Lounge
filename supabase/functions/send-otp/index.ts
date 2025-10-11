@@ -1,5 +1,5 @@
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { serve } from 'https:
+import { createClient } from 'https:
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -7,7 +7,7 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
-  // Handle CORS preflight requests
+  
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
@@ -15,7 +15,7 @@ serve(async (req) => {
   try {
     console.log('OTP Send Function Started')
     
-    // Create Supabase client
+    
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -35,7 +35,7 @@ serve(async (req) => {
       )
     }
 
-    // Validate phone number format (allows South African format starting with 0)
+    
     const phoneRegex = /^[\+]?[0-9][\d]{0,15}$/
     const cleanPhone = phoneNumber.replace(/\s/g, '')
     console.log('🔍 Phone validation:', { original: phoneNumber, cleaned: cleanPhone, valid: phoneRegex.test(cleanPhone) })
@@ -51,16 +51,16 @@ serve(async (req) => {
       )
     }
 
-    // Convert South African phone number to international format for BulkSMS
+    
     let formattedPhoneNumber = phoneNumber.replace(/\s/g, '')
     console.log('Original phone:', formattedPhoneNumber)
     
-    // If it starts with 0, replace with 27 (South Africa country code without +)
+    
     if (formattedPhoneNumber.startsWith('0')) {
       formattedPhoneNumber = '27' + formattedPhoneNumber.substring(1)
       console.log('🇿🇦 Converted SA number:', formattedPhoneNumber)
     }
-    // If it starts with +, remove it
+    
     else if (formattedPhoneNumber.startsWith('+')) {
       formattedPhoneNumber = formattedPhoneNumber.substring(1)
       console.log('🌍 Removed + prefix:', formattedPhoneNumber)
@@ -69,7 +69,7 @@ serve(async (req) => {
       console.log('📱 Using phone as-is:', formattedPhoneNumber)
     }
 
-    // Create or update OTP in database
+    
     console.log('💾 Creating OTP in database...')
     const { data: otpCode, error: otpError } = await supabaseClient.rpc('create_or_update_otp', {
       phone_number_param: phoneNumber,
@@ -83,7 +83,7 @@ serve(async (req) => {
     
     console.log('OTP created successfully:', otpCode)
 
-    // Send SMS via BulkSMS
+    
     console.log('Checking BulkSMS credentials...')
     const bulksmsTokenId = Deno.env.get('BULKSMS_TOKEN_ID')
     const bulksmsTokenSecret = Deno.env.get('BULKSMS_TOKEN_SECRET')
@@ -95,29 +95,29 @@ serve(async (req) => {
       throw new Error('BulkSMS configuration is missing')
     }
 
-    // Use the already converted formattedPhoneNumber for BulkSMS
+    
     const formattedPhone = formattedPhoneNumber
     console.log('📱 Final formatted phone for BulkSMS:', formattedPhone)
 
-    // Create SMS message - avoid spam trigger words
+    
     const message = `${otpCode}`
     console.log('💬 SMS Message:', message)
 
-    // Prepare BulkSMS request
+    
     const requestBody = {
       to: formattedPhone,
       body: message
-      // Removed 'from' field - let BulkSMS use default sender
+      
     }
     console.log('📤 BulkSMS Request Body:', requestBody)
     
     const authHeader = 'Basic ' + btoa(bulksmsTokenId + ':' + bulksmsTokenSecret)
     console.log('🔐 Auth header prepared:', authHeader.substring(0, 20) + '...')
 
-    // Send SMS via BulkSMS
+    
     console.log('🚀 Sending SMS via BulkSMS API...')
     const bulksmsResponse = await fetch(
-      'https://api.bulksms.com/v1/messages',
+      'https:
       {
         method: 'POST',
         headers: {
@@ -144,7 +144,7 @@ serve(async (req) => {
     const responseData = await bulksmsResponse.text()
     console.log('✅ BulkSMS Response:', responseData)
 
-    // Parse response to check delivery status
+    
     try {
       const responseJson = JSON.parse(responseData)
       if (Array.isArray(responseJson) && responseJson.length > 0) {
@@ -158,7 +158,7 @@ serve(async (req) => {
           body: message.body?.substring(0, 50) + '...'
         })
         
-        // Check if there are any delivery issues
+        
         if (message.status?.type === 'ACCEPTED') {
           console.log('✅ Message accepted by BulkSMS - should be delivered')
         } else {
@@ -174,7 +174,7 @@ serve(async (req) => {
       JSON.stringify({ 
         success: true, 
         message: 'OTP sent successfully',
-        // Only include OTP code in development for testing
+        
         ...(Deno.env.get('NODE_ENV') === 'development' && { otp_code: otpCode })
       }),
       { 

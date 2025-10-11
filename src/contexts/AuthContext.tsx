@@ -39,7 +39,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true)
   const [userRoleData, setUserRoleData] = useState<UserWithRoleAndPermissions | null>(null)
 
-  // Load user role data when user changes
+  
   useEffect(() => {
     const loadUserRoleData = async () => {
       if (user?.id) {
@@ -54,11 +54,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, [user])
 
   useEffect(() => {
-    // Get initial session
+    
     supabase.auth.getSession().then(({ data: { session }, error }) => {
       if (error) {
         console.error('Error getting session:', error)
-        // Clear any invalid session data
+        
         setSession(null)
         setUser(null)
         setUserRoleData(null)
@@ -69,7 +69,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setLoading(false)
     })
 
-    // Listen for auth changes
+    
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         
@@ -77,7 +77,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setSession(null)
           setUser(null)
           setUserRoleData(null)
-          // Redirect to home page when user signs out
+          
           router.push('/')
         } else if (event === 'TOKEN_REFRESHED') {
           setSession(session)
@@ -94,7 +94,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, [router])
 
   const signUp = async (email: string, password: string, userData?: UserSignUpData) => {
-    // First, sign up the user with Supabase Auth
+    
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
@@ -111,10 +111,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       throw new Error(authError.message)
     }
 
-    // If user was created successfully, create a user record in the database
+    
     if (authData.user) {
       try {
-        // Get the client role ID
+        
         const { data: clientRole, error: roleError } = await supabase
           .from('roles')
           .select('id')
@@ -123,10 +123,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
         if (roleError) {
           console.error('Error fetching client role:', roleError)
-          // Continue without role assignment - the database trigger will handle it
+          
         }
 
-        // Create user record in the users table
+        
         const { error: userError } = await supabase
           .from('users')
           .insert({
@@ -135,19 +135,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             first_name: userData?.first_name || '',
             last_name: userData?.last_name || '',
             phone: userData?.phone || '',
-            role_id: clientRole?.id || null, // Assign client role or let trigger handle it
+            role_id: clientRole?.id || null, 
             is_active: true,
             is_deleted: false
           })
 
         if (userError) {
           console.error('Error creating user record:', userError)
-          // Don't throw error here as the auth user was created successfully
-          // The database trigger will handle role assignment
+          
+          
         }
       } catch (err) {
         console.error('Error in user creation process:', err)
-        // Don't throw error here as the auth user was created successfully
+        
       }
     }
   }
@@ -167,11 +167,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       const { error } = await supabase.auth.signOut()
       if (error) {
-        // If the error is about session not found, it means the session is already invalid
-        // In this case, we should clear the local state and redirect to login page
+        
+        
         if (error.message.includes('session_not_found') || error.message.includes('Session from session_id claim in JWT does not exist')) {
           console.warn('Session already expired, clearing local state and redirecting to login')
-          // Clear local state manually
+          
           setSession(null)
           setUser(null)
           setUserRoleData(null)
@@ -180,11 +180,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }
         throw new Error(error.message)
       }
-      // Redirect to home page after successful sign out
+      
       router.push('/')
     } catch (err) {
-      // If there's any error during logout, still clear the local state
-      // This ensures the user can't get stuck in a logged-in state
+      
+      
       console.error('Error during logout:', err)
       setSession(null)
       setUser(null)
@@ -197,33 +197,33 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     let trackingId: string | null = null
     
     try {
-      // Create email tracking record
+      
       const tracking = await trackPasswordResetEmail(email, {
         user_email: email,
         reset_requested_at: new Date().toISOString()
       })
       trackingId = tracking.id
 
-      // Send password reset email
+      
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/reset-password`,
       })
 
       if (error) {
-        // Mark email as failed if there's an error
+        
         if (trackingId) {
           await markEmailAsFailed(trackingId, error.message)
         }
         throw new Error(error.message)
       }
 
-      // Mark email as sent if successful
+      
       if (trackingId) {
         await markEmailAsSent(trackingId)
       }
 
     } catch (err) {
-      // Mark email as failed if there's any error
+      
       if (trackingId) {
         await markEmailAsFailed(trackingId, err instanceof Error ? err.message : 'Unknown error')
       }
@@ -231,7 +231,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }
 
-  // Mobile authentication methods
+  
   const sendOTP = async (phone: string, purpose: 'signup' | 'signin' | 'password_reset') => {
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/send-otp`, {
@@ -277,15 +277,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }
 
   const signUpWithPhone = async (phone: string, firstName: string, lastName: string, otpCode: string) => {
-    // First verify the OTP
+    
     await verifyOTP(phone, otpCode, 'signup')
 
-    // Create a temporary password for Supabase auth (we'll use phone as identifier)
+    
     const tempPassword = `temp_${phone}_${Date.now()}`
     
-    // Sign up with Supabase using phone as email identifier
+    
     const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: `${phone}@temp.mobile`, // Use phone as email for Supabase compatibility
+      email: `${phone}@temp.mobile`, 
       password: tempPassword,
       options: {
         data: {
@@ -300,9 +300,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       throw new Error(authError.message)
     }
 
-    // If user was created successfully, create a user record in the database
+    
     if (authData.user) {
-      // First check if user already exists in our database
+      
       const { data: existingUser, error: checkError } = await supabase
         .from('users')
         .select('id, phone, first_name, last_name')
@@ -310,7 +310,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         .single()
 
       if (existingUser && !checkError) {
-        // User exists, check if phone number matches
+        
         if (existingUser.phone === phone) {
           throw new Error('User already exists with this phone number. Please try logging in instead.')
         } else {
@@ -318,7 +318,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }
       }
 
-      // Get the client role ID
+      
       const { data: clientRole, error: roleError } = await supabase
         .from('roles')
         .select('id')
@@ -327,16 +327,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       if (roleError) {
         console.error('Error fetching client role:', roleError)
-        // Continue without role assignment - the database trigger will handle it
+        
       }
 
-      // Create or update user record in the users table
-      // Use upsert to handle case where user might already exist
+      
+      
       const { error: userError } = await supabase
         .from('users')
         .upsert({
           id: authData.user.id,
-          email: `${phone}@temp.mobile`, // Store phone as email for compatibility
+          email: `${phone}@temp.mobile`, 
           first_name: firstName,
           last_name: lastName,
           phone: phone,
@@ -344,11 +344,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           is_active: true,
           is_deleted: false
         }, {
-          onConflict: 'id' // If user ID exists, update the record
+          onConflict: 'id' 
         })
 
       if (userError) {
-        // Provide more specific error messaging
+        
         if (userError.code === '23505') {
           throw new Error('User already exists. Please try logging in instead.')
         } else if (userError.code === '42703') {
@@ -361,10 +361,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }
 
   const signInWithPhone = async (phone: string, otpCode: string) => {
-    // First verify the OTP
+    
     await verifyOTP(phone, otpCode, 'signin')
 
-    // Check if user exists in our database
+    
     const { data: userData, error: userError } = await supabase
       .from('users')
       .select('*')
@@ -377,7 +377,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       throw new Error('User not found. Please sign up first.')
     }
 
-    // Use the Edge Function to create a mobile session
+    
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/create-mobile-session`, {
         method: 'POST',
@@ -398,7 +398,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         throw new Error(data.message || 'Failed to create session')
       }
 
-      // Use the temporary password returned by the Edge Function
+      
       const tempPassword = data.tempPassword
       
       const { error: signInError } = await supabase.auth.signInWithPassword({
@@ -410,8 +410,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         throw new Error('Session creation failed. Please try again.')
       }
 
-      // If we get here, the sign-in was successful
-      // The AuthContext will automatically detect the new session
+      
+      
       
     } catch (error) {
       throw new Error('Authentication failed. Please try again.')

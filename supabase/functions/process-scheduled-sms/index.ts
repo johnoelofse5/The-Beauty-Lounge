@@ -1,5 +1,5 @@
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { serve } from 'https:
+import { createClient } from 'https:
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -7,13 +7,13 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
-  // Handle CORS preflight requests
+  
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    // Create Supabase client
+    
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -21,7 +21,7 @@ serve(async (req) => {
 
     console.log('Daily SMS Reminder Cron Job Started')
     
-    // Get today's date in UTC
+    
     const today = new Date()
     today.setUTCHours(0, 0, 0, 0)
     const tomorrow = new Date(today)
@@ -29,7 +29,7 @@ serve(async (req) => {
     
     console.log(`Processing appointments for: ${today.toISOString().split('T')[0]}`)
 
-    // Get all appointments scheduled for today
+    
     const { data: appointments, error } = await supabase
       .from('appointments')
       .select('id, start_time, status')
@@ -46,12 +46,12 @@ serve(async (req) => {
     let successCount = 0
     let errorCount = 0
 
-    // Process each appointment
+    
     for (const appointment of appointments || []) {
       try {
         console.log(`Processing appointment ${appointment.id}`)
         
-        // Check if we already sent a reminder today
+        
         const { data: existingSMS } = await supabase
           .from('sms_logs')
           .select('id')
@@ -65,7 +65,7 @@ serve(async (req) => {
           continue
         }
 
-        // Send reminder SMS immediately
+        
         const { data: smsResult, error: smsError } = await supabase.functions.invoke('send-appointment-sms', {
           body: {
             appointment_id: appointment.id,

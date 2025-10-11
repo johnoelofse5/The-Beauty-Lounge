@@ -15,7 +15,7 @@ export interface AppointmentExtended {
   is_deleted: boolean
   created_at: string
   updated_at: string
-  // External client information
+  
   client_first_name?: string
   client_last_name?: string
   client_email?: string

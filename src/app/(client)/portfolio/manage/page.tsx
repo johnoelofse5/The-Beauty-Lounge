@@ -69,7 +69,7 @@ export default function PortfolioManagementPage() {
     }
   }, [user])
 
-  // Set up intersection observer for scroll animations
+  
   useEffect(() => {
     observerRef.current = new IntersectionObserver(
       (entries) => {
@@ -101,7 +101,7 @@ export default function PortfolioManagementPage() {
     }
   }, [])
 
-  // Observe elements when they're rendered
+  
   useEffect(() => {
     if (observerRef.current && !loading) {
       const elementsToObserve = document.querySelectorAll('[data-animate-id]')
@@ -131,7 +131,7 @@ export default function PortfolioManagementPage() {
       setCategories(dbCategories)
     } catch (error) {
       console.error('Error loading categories:', error)
-      // If database fails, show empty categories
+      
       setCategories([])
     }
   }
@@ -143,7 +143,7 @@ export default function PortfolioManagementPage() {
       [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value
     }))
     
-    // Clear error when user starts typing
+    
     if (formErrors[name]) {
       setFormErrors(prev => ({ ...prev, [name]: '' }))
     }
@@ -155,7 +155,7 @@ export default function PortfolioManagementPage() {
       category: value
     }))
     
-    // Clear error when user selects
+    
     if (formErrors.category) {
       setFormErrors(prev => ({ ...prev, category: '' }))
     }
@@ -164,7 +164,7 @@ export default function PortfolioManagementPage() {
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
-      // Validate image file using the validation service
+      
       const imageError = ValidationService.validateImage(file, { required: true })
       if (imageError) {
         setFormErrors(prev => ({ ...prev, image: imageError }))
@@ -173,12 +173,12 @@ export default function PortfolioManagementPage() {
 
       setImageFile(file)
       
-      // Clear error if validation passes
+      
       if (formErrors.image) {
         setFormErrors(prev => ({ ...prev, image: '' }))
       }
       
-      // Create preview
+      
       const reader = new FileReader()
       reader.onload = (e) => {
         setImagePreview(e.target?.result as string)
@@ -191,14 +191,14 @@ export default function PortfolioManagementPage() {
     e.preventDefault()
     if (!user) return
 
-    // Validate form data
+    
     const validationResult = ValidationService.validateForm(formData, ValidationService.schemas.portfolio)
     if (!validationResult.isValid) {
       setFormErrors(validationResult.errors)
       return
     }
 
-    // Validate image file
+    
     if (!imageFile) {
       setFormErrors(prev => ({ ...prev, image: 'Image is required' }))
       return
@@ -216,7 +216,7 @@ export default function PortfolioManagementPage() {
       const tags = formData.tags.split(',').map(tag => tag.trim()).filter(Boolean)
 
       if (editingItem) {
-        // Update existing item
+        
         await PortfolioService.updatePortfolioItem(editingItem.id, {
           title: formData.title,
           description: formData.description,
@@ -226,7 +226,7 @@ export default function PortfolioManagementPage() {
         })
         showSuccess('Portfolio item updated successfully!')
       } else {
-        // Create new item
+        
         await PortfolioService.createPortfolioItem(user.id, imageFile!, {
           title: formData.title,
           description: formData.description,
@@ -325,7 +325,7 @@ export default function PortfolioManagementPage() {
             <button
               onClick={() => {
                 setShowAddForm(true)
-                // Clear any existing errors when opening the form
+                
                 setFormErrors({})
               }}
               className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"

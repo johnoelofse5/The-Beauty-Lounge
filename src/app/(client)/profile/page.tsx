@@ -76,7 +76,7 @@ export default function ProfilePage() {
       [name]: value
     }))
     
-    // Clear error when user starts typing
+    
     if (formErrors[name]) {
       setFormErrors(prev => ({ ...prev, [name]: '' }))
     }
@@ -106,7 +106,7 @@ export default function ProfilePage() {
 
       showSuccess('Profile updated successfully!')
       setIsEditing(false)
-      await loadProfileData() // Reload to get updated data
+      await loadProfileData() 
     } catch (err) {
       console.error('Error updating profile:', err)
       showError('Failed to update profile')

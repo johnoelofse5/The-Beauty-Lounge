@@ -27,7 +27,7 @@ export default function EditAppointmentModal({
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
     const [deleting, setDeleting] = useState(false)
 
-    // Initialize form with current appointment data
+    
     useEffect(() => {
         if (appointment) {
             setSelectedDate(new Date(appointment.appointment_date))
@@ -36,7 +36,7 @@ export default function EditAppointmentModal({
         }
     }, [appointment])
 
-    // Load all available services
+    
     useEffect(() => {
         const loadServices = async () => {
             try {
@@ -50,7 +50,7 @@ export default function EditAppointmentModal({
         loadServices()
     }, [])
 
-    // Load existing appointments when date changes
+    
     useEffect(() => {
         if (selectedDate && appointment?.practitioner) {
             loadExistingAppointments()
@@ -82,7 +82,7 @@ export default function EditAppointmentModal({
                 .eq('practitioner_id', appointment.practitioner_id)
                 .eq('is_active', true)
                 .eq('is_deleted', false)
-                .neq('id', appointment.id) // Exclude current appointment
+                .neq('id', appointment.id) 
 
             if (error) throw error
             setExistingAppointments(data || [])
@@ -119,9 +119,9 @@ export default function EditAppointmentModal({
                 throw new Error('Please select a date and time')
             }
 
-            // Calculate end time based on total service duration
+            
             const totalDuration = selectedServices.reduce((sum, service) => sum + service.duration_minutes, 0)
-            // Parse time components to avoid timezone issues
+            
             const [hours, minutes] = selectedTimeSlot.split(':').map(Number)
             const startTimeMinutes = hours * 60 + minutes
             const endTimeMinutes = startTimeMinutes + totalDuration
@@ -129,7 +129,7 @@ export default function EditAppointmentModal({
             const endMins = endTimeMinutes % 60
             const endTimeString = `${endHours.toString().padStart(2, '0')}:${endMins.toString().padStart(2, '0')}`
 
-            // Format date for database using local date formatting to avoid timezone issues
+            
             const year = selectedDate.getFullYear()
             const month = String(selectedDate.getMonth() + 1).padStart(2, '0')
             const day = String(selectedDate.getDate()).padStart(2, '0')
@@ -137,12 +137,12 @@ export default function EditAppointmentModal({
             const appointmentDateTime = new Date(`${dateString}T${selectedTimeSlot}`).toISOString()
             const endDateTime = new Date(`${dateString}T${endTimeString}`).toISOString()
 
-            // Update the appointment
+            
             const { error: updateError } = await supabase
                 .from('appointments')
                 .update({
                     service_ids: selectedServices.map(s => s.id),
-                    // Use timestamptz columns - store full datetime with timezone
+                    
                     appointment_date: appointmentDateTime,
                     start_time: appointmentDateTime,
                     end_time: endDateTime,
@@ -152,12 +152,12 @@ export default function EditAppointmentModal({
 
             if (updateError) throw updateError
 
-            // Send reschedule SMS notifications for appointment update
+            
             try {
                 await AppointmentSMSService.sendRescheduleSMS(appointment.id)
             } catch (smsError) {
                 console.error('Error sending reschedule SMS notifications:', smsError)
-                // Don't fail the appointment update if SMS fails
+                
             }
 
             setSuccess(true)
@@ -192,12 +192,12 @@ export default function EditAppointmentModal({
 
             if (deleteError) throw deleteError
 
-            // Send cancellation SMS notifications
+            
             try {
                 await AppointmentSMSService.sendCancellationSMS(appointment.id)
             } catch (smsError) {
                 console.error('Error sending cancellation SMS notifications:', smsError)
-                // Don't fail the appointment deletion if SMS fails
+                
             }
 
             setSuccess(true)
@@ -212,7 +212,7 @@ export default function EditAppointmentModal({
         }
     }
 
-    // Check if user can delete appointments
+    
     const canDeleteAppointment = () => {
         return isPractitioner(userRoleData?.role || null) && 
                hasPermission(userRoleData?.permissions || [], 'appointments', 'delete')
@@ -227,7 +227,7 @@ export default function EditAppointmentModal({
     }
 
     const formatDate = (dateString: string) => {
-        // If we have the new datetime column, use it for proper timezone handling
+        
         if (dateString.includes('T') || dateString.includes('Z')) {
             return new Date(dateString).toLocaleDateString('en-US', {
                 weekday: 'long',
@@ -237,7 +237,7 @@ export default function EditAppointmentModal({
                 timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
             })
         }
-        // Fallback to old date parsing for backward compatibility
+        
         const [year, month, day] = dateString.split('-').map(Number)
         const localDate = new Date(year, month - 1, day)
         return localDate.toLocaleDateString('en-US', {

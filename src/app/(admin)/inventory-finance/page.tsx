@@ -36,12 +36,12 @@ export default function InventoryFinancePage() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'inventory' | 'service-inventory' | 'purchases' | 'finances'>('dashboard')
   const [loading, setLoading] = useState(true)
   
-  // Dashboard data
+  
   const [inventorySummary, setInventorySummary] = useState<InventorySummary | null>(null)
   const [financialSummary, setFinancialSummary] = useState<FinancialSummary | null>(null)
   const [lowStockItems, setLowStockItems] = useState<LowStockItem[]>([])
   
-  // Check permissions
+  
   const hasAccess = userRoleData?.role?.name === 'super_admin' || userRoleData?.role?.name === 'practitioner'
 
   useEffect(() => {
@@ -210,7 +210,7 @@ export default function InventoryFinancePage() {
   )
 }
 
-// Dashboard View Component
+
 function DashboardView({
   inventorySummary,
   financialSummary,
@@ -485,7 +485,7 @@ function DashboardView({
   )
 }
 
-// Inventory View Component
+
 function InventoryView({
   showSuccess,
   showError,
@@ -512,7 +512,7 @@ function InventoryView({
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
   const [sortBy, setSortBy] = useState<'name' | 'stock' | 'value'>('name')
 
-  // Form state for adding new items
+  
   const [formData, setFormData] = useState<InventoryItemForm & { service_id?: string }>({
     category_id: '',
     service_id: '',
@@ -524,7 +524,7 @@ function InventoryView({
     unit_cost: 0,
   })
 
-  // Form state for editing items
+  
   const [editFormData, setEditFormData] = useState<InventoryItemForm & { service_id?: string }>({
     category_id: '',
     service_id: '',
@@ -536,11 +536,11 @@ function InventoryView({
     unit_cost: 0,
   })
 
-  // Form errors state
+  
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
   const [editFormErrors, setEditFormErrors] = useState<Record<string, string>>({})
 
-  // Clear error when field is updated
+  
   const updateFormField = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }))
     if (formErrors[field]) {
@@ -548,7 +548,7 @@ function InventoryView({
     }
   }
 
-  // Clear error when edit field is updated
+  
   const updateEditFormField = (field: string, value: any) => {
     setEditFormData(prev => ({ ...prev, [field]: value }))
     if (editFormErrors[field]) {
@@ -556,7 +556,7 @@ function InventoryView({
     }
   }
 
-  // Modal handlers
+  
   const openAddModal = () => {
     setShowAddModal(true)
     setIsAddModalClosing(false)
@@ -571,7 +571,7 @@ function InventoryView({
     }, 300)
   }
 
-  // Edit modal handlers
+  
   const openEditModal = (item: InventoryItem) => {
     setEditingItem(item)
     setEditFormData({
@@ -623,12 +623,12 @@ function InventoryView({
     }
   }
 
-  // Effect to filter services when category changes
+  
   useEffect(() => {
     if (formData.category_id) {
       const categoryName = categories.find(cat => cat.id === formData.category_id)?.name
       if (categoryName) {
-        // Filter services by category name
+        
         const categoryServices = services.filter(service => 
           service.category_name === categoryName
         )
@@ -639,11 +639,11 @@ function InventoryView({
     } else {
       setFilteredServices([])
     }
-    // Clear service selection when category changes
+    
     setFormData(prev => ({ ...prev, service_id: '' }))
   }, [formData.category_id, categories, services])
 
-  // Form validation
+  
   const validateForm = () => {
     const errors: Record<string, string> = {}
 
@@ -697,7 +697,7 @@ function InventoryView({
     }
   }
 
-  // Update item function
+  
   const handleUpdateItem = async (e: React.FormEvent) => {
     e.preventDefault()
     
@@ -717,7 +717,7 @@ function InventoryView({
     }
   }
 
-  // Delete item function
+  
   const handleDeleteItem = async (itemId: string) => {
     if (!confirm('Are you sure you want to delete this inventory item?')) {
       return
@@ -1316,7 +1316,7 @@ function InventoryView({
   )
 }
 
-// Service Inventory View Component
+
 function ServiceInventoryView({
   user,
   showSuccess,
@@ -1342,25 +1342,25 @@ function ServiceInventoryView({
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedService, setSelectedService] = useState<string>('all')
 
-  // Form state for adding new relationships
+  
   const [formData, setFormData] = useState<ServiceInventoryRelationshipForm>({
     service_id: '',
     inventory_item_id: '',
     quantity_used: 1
   })
 
-  // Form state for editing relationships
+  
   const [editFormData, setEditFormData] = useState<ServiceInventoryRelationshipForm>({
     service_id: '',
     inventory_item_id: '',
     quantity_used: 1
   })
 
-  // Form errors state
+  
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
   const [editFormErrors, setEditFormErrors] = useState<Record<string, string>>({})
 
-  // Clear error when field is updated
+  
   const updateFormField = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }))
     if (formErrors[field]) {
@@ -1368,7 +1368,7 @@ function ServiceInventoryView({
     }
   }
 
-  // Clear error when edit field is updated
+  
   const updateEditFormField = (field: string, value: any) => {
     setEditFormData(prev => ({ ...prev, [field]: value }))
     if (editFormErrors[field]) {
@@ -1376,7 +1376,7 @@ function ServiceInventoryView({
     }
   }
 
-  // Modal handlers
+  
   const openAddModal = () => {
     setShowAddModal(true)
     setIsAddModalClosing(false)
@@ -1396,7 +1396,7 @@ function ServiceInventoryView({
     }, 300)
   }
 
-  // Edit modal handlers
+  
   const openEditModal = (relationship: ServiceInventoryRelationship) => {
     setEditingRelationship(relationship)
     setEditFormData({
@@ -1441,7 +1441,7 @@ function ServiceInventoryView({
     }
   }
 
-  // Form validation
+  
   const validateForm = () => {
     const errors: Record<string, string> = {}
     if (!formData.service_id) {
@@ -1474,7 +1474,7 @@ function ServiceInventoryView({
     return Object.keys(errors).length === 0
   }
 
-  // Add relationship function
+  
   const handleAddRelationship = async (e: React.FormEvent) => {
     e.preventDefault()
     
@@ -1503,7 +1503,7 @@ function ServiceInventoryView({
     }
   }
 
-  // Update relationship function
+  
   const handleUpdateRelationship = async (e: React.FormEvent) => {
     e.preventDefault()
     
@@ -1526,7 +1526,7 @@ function ServiceInventoryView({
     }
   }
 
-  // Delete relationship function
+  
   const handleDeleteRelationship = async (id: string) => {
     if (!confirm('Are you sure you want to delete this service inventory relationship?')) {
       return
@@ -1545,7 +1545,7 @@ function ServiceInventoryView({
     }
   }
 
-  // Filter relationships
+  
   const filteredRelationships = relationships.filter(rel => {
     const matchesSearch = rel.service?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          rel.inventory_item?.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -1913,7 +1913,7 @@ function ServiceInventoryView({
   )
 }
 
-// Financial Transactions View Component
+
 function FinancialTransactionsView({
   user,
   showSuccess,
@@ -1940,7 +1940,7 @@ function FinancialTransactionsView({
   const [sortBy, setSortBy] = useState<'date' | 'amount' | 'type'>('date')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
 
-  // Form state for adding new transactions
+  
   const [formData, setFormData] = useState<FinancialTransactionForm>({
     transaction_type: 'income',
     category: '',
@@ -1950,7 +1950,7 @@ function FinancialTransactionsView({
     receipt_number: ''
   })
 
-  // Form state for editing transactions
+  
   const [editFormData, setEditFormData] = useState<FinancialTransactionForm>({
     transaction_type: 'income',
     category: '',
@@ -1960,11 +1960,11 @@ function FinancialTransactionsView({
     receipt_number: ''
   })
 
-  // Form errors state
+  
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
   const [editFormErrors, setEditFormErrors] = useState<Record<string, string>>({})
 
-  // Clear error when field is updated
+  
   const updateFormField = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }))
     if (formErrors[field]) {
@@ -1972,7 +1972,7 @@ function FinancialTransactionsView({
     }
   }
 
-  // Clear error when edit field is updated
+  
   const updateEditFormField = (field: string, value: any) => {
     setEditFormData(prev => ({ ...prev, [field]: value }))
     if (editFormErrors[field]) {
@@ -1980,7 +1980,7 @@ function FinancialTransactionsView({
     }
   }
 
-  // Modal handlers
+  
   const openAddModal = () => {
     setShowAddModal(true)
     setIsAddModalClosing(false)
@@ -1995,7 +1995,7 @@ function FinancialTransactionsView({
     }, 300)
   }
 
-  // Edit modal handlers
+  
   const openEditModal = (transaction: FinancialTransaction) => {
     setEditingTransaction(transaction)
     setEditFormData({
@@ -2048,7 +2048,7 @@ function FinancialTransactionsView({
   }
 
 
-  // Form validation
+  
   const validateForm = () => {
     const errors: Record<string, string> = {}
     if (!formData.category.trim()) {

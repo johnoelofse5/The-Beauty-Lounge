@@ -24,12 +24,12 @@ export default function SignUpPage() {
   const [otpSent, setOtpSent] = useState(false)
   const [countdown, setCountdown] = useState(0)
 
-  // Keyboard handling for mobile
+  
   useEffect(() => {
     const handleResize = () => {
-      // Check if we're on mobile and keyboard is likely open
+      
       if (window.innerHeight < window.screen.height * 0.75) {
-        // Keyboard is likely open, scroll to active input
+        
         const activeElement = document.activeElement as HTMLElement
         if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA')) {
           setTimeout(() => {
@@ -42,10 +42,10 @@ export default function SignUpPage() {
       }
     }
 
-    // Listen for resize events (keyboard open/close)
+    
     window.addEventListener('resize', handleResize)
     
-    // Also listen for focus events on inputs
+    
     const inputs = document.querySelectorAll('input, textarea')
     const handleInputFocus = (e: Event) => {
       setTimeout(() => {
@@ -54,7 +54,7 @@ export default function SignUpPage() {
           behavior: 'smooth', 
           block: 'center' 
         })
-      }, 300) // Delay to allow keyboard to appear
+      }, 300) 
     }
 
     inputs.forEach(input => {
@@ -67,7 +67,7 @@ export default function SignUpPage() {
         input.removeEventListener('focus', handleInputFocus)
       })
     }
-  }, [step]) // Re-run when step changes to attach to new inputs
+  }, [step]) 
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -125,9 +125,9 @@ export default function SignUpPage() {
       showSuccess('OTP sent successfully! Please check your phone.')
       setOtpSent(true)
       setStep('otp')
-      setCountdown(60) // 60 seconds countdown
+      setCountdown(60) 
       
-      // Start countdown
+      
       const timer = setInterval(() => {
         setCountdown(prev => {
           if (prev <= 1) {
@@ -153,7 +153,7 @@ export default function SignUpPage() {
     setError(null)
 
     try {
-      // Verify OTP and complete signup
+      
       await signUpWithPhone(formData.phone, formData.first_name, formData.last_name, formData.otp_code || '')
       showSuccess('Account created successfully! Redirecting to login...')
       setSuccess(true)
@@ -175,11 +175,11 @@ export default function SignUpPage() {
 
     if (!validateForm()) return
 
-    // If we're on the form step, send OTP
+    
     if (step === 'form') {
       await handleSendOTP()
     } else {
-      // If we're on the OTP step, verify and complete signup
+      
       await handleVerifyOTP()
     }
   }
@@ -238,11 +238,13 @@ export default function SignUpPage() {
         <div className="w-[70%] bg-gradient-to-br from-[#F2C7EB] to-[#E8A8D8] flex items-center justify-center">
           <div className="text-center">
             {/* Company Logo Placeholder */}
-            <div className="w-32 h-32 mx-auto mb-8 bg-white rounded-full flex items-center justify-center shadow-lg">
-              <span className="text-4xl font-bold text-[#F2C7EB]">BL</span>
+            <div className="w-100 h-100 mx-auto mb-4">
+              <img
+                src="/assets/the beauty lounge logo.png"
+                alt="The Beauty Lounge Logo"
+                className="w-full h-full object-contain"
+              />
             </div>
-            <h1 className="text-4xl font-bold text-white mb-4">The Beauty Lounge</h1>
-            <p className="text-xl text-white/90">Your beauty journey starts here</p>
           </div>
         </div>
 
@@ -416,10 +418,13 @@ export default function SignUpPage() {
         <div className="w-full max-w-md mx-auto space-y-6 sm:space-y-8">
           {/* Company Logo for Mobile */}
           <div className="text-center pt-8">
-            <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-[#F2C7EB] to-[#E8A8D8] rounded-full flex items-center justify-center shadow-lg">
-              <span className="text-2xl font-bold text-white">BL</span>
+            <div className="w-40 h-40 mx-auto mb-4">
+              <img
+                src="/assets/the beauty lounge logo.png"
+                alt="The Beauty Lounge Logo"
+                className="w-full h-full object-contain"
+              />
             </div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">The Beauty Lounge</h1>
           </div>
 
           <div className="text-center">

@@ -1,5 +1,5 @@
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { serve } from 'https:
+import { createClient } from 'https:
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -7,13 +7,13 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
-  // Handle CORS preflight requests
+  
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    // Create Supabase client with service role key for admin operations
+    
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -31,10 +31,10 @@ serve(async (req) => {
       )
     }
 
-    // Generate a temporary password for this session
+    
     const tempPassword = `mobile_${phone}_${Date.now()}`
 
-    // Update the user's password temporarily using admin API
+    
     const { error: updateError } = await supabaseClient.auth.admin.updateUserById(userId, {
       password: tempPassword
     })

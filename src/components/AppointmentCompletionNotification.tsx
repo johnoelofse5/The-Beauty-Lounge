@@ -36,7 +36,7 @@ export default function AppointmentCompletionNotification({ onClose }: Appointme
       setProcessingIds(prev => new Set(prev).add(appointmentId))
       await AppointmentCompletionService.markAsCompleted(appointmentId)
       
-      // Remove from list
+      
       setAppointments(prev => prev.filter(apt => apt.id !== appointmentId))
       showSuccess('Appointment marked as completed')
     } catch (error) {
@@ -56,7 +56,7 @@ export default function AppointmentCompletionNotification({ onClose }: Appointme
       setProcessingIds(prev => new Set(prev).add(appointmentId))
       await AppointmentCompletionService.markAsCancelled(appointmentId)
       
-      // Remove from list
+      
       setAppointments(prev => prev.filter(apt => apt.id !== appointmentId))
       showSuccess('Appointment marked as cancelled')
     } catch (error) {

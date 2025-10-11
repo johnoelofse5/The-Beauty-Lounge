@@ -28,17 +28,17 @@ export class ValidationService {
    * Validate a single field against a rule
    */
   static validateField(value: any, rule: ValidationRule, fieldName: string, formData?: any): string | null {
-    // Required validation
+    
     if (rule.required && (!value || (typeof value === 'string' && !value.trim()))) {
       return rule.message || `${fieldName} is required`
     }
 
-    // Skip other validations if value is empty and not required
+    
     if (!value || (typeof value === 'string' && !value.trim())) {
       return null
     }
 
-    // String length validations
+    
     if (typeof value === 'string') {
       if (rule.minLength && value.length < rule.minLength) {
         return rule.message || `${fieldName} must be at least ${rule.minLength} characters`
@@ -48,7 +48,7 @@ export class ValidationService {
       }
     }
 
-    // Number validations
+    
     if (typeof value === 'number') {
       if (rule.min !== undefined && value < rule.min) {
         return rule.message || `${fieldName} must be at least ${rule.min}`
@@ -58,12 +58,12 @@ export class ValidationService {
       }
     }
 
-    // Pattern validation
+    
     if (rule.pattern && typeof value === 'string' && !rule.pattern.test(value)) {
       return rule.message || `${fieldName} format is invalid`
     }
 
-    // Custom validation
+    
     if (rule.custom) {
       const customError = rule.custom(value, formData)
       if (customError) {
@@ -107,7 +107,7 @@ export class ValidationService {
    * Common validation schemas
    */
   static schemas = {
-    // Service validation schema
+    
     service: {
       name: {
         required: true,
@@ -134,7 +134,7 @@ export class ValidationService {
       }
     },
 
-    // Category validation schema
+    
     category: {
       name: {
         required: true,
@@ -152,7 +152,7 @@ export class ValidationService {
       }
     },
 
-    // User profile validation schema
+    
     profile: {
       first_name: {
         maxLength: 50
@@ -165,7 +165,7 @@ export class ValidationService {
       }
     },
 
-    // Portfolio validation schema
+    
     portfolio: {
       title: {
         required: true,
@@ -181,7 +181,7 @@ export class ValidationService {
       }
     },
 
-    // External client validation schema
+    
     externalClient: {
       firstName: {
         required: true,
@@ -212,7 +212,7 @@ export class ValidationService {
       }
     },
 
-    // Email validation schema
+    
     email: {
       email: {
         required: true,
@@ -221,7 +221,7 @@ export class ValidationService {
       }
     },
 
-    // Password validation schema
+    
     password: {
       password: {
         required: true,
@@ -267,8 +267,8 @@ export class ValidationService {
     const rule = schema[fieldName]
     if (!rule) return null
 
-    // For real-time validation, we might want to be less strict
-    // Only validate if there's actually content or if it's required
+    
+    
     if (!value && !rule.required) {
       return null
     }
@@ -283,7 +283,7 @@ export class ValidationService {
     file: File | null,
     options: {
       required?: boolean
-      maxSize?: number // in bytes
+      maxSize?: number 
       allowedTypes?: string[]
       message?: string
     } = {}
@@ -295,12 +295,12 @@ export class ValidationService {
       return null
     }
 
-    // Check file size
+    
     if (options.maxSize && file.size > options.maxSize) {
       return options.message || `File size must be less than ${Math.round(options.maxSize / 1024 / 1024)}MB`
     }
 
-    // Check file type
+    
     if (options.allowedTypes && !options.allowedTypes.includes(file.type)) {
       return options.message || `File type must be one of: ${options.allowedTypes.join(', ')}`
     }
@@ -315,12 +315,12 @@ export class ValidationService {
     file: File | null,
     options: {
       required?: boolean
-      maxSize?: number // in bytes, default 5MB
+      maxSize?: number 
       message?: string
     } = {}
   ): string | null {
     const defaultOptions = {
-      maxSize: 5 * 1024 * 1024, // 5MB
+      maxSize: 5 * 1024 * 1024, 
       allowedTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'],
       ...options
     }

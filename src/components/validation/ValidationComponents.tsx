@@ -165,7 +165,7 @@ export function ValidationFileInput({
   )
 }
 
-// Hook for managing validation state
+
 export function useValidation<T extends Record<string, any>>(
   initialData: T,
   schema: any
@@ -176,21 +176,21 @@ export function useValidation<T extends Record<string, any>>(
   const updateField = (field: keyof T, value: any) => {
     setData(prev => ({ ...prev, [field]: value }))
     
-    // Clear error when user starts typing
+    
     if (errors[field as string]) {
       setErrors(prev => ({ ...prev, [field as string]: '' }))
     }
   }
 
   const validateField = (field: keyof T) => {
-    // This would integrate with the ValidationService
-    // For now, just clear the error
+    
+    
     setErrors(prev => ({ ...prev, [field as string]: '' }))
   }
 
   const validateForm = () => {
-    // This would integrate with the ValidationService
-    // Return validation result
+    
+    
     return { isValid: true, errors: {} }
   }
 

@@ -29,16 +29,16 @@ export default function AppointmentsPage() {
   const [visibleElements, setVisibleElements] = useState<Set<string>>(new Set())
   const observerRef = useRef<IntersectionObserver | null>(null)
 
-  
-  // Booking form state
+
+
   const [selectedServices, setSelectedServices] = useState<ServiceWithCategory[]>([])
   const [selectedPractitioner, setSelectedPractitioner] = useState<Practitioner | null>(null)
   const [selectedClient, setSelectedClient] = useState<Client | null>(null)
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined)
   const [selectedTime, setSelectedTime] = useState<string>('')
   const [notes, setNotes] = useState<string>('')
-  
-  // External client information (for non-registered clients)
+
+
   const [isExternalClient, setIsExternalClient] = useState<boolean>(false)
   const [externalClientInfo, setExternalClientInfo] = useState({
     firstName: '',
@@ -47,8 +47,8 @@ export default function AppointmentsPage() {
     phone: ''
   })
   const [externalClientFormErrors, setExternalClientFormErrors] = useState<Record<string, string>>({})
-  
-  // Progress tracking
+
+
   const [currentStep, setCurrentStep] = useState<number>(1)
   const [hasSavedProgress, setHasSavedProgress] = useState<boolean>(false)
   const [savingProgress, setSavingProgress] = useState<boolean>(false)
@@ -56,20 +56,20 @@ export default function AppointmentsPage() {
   const [savedServiceIds, setSavedServiceIds] = useState<string[]>([])
   const [savedPractitionerId, setSavedPractitionerId] = useState<string | null>(null)
   const [savedClientId, setSavedClientId] = useState<string | null>(null)
-  
-  // Determine booking flow based on user role
+
+
   const isPractitionerUser = isPractitioner(userRoleData?.role || null)
   const isSuperAdmin = userRoleData?.role?.name === 'super_admin'
   const allowSameDayBooking = isPractitionerUser || isSuperAdmin
   const [bookingStep, setBookingStep] = useState<BookingStep>('service')
-  
-  // Available time slots (now handled by TimeSlotSelector component)
+
+
   const [loadingSlots, setLoadingSlots] = useState(false)
-  
-  // Floating pill visibility
+
+
   const [showFloatingPill, setShowFloatingPill] = useState(true)
 
-  // Load services, practitioners, and clients
+
   useEffect(() => {
     if (user) {
       loadServices()
@@ -80,14 +80,14 @@ export default function AppointmentsPage() {
     }
   }, [user, isPractitionerUser])
 
-  // Pre-select service from URL parameter
+
   useEffect(() => {
     const serviceId = searchParams.get('serviceId')
     if (serviceId && services.length > 0) {
       const serviceToSelect = services.find(service => service.id === serviceId)
       if (serviceToSelect && !selectedServices.find(s => s.id === serviceId)) {
         setSelectedServices([serviceToSelect])
-        // Remove the serviceId from URL to clean up the address bar
+
         const newUrl = new URL(window.location.href)
         newUrl.searchParams.delete('serviceId')
         window.history.replaceState({}, '', newUrl.toString())
@@ -95,45 +95,45 @@ export default function AppointmentsPage() {
     }
   }, [services, searchParams, selectedServices])
 
-  // Load saved progress on component mount
+
   useEffect(() => {
     if (user) {
       loadSavedProgress()
     }
   }, [user])
 
-  // Restore selected services after services are loaded
+
   useEffect(() => {
     if (services.length > 0 && hasSavedProgress && selectedServices.length === 0) {
       restoreSelectedServices()
     }
   }, [services, hasSavedProgress, selectedServices.length])
 
-  // Restore selected practitioner after practitioners are loaded
+
   useEffect(() => {
     if (practitioners.length > 0 && hasSavedProgress && !selectedPractitioner) {
       restoreSelectedPractitioner()
     }
   }, [practitioners, hasSavedProgress, selectedPractitioner])
 
-  // Restore selected client after clients are loaded
+
   useEffect(() => {
     if (clients.length > 0 && hasSavedProgress && !selectedClient) {
       restoreSelectedClient()
     }
   }, [clients, hasSavedProgress, selectedClient])
 
-  // Save progress whenever form data changes
+
   useEffect(() => {
     if (user && currentStep > 1) {
       saveProgress()
     }
   }, [selectedServices, selectedPractitioner, selectedClient, selectedDate, selectedTime, notes, isExternalClient, externalClientInfo, currentStep])
 
-  // Helper functions for date handling
+
   const getTomorrowDate = () => {
     const today = new Date()
-    today.setHours(0, 0, 0, 0) // Set to start of today
+    today.setHours(0, 0, 0, 0)
     return today
   }
 
@@ -145,17 +145,17 @@ export default function AppointmentsPage() {
 
   const formatDateForAPI = (date: Date | undefined) => {
     if (!date) return ''
-    // Use local date formatting instead of UTC to avoid timezone issues
+
     const year = date.getFullYear()
     const month = String(date.getMonth() + 1).padStart(2, '0')
     const day = String(date.getDate()).padStart(2, '0')
     return `${year}-${month}-${day}`
   }
 
-  // Progress management functions
+
   const restoreSelectedServices = () => {
     if (savedServiceIds.length > 0 && services.length > 0) {
-      const restoredServices = services.filter(service => 
+      const restoredServices = services.filter(service =>
         savedServiceIds.includes(service.id)
       )
       setSelectedServices(restoredServices)
@@ -189,41 +189,41 @@ export default function AppointmentsPage() {
         setCurrentStep(progress.current_step)
         setHasSavedProgress(true)
         setProgressLoaded(true)
-        
-        // Store selected service IDs for later restoration
+
+
         if (progress.selected_services) {
           setSavedServiceIds(progress.selected_services)
         }
-        
-        // Store selected practitioner and client IDs for later restoration
+
+
         if (progress.selected_practitioner_id) {
           setSavedPractitionerId(progress.selected_practitioner_id)
         }
-        
+
         if (progress.selected_client_id) {
           setSavedClientId(progress.selected_client_id)
         }
-        
+
         if (progress.selected_date) {
           setSelectedDate(new Date(progress.selected_date))
         }
-        
+
         if (progress.selected_time) {
           setSelectedTime(progress.selected_time)
         }
-        
+
         if (progress.notes) {
           setNotes(progress.notes)
         }
-        
+
         if (progress.is_external_client) {
           setIsExternalClient(true)
           if (progress.external_client_info) {
             setExternalClientInfo(progress.external_client_info)
           }
         }
-        
-        // Set the appropriate booking step based on current step
+
+
         if (progress.current_step >= 4) {
           updateCurrentStep('confirm')
         } else if (progress.current_step >= 3) {
@@ -237,14 +237,14 @@ export default function AppointmentsPage() {
         } else {
           updateCurrentStep('service')
         }
-        
+
       } else {
         setProgressLoaded(true)
       }
     } catch (error) {
       console.error('Error loading saved progress:', error)
       setProgressLoaded(true)
-      // Don't show error to user as this is not critical
+
     }
   }
 
@@ -253,7 +253,7 @@ export default function AppointmentsPage() {
 
     try {
       setSavingProgress(true)
-      
+
       const progressData: Partial<BookingProgress> = {
         current_step: currentStep,
         selected_services: selectedServices.map(s => s.id),
@@ -271,7 +271,7 @@ export default function AppointmentsPage() {
       setHasSavedProgress(true)
     } catch (error) {
       console.error('Error saving progress:', error)
-      // Don't show error to user as this is not critical
+
     } finally {
       setSavingProgress(false)
     }
@@ -283,13 +283,13 @@ export default function AppointmentsPage() {
     try {
       await BookingProgressService.clearProgress(user.id)
       setHasSavedProgress(false)
-      setProgressLoaded(false) // Reset flag so progress can be loaded again if needed
-      setSavedServiceIds([]) // Clear saved service IDs
-      setSavedPractitionerId(null) // Clear saved practitioner ID
-      setSavedClientId(null) // Clear saved client ID
+      setProgressLoaded(false)
+      setSavedServiceIds([])
+      setSavedPractitionerId(null)
+      setSavedClientId(null)
       showSuccess('Booking progress cleared!')
     } catch (error) {
-      // Check if it's a "no progress to clear" scenario
+
       if (error instanceof Error && error.message.includes('No booking progress found')) {
         setHasSavedProgress(false)
         setProgressLoaded(false)
@@ -300,11 +300,11 @@ export default function AppointmentsPage() {
     }
   }
 
-  // Update current step when booking step changes
+
   const updateCurrentStep = (step: BookingStep) => {
     setBookingStep(step)
-    
-    // Map booking steps to step numbers
+
+
     const stepMap = {
       'service': 1,
       'practitioner': 2,
@@ -312,11 +312,11 @@ export default function AppointmentsPage() {
       'datetime': 3,
       'confirm': 4
     }
-    
+
     setCurrentStep(stepMap[step])
   }
 
-  // Get existing appointments for conflict checking
+
   const [existingAppointments, setExistingAppointments] = useState<any[]>([])
 
   const loadExistingAppointments = useCallback(async () => {
@@ -327,13 +327,13 @@ export default function AppointmentsPage() {
 
     try {
       setLoadingSlots(true)
-      
-      // Clear existing appointments first to prevent stale data
+
+
       setExistingAppointments([])
-      
-      // Format the selected date for comparison
+
+
       const selectedDateStr = formatDateForAPI(selectedDate)
-      
+
       const { data, error } = await supabase
         .from('appointments')
         .select('start_time, end_time')
@@ -353,7 +353,7 @@ export default function AppointmentsPage() {
     }
   }, [selectedDate, selectedPractitioner])
 
-  // Load existing appointments when date or practitioner changes
+
   useEffect(() => {
     if (selectedDate && selectedPractitioner) {
       loadExistingAppointments()
@@ -362,7 +362,7 @@ export default function AppointmentsPage() {
     }
   }, [selectedDate, selectedPractitioner, loadExistingAppointments])
 
-  // Handle floating pill visibility based on scroll position
+
   useEffect(() => {
     if (bookingStep !== 'service' || selectedServices.length === 0) {
       setShowFloatingPill(true)
@@ -378,13 +378,13 @@ export default function AppointmentsPage() {
 
       const rect = selectedServicesElement.getBoundingClientRect()
       const isVisible = rect.top <= window.innerHeight && rect.bottom >= 0
-      
-      // Hide pill when selected services section is visible, show when scrolling up
+
+
       setShowFloatingPill(!isVisible)
     }
 
     window.addEventListener('scroll', handleScroll)
-    handleScroll() // Check initial state
+    handleScroll()
 
     return () => {
       window.removeEventListener('scroll', handleScroll)
@@ -417,8 +417,8 @@ export default function AppointmentsPage() {
       if (error) throw error
 
       setPractitioners(practitionersData || [])
-      
-      // If there's only one practitioner, auto-select them
+
+
       if (practitionersData && practitionersData.length === 1) {
         setSelectedPractitioner(practitionersData[0])
       }
@@ -451,10 +451,10 @@ export default function AppointmentsPage() {
     setSelectedServices(prev => {
       const isSelected = prev.some(s => s.id === service.id)
       if (isSelected) {
-        // Remove service if already selected
+
         return prev.filter(s => s.id !== service.id)
       } else {
-        // Add service if not selected
+
         return [...prev, service]
       }
     })
@@ -475,16 +475,16 @@ export default function AppointmentsPage() {
       if (selectedServices.length > 0 && selectedClient) {
         updateCurrentStep('datetime')
       } else if (isExternalClient) {
-        // Validate external client info using ValidationService
+
         const formData = {
           firstName: externalClientInfo.firstName,
           lastName: externalClientInfo.lastName,
           email: externalClientInfo.email,
           phone: externalClientInfo.phone
         }
-        
+
         const validationResult = ValidationService.validateForm(formData, ValidationService.schemas.externalClient)
-        
+
         if (validationResult.isValid) {
           updateCurrentStep('datetime')
         } else {
@@ -504,7 +504,7 @@ export default function AppointmentsPage() {
     }
   }
 
-  // Set up intersection observer for scroll animations
+
   useEffect(() => {
     observerRef.current = new IntersectionObserver(
       (entries) => {
@@ -536,7 +536,7 @@ export default function AppointmentsPage() {
     }
   }, [])
 
-  // Observe elements when they're rendered
+
   useEffect(() => {
     if (observerRef.current && !loading) {
       const elementsToObserve = document.querySelectorAll('[data-animate-id]')
@@ -547,7 +547,7 @@ export default function AppointmentsPage() {
   }, [loading, bookingStep])
 
   const handleBookingConfirm = async () => {
-    // Validate based on user role
+
     if (isPractitionerUser) {
       if (selectedServices.length === 0) {
         showError('Please select at least one service')
@@ -565,7 +565,7 @@ export default function AppointmentsPage() {
         showError('User session expired. Please refresh the page')
         return
       }
-      // For practitioners, either selectedClient or external client info must be provided
+
       if (!selectedClient && !isExternalClient) {
         showError('Please select a client or choose external client')
         return
@@ -608,11 +608,11 @@ export default function AppointmentsPage() {
     }
 
     try {
-      // Calculate total duration for all services
+
       const totalDurationMinutes = selectedServices.reduce((total, service) => total + service.duration_minutes, 0)
-      
-      // Calculate end time based on total duration
-      // Parse time components to avoid timezone issues
+
+
+
       const [hours, minutes] = selectedTime.split(':').map(Number)
       const startTimeMinutes = hours * 60 + minutes
       const endTimeMinutes = startTimeMinutes + totalDurationMinutes
@@ -620,11 +620,11 @@ export default function AppointmentsPage() {
       const endMins = endTimeMinutes % 60
       const endTimeString = `${endHours.toString().padStart(2, '0')}:${endMins.toString().padStart(2, '0')}`
 
-      // Create appointment with all selected services
+
       const appointmentData = {
         user_id: isPractitionerUser ? (isExternalClient ? null : selectedClient!.id) : user.id,
         practitioner_id: isPractitionerUser ? user.id : selectedPractitioner!.id,
-        // Use timestamptz columns - store full datetime with timezone
+
         appointment_date: new Date(`${formatDateForAPI(selectedDate)}T${selectedTime}`).toISOString(),
         start_time: new Date(`${formatDateForAPI(selectedDate)}T${selectedTime}`).toISOString(),
         end_time: new Date(`${formatDateForAPI(selectedDate)}T${endTimeString}`).toISOString(),
@@ -632,11 +632,11 @@ export default function AppointmentsPage() {
         notes: notes || null,
         is_active: true,
         is_deleted: false,
-        // Store service IDs as JSON array
+
         service_ids: selectedServices.map(s => s.id),
-        // For backward compatibility, set service_id to first service
+
         service_id: selectedServices[0]?.id || null,
-        // External client information
+
         is_external_client: isPractitionerUser && isExternalClient,
         client_first_name: isPractitionerUser && isExternalClient ? externalClientInfo.firstName : null,
         client_last_name: isPractitionerUser && isExternalClient ? externalClientInfo.lastName : null,
@@ -656,7 +656,7 @@ export default function AppointmentsPage() {
         throw new Error('Failed to create appointment')
       }
 
-      // Send SMS notifications to both client and practitioner
+
       try {
         await AppointmentSMSService.sendAppointmentNotifications(insertedAppointment.id)
       } catch (smsError) {
@@ -664,8 +664,8 @@ export default function AppointmentsPage() {
       }
 
       showSuccess('Appointment booked successfully! Redirecting...')
-      
-      // Reset form
+
+
       setSelectedServices([])
       setSelectedPractitioner(practitioners.length === 1 ? practitioners[0] : null)
       setSelectedClient(null)
@@ -680,17 +680,17 @@ export default function AppointmentsPage() {
         phone: ''
       })
       setExternalClientFormErrors({})
-      setSavedServiceIds([]) // Clear saved service IDs
-      setSavedPractitionerId(null) // Clear saved practitioner ID
-      setSavedClientId(null) // Clear saved client ID
+      setSavedServiceIds([])
+      setSavedPractitionerId(null)
+      setSavedClientId(null)
       updateCurrentStep('service')
-      
-      // Clear saved progress since appointment was successfully created
+
+
       await BookingProgressService.clearProgress(user.id)
       setHasSavedProgress(false)
-      setProgressLoaded(false) // Reset flag for future bookings
-      
-      // Redirect based on user role
+      setProgressLoaded(false)
+
+
       setTimeout(() => {
         if (isPractitionerUser) {
           router.push('/appointments-management')
@@ -698,7 +698,7 @@ export default function AppointmentsPage() {
           router.push('/')
         }
       }, 2000)
-      
+
     } catch (err) {
       showError('Failed to book appointment. Please try again.')
       console.error('Error booking appointment:', err)
@@ -745,7 +745,7 @@ export default function AppointmentsPage() {
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
         {/* Progress Steps */}
-        <div 
+        <div
           className="mb-8 transition-all duration-700 ease-out"
           data-animate-id="progress-steps"
           style={{
@@ -761,7 +761,7 @@ export default function AppointmentsPage() {
               </div>
               <span className="ml-2 text-sm font-medium">Services</span>
             </div>
-            
+
             {!isPractitionerUser && (
               <div className={`flex items-center ${bookingStep === 'practitioner' ? 'text-indigo-600' : bookingStep === 'datetime' || bookingStep === 'confirm' ? 'text-green-600' : 'text-gray-400'}`}>
                 <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-sm font-medium ${bookingStep === 'practitioner' ? 'border-indigo-600 bg-indigo-600 text-white' : bookingStep === 'datetime' || bookingStep === 'confirm' ? 'border-green-600 bg-green-600 text-white' : 'border-gray-300'}`}>
@@ -770,7 +770,7 @@ export default function AppointmentsPage() {
                 <span className="ml-2 text-sm font-medium">Practitioner</span>
               </div>
             )}
-            
+
             {isPractitionerUser && (
               <div className={`flex items-center ${bookingStep === 'client' ? 'text-indigo-600' : bookingStep === 'datetime' || bookingStep === 'confirm' ? 'text-green-600' : 'text-gray-400'}`}>
                 <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-sm font-medium ${bookingStep === 'client' ? 'border-indigo-600 bg-indigo-600 text-white' : bookingStep === 'datetime' || bookingStep === 'confirm' ? 'border-green-600 bg-green-600 text-white' : 'border-gray-300'}`}>
@@ -779,14 +779,14 @@ export default function AppointmentsPage() {
                 <span className="ml-2 text-sm font-medium">Client</span>
               </div>
             )}
-            
+
             <div className={`flex items-center ${bookingStep === 'datetime' ? 'text-indigo-600' : bookingStep === 'confirm' ? 'text-green-600' : 'text-gray-400'}`}>
               <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-sm font-medium ${bookingStep === 'datetime' ? 'border-indigo-600 bg-indigo-600 text-white' : bookingStep === 'confirm' ? 'border-green-600 bg-green-600 text-white' : 'border-gray-300'}`}>
                 {isPractitionerUser ? '3' : '3'}
               </div>
               <span className="ml-2 text-sm font-medium">Date & Time</span>
             </div>
-            
+
             <div className={`flex items-center ${bookingStep === 'confirm' ? 'text-indigo-600' : 'text-gray-400'}`}>
               <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-sm font-medium ${bookingStep === 'confirm' ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-gray-300'}`}>
                 {isPractitionerUser ? '4' : '4'}
@@ -799,16 +799,16 @@ export default function AppointmentsPage() {
           <div className="md:hidden">
             {/* Mobile Progress Bar */}
             <div className="w-full bg-gray-200 rounded-full h-3 mb-4">
-              <div 
+              <div
                 className="bg-indigo-600 h-3 rounded-full transition-all duration-300"
-                style={{ 
-                  width: bookingStep === 'service' ? '25%' : 
-                         bookingStep === 'datetime' ? '50%' : 
-                         bookingStep === 'confirm' ? '75%' : '100%' 
+                style={{
+                  width: bookingStep === 'service' ? '25%' :
+                    bookingStep === 'datetime' ? '50%' :
+                      bookingStep === 'confirm' ? '75%' : '100%'
                 }}
               ></div>
             </div>
-            
+
             {/* Mobile Step Indicators */}
             <div className="flex items-center justify-between">
               <div className={`flex flex-col items-center ${bookingStep === 'service' ? 'text-indigo-600' : bookingStep === 'datetime' || bookingStep === 'confirm' ? 'text-green-600' : 'text-gray-400'}`}>
@@ -817,14 +817,14 @@ export default function AppointmentsPage() {
                 </div>
                 <span className="text-xs font-medium text-center">Services</span>
               </div>
-              
+
               <div className={`flex flex-col items-center ${bookingStep === 'datetime' ? 'text-indigo-600' : bookingStep === 'confirm' ? 'text-green-600' : 'text-gray-400'}`}>
                 <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-sm font-medium mb-1 ${bookingStep === 'datetime' ? 'border-indigo-600 bg-indigo-600 text-white' : bookingStep === 'confirm' ? 'border-green-600 bg-green-600 text-white' : 'border-gray-300'}`}>
                   2
                 </div>
                 <span className="text-xs font-medium text-center">Date & Time</span>
               </div>
-              
+
               <div className={`flex flex-col items-center ${bookingStep === 'confirm' ? 'text-indigo-600' : 'text-gray-400'}`}>
                 <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-sm font-medium mb-1 ${bookingStep === 'confirm' ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-gray-300'}`}>
                   3
@@ -837,8 +837,8 @@ export default function AppointmentsPage() {
 
         {/* Progress Save/Clear Section */}
         {currentStep > 1 && (
-          <div 
-            className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg transition-all duration-700 ease-out"
+          <div
+            className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg transition-all duration-700 ease-out"
             data-animate-id="progress-save"
             style={{
               opacity: visibleElements.has('progress-save') ? 1 : 0,
@@ -848,15 +848,15 @@ export default function AppointmentsPage() {
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <svg className="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                  <svg className="h-5 w-5 text-blue-400 dark:text-blue-300" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                   </svg>
                 </div>
                 <div className="ml-3">
-                  <p className="text-sm font-medium text-blue-800">
+                  <p className="text-sm font-medium text-blue-800 dark:text-blue-200">
                     {hasSavedProgress ? 'Progress automatically saved' : 'Saving progress...'}
                   </p>
-                  <p className="text-sm text-blue-600">
+                  <p className="text-sm text-blue-600 dark:text-blue-300">
                     Your booking progress is saved and will be restored when you return.
                   </p>
                 </div>
@@ -864,13 +864,13 @@ export default function AppointmentsPage() {
               <div className="flex gap-2">
                 <button
                   onClick={clearProgress}
-                  className="px-3 py-2 text-sm font-medium text-blue-700 bg-blue-100 border border-blue-300 rounded-md hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+                  className="px-3 py-2 text-sm font-medium text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-800/50 border border-blue-300 dark:border-blue-600 rounded-md hover:bg-blue-200 dark:hover:bg-blue-800/70 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
                 >
                   Clear Progress
                 </button>
                 {savingProgress && (
-                  <div className="flex items-center px-3 py-2 text-sm text-blue-600">
-                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24">
+                  <div className="flex items-center px-3 py-2 text-sm text-blue-600 dark:text-blue-400">
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
@@ -933,7 +933,7 @@ export default function AppointmentsPage() {
                   ))}
               </div>
             </div>
-            
+
             <div className="space-y-8">
               {Object.entries(
                 services.reduce((acc, service) => {
@@ -974,11 +974,10 @@ export default function AppointmentsPage() {
                               transform: visibleElements.has(`service-card-${service.id}`) ? 'translateY(0)' : 'translateY(30px)',
                               transition: `all 0.6s ease-out ${serviceIndex * 0.1}s`
                             }}
-                            className={`bg-white rounded-lg border shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer ${
-                              isSelected 
-                                ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-200' 
+                            className={`bg-white rounded-lg border shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer ${isSelected
+                                ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-200'
                                 : 'border-gray-200 hover:border-indigo-300'
-                            }`}
+                              }`}
                           >
                             <div className="p-4 sm:p-6">
                               <div className="flex items-start justify-between mb-2">
@@ -1016,7 +1015,7 @@ export default function AppointmentsPage() {
                   </div>
                 ))}
             </div>
-            
+
             {selectedServices.length > 0 && (
               <div id="selected-services-section" className="mt-6 sm:mt-8 bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Selected Services</h3>
@@ -1071,9 +1070,8 @@ export default function AppointmentsPage() {
 
         {/* Floating Action Pill - Only show on service selection step when services are selected */}
         {bookingStep === 'service' && selectedServices.length > 0 && (
-          <div className={`fixed bottom-6 left-1/2 transform -translate-x-1/2 z-20 transition-all duration-300 ${
-            showFloatingPill ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'
-          }`}>
+          <div className={`fixed bottom-6 left-1/2 transform -translate-x-1/2 z-20 transition-all duration-300 ${showFloatingPill ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'
+            }`}>
             <button
               onClick={() => {
                 const element = document.getElementById('selected-services-section')
@@ -1142,17 +1140,16 @@ export default function AppointmentsPage() {
             </div>
 
             <h2 className="text-2xl font-bold text-gray-900 mb-6">Select Practitioner</h2>
-            
+
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {practitioners.map((practitioner) => (
                 <div
                   key={practitioner.id}
                   onClick={() => setSelectedPractitioner(practitioner)}
-                  className={`bg-white rounded-lg border shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer ${
-                    selectedPractitioner?.id === practitioner.id 
-                      ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-200' 
+                  className={`bg-white rounded-lg border shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer ${selectedPractitioner?.id === practitioner.id
+                      ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-200'
                       : 'border-gray-200 hover:border-indigo-300'
-                  }`}
+                    }`}
                 >
                   <div className="p-6">
                     <div className="flex items-start justify-between mb-2">
@@ -1177,7 +1174,7 @@ export default function AppointmentsPage() {
                 </div>
               ))}
             </div>
-            
+
             {selectedPractitioner && (
               <div className="mt-8 flex justify-end">
                 <button
@@ -1211,7 +1208,7 @@ export default function AppointmentsPage() {
             </div>
 
             <h2 className="text-2xl font-bold text-gray-900 mb-6">Select Client</h2>
-            
+
             {/* External Client Option */}
             <div className="mb-6">
               <div
@@ -1219,11 +1216,10 @@ export default function AppointmentsPage() {
                   setIsExternalClient(true)
                   setSelectedClient(null)
                 }}
-                className={`bg-white rounded-lg border shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer ${
-                  isExternalClient 
-                    ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-200' 
+                className={`bg-white rounded-lg border shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer ${isExternalClient
+                    ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-200'
                     : 'border-gray-200 hover:border-indigo-300'
-                }`}
+                  }`}
               >
                 <div className="p-6">
                   <div className="flex items-start justify-between mb-2">
@@ -1258,9 +1254,9 @@ export default function AppointmentsPage() {
                     type="text"
                     value={externalClientInfo.firstName}
                     onChange={(e) => {
-                      setExternalClientInfo({...externalClientInfo, firstName: e.target.value})
+                      setExternalClientInfo({ ...externalClientInfo, firstName: e.target.value })
                       if (externalClientFormErrors.firstName) {
-                        setExternalClientFormErrors({...externalClientFormErrors, firstName: ''})
+                        setExternalClientFormErrors({ ...externalClientFormErrors, firstName: '' })
                       }
                     }}
                     placeholder="Enter first name"
@@ -1273,9 +1269,9 @@ export default function AppointmentsPage() {
                     type="text"
                     value={externalClientInfo.lastName}
                     onChange={(e) => {
-                      setExternalClientInfo({...externalClientInfo, lastName: e.target.value})
+                      setExternalClientInfo({ ...externalClientInfo, lastName: e.target.value })
                       if (externalClientFormErrors.lastName) {
-                        setExternalClientFormErrors({...externalClientFormErrors, lastName: ''})
+                        setExternalClientFormErrors({ ...externalClientFormErrors, lastName: '' })
                       }
                     }}
                     placeholder="Enter last name"
@@ -1287,12 +1283,12 @@ export default function AppointmentsPage() {
                     type="email"
                     value={externalClientInfo.email}
                     onChange={(e) => {
-                      setExternalClientInfo({...externalClientInfo, email: e.target.value})
+                      setExternalClientInfo({ ...externalClientInfo, email: e.target.value })
                       if (externalClientFormErrors.email) {
-                        setExternalClientFormErrors({...externalClientFormErrors, email: ''})
+                        setExternalClientFormErrors({ ...externalClientFormErrors, email: '' })
                       }
                       if (externalClientFormErrors.contactMethod) {
-                        setExternalClientFormErrors({...externalClientFormErrors, contactMethod: ''})
+                        setExternalClientFormErrors({ ...externalClientFormErrors, contactMethod: '' })
                       }
                     }}
                     placeholder="Enter email address"
@@ -1304,12 +1300,12 @@ export default function AppointmentsPage() {
                     type="tel"
                     value={externalClientInfo.phone}
                     onChange={(e) => {
-                      setExternalClientInfo({...externalClientInfo, phone: e.target.value})
+                      setExternalClientInfo({ ...externalClientInfo, phone: e.target.value })
                       if (externalClientFormErrors.phone) {
-                        setExternalClientFormErrors({...externalClientFormErrors, phone: ''})
+                        setExternalClientFormErrors({ ...externalClientFormErrors, phone: '' })
                       }
                       if (externalClientFormErrors.contactMethod) {
-                        setExternalClientFormErrors({...externalClientFormErrors, contactMethod: ''})
+                        setExternalClientFormErrors({ ...externalClientFormErrors, contactMethod: '' })
                       }
                     }}
                     placeholder="Enter phone number"
@@ -1335,11 +1331,10 @@ export default function AppointmentsPage() {
                       setSelectedClient(client)
                       setIsExternalClient(false)
                     }}
-                    className={`bg-white rounded-lg border shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer ${
-                      selectedClient?.id === client.id 
-                        ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-200' 
+                    className={`bg-white rounded-lg border shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer ${selectedClient?.id === client.id
+                        ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-200'
                         : 'border-gray-200 hover:border-indigo-300'
-                    }`}
+                      }`}
                   >
                     <div className="p-6">
                       <div className="flex items-start justify-between mb-2">
@@ -1365,7 +1360,7 @@ export default function AppointmentsPage() {
                 ))}
               </div>
             </div>
-            
+
             <div className="mt-8 flex justify-end">
               <button
                 onClick={handleContinueToDateTime}
@@ -1398,7 +1393,7 @@ export default function AppointmentsPage() {
 
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Appointment Details</h3>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <h4 className="font-medium text-gray-900 mb-3">Services</h4>
@@ -1416,7 +1411,7 @@ export default function AppointmentsPage() {
                     ))}
                   </div>
                 </div>
-                
+
                 <div>
                   <h4 className="font-medium text-gray-900 mb-3">{isPractitionerUser ? 'Client' : 'Practitioner'}</h4>
                   <div className="p-3 bg-gray-50 rounded-md">
@@ -1457,7 +1452,7 @@ export default function AppointmentsPage() {
                   </div>
                 </div>
               </div>
-              
+
               <div className="mt-4 pt-4 border-t border-gray-200">
                 <div className="flex items-center justify-between">
                   <div>
@@ -1477,7 +1472,7 @@ export default function AppointmentsPage() {
             </div>
 
             <h2 className="text-2xl font-bold text-gray-900 mb-6">Select Date & Time</h2>
-            
+
             <div className="space-y-6">
               {/* Date Selection */}
               <div>
@@ -1497,7 +1492,7 @@ export default function AppointmentsPage() {
                   className="w-full max-w-sm"
                 />
                 <p className="mt-2 text-sm text-gray-500">
-                  {allowSameDayBooking 
+                  {allowSameDayBooking
                     ? "You can book appointments from today up to 3 months in advance"
                     : "You can book appointments from tomorrow up to 3 months in advance"
                   }
@@ -1567,10 +1562,10 @@ export default function AppointmentsPage() {
             </div>
 
             <h2 className="text-2xl font-bold text-gray-900 mb-6">Confirm Your Appointment</h2>
-            
+
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Appointment Details</h3>
-              
+
               <div className="space-y-4">
                 <div>
                   <span className="text-gray-900 font-medium">Services:</span>
@@ -1586,7 +1581,7 @@ export default function AppointmentsPage() {
                     ))}
                   </div>
                 </div>
-                
+
                 <div>
                   <span className="text-gray-900 font-medium">{isPractitionerUser ? 'Client:' : 'Practitioner:'}</span>
                   <div className="mt-2 p-3 bg-gray-50 rounded-md">
@@ -1626,14 +1621,14 @@ export default function AppointmentsPage() {
                     )}
                   </div>
                 </div>
-                
+
                 <div className="flex justify-between">
                   <span className="text-gray-900 font-medium">Total Duration:</span>
                   <span className="font-medium text-gray-900">
                     {formatDuration(selectedServices.reduce((total, service) => total + service.duration_minutes, 0))}
                   </span>
                 </div>
-                
+
                 <div className="flex justify-between">
                   <span className="text-gray-900 font-medium">Date:</span>
                   <span className="font-medium text-gray-900">
@@ -1645,12 +1640,12 @@ export default function AppointmentsPage() {
                     })}
                   </span>
                 </div>
-                
+
                 <div className="flex justify-between">
                   <span className="text-gray-900 font-medium">Start Time:</span>
                   <span className="font-medium text-gray-900">{formatTimeDisplay(selectedTime)}</span>
                 </div>
-                
+
                 <div className="flex justify-between">
                   <span className="text-gray-900 font-medium">End Time:</span>
                   <span className="font-medium text-gray-900">
@@ -1666,14 +1661,14 @@ export default function AppointmentsPage() {
                     })()}
                   </span>
                 </div>
-                
+
                 <div className="flex justify-between border-t pt-4">
                   <span className="text-gray-900 font-medium">Total Price:</span>
                   <span className="font-bold text-gray-900 text-xl">
                     {formatPrice(selectedServices.reduce((total, service) => total + (service.price || 0), 0))}
                   </span>
                 </div>
-                
+
                 {notes && (
                   <div>
                     <span className="text-gray-900 font-medium">Notes:</span>

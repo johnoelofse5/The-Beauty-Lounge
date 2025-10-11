@@ -33,9 +33,12 @@ import {
   Clock,
   Package,
   TrendingUp,
-  DollarSign
+  DollarSign,
+  Sun,
+  Moon
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { useTheme } from '@/hooks/useTheme'
 
 interface SidebarNavProps {
   title?: string
@@ -46,13 +49,14 @@ export default function SidebarNav({ title = "The Beauty Lounge" }: SidebarNavPr
   const { showSuccess, showError } = useToast()
   const pathname = usePathname()
   const { setOpenMobile, isMobile } = useSidebar()
+  const { theme, toggleTheme, effectiveTheme } = useTheme()
   const [permissions, setPermissions] = useState({
     canManagePortfolio: false,
     canViewPortfolio: false,
     canManageSchedule: false
   })
 
-  // Load permissions on component mount
+  
   useEffect(() => {
     const loadPermissions = async () => {
       if (!user?.id) return
@@ -83,14 +87,14 @@ export default function SidebarNav({ title = "The Beauty Lounge" }: SidebarNavPr
       showSuccess('Successfully signed out')
     } catch (error) {
       console.error('Error signing out:', error)
-      // Even if there's an error, the AuthContext will handle clearing the state
-      // and redirecting to login page, so we don't need to do anything special here
+      
+      
       showError('Session expired. Please sign in again.')
     }
   }
 
   const handleNavigationClick = () => {
-    // Close mobile sidebar when navigating
+    
     if (isMobile) {
       setOpenMobile(false)
     }
@@ -117,67 +121,67 @@ export default function SidebarNav({ title = "The Beauty Lounge" }: SidebarNavPr
       title: "My Appointments",
       url: "/appointments-management",
       icon: Calendar,
-      show: !canViewAllAppts, // Show for clients only
+      show: !canViewAllAppts, 
     },
     {
       title: "All Appointments",
       url: "/appointments-management",
       icon: Calendar,
-      show: canViewAllAppts, // Show for practitioners and super admins
+      show: canViewAllAppts, 
     },
     {
       title: "Book for Client",
       url: "/appointments",
       icon: PlusCircle,
-      show: isPractitionerUser || canViewAdminFeatures, // Show only for practitioners
+      show: isPractitionerUser || canViewAdminFeatures, 
     },
     {
       title: "Portfolio",
       url: "/portfolio",
       icon: Image,
-      show: permissions.canViewPortfolio, // Show based on permission
+      show: permissions.canViewPortfolio, 
     },
     {
       title: "Manage Portfolio",
       url: "/portfolio/manage",
       icon: Image,
-      show: permissions.canManagePortfolio, // Show based on permission
+      show: permissions.canManagePortfolio, 
     },
     {
       title: "Working Schedule",
       url: "/schedule",
       icon: Clock,
-      show: permissions.canManageSchedule, // Show based on permission
+      show: permissions.canManageSchedule, 
     },
     {
       title: "Inventory & Finance",
       url: "/inventory-finance",
       icon: TrendingUp,
-      show: canViewAdminFeatures || isPractitionerUser, // Show for super admin and practitioners
+      show: canViewAdminFeatures || isPractitionerUser, 
     },
     {
       title: "Services",
       url: "/services",
       icon: Sparkles,
-      show: canManageServicesAccess, // Show for super admin and practitioners
+      show: canManageServicesAccess, 
     },
     {
       title: "Users",
       url: "/users",
       icon: Users,
-      show: canManageUsersAccess, // Show for super admin and practitioners
+      show: canManageUsersAccess, 
     },
     {
       title: "Roles & Permissions",
       url: "/roles",
       icon: Settings,
-      show: canViewAdminFeatures, // Show only for super admin
+      show: canViewAdminFeatures, 
     },
     {
       title: "Email Tracking",
       url: "/email-tracking",
       icon: Mail,
-      show: canViewAdminFeatures, // Show only for super admin
+      show: canViewAdminFeatures, 
     },
   ]
 
@@ -246,6 +250,24 @@ export default function SidebarNav({ title = "The Beauty Lounge" }: SidebarNavPr
                     </div>
                   </SidebarMenuButton>
                 </Link>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton 
+                  onClick={() => {
+                    toggleTheme()
+                    handleNavigationClick()
+                  }}
+                  className="sidebar-theme-toggle"
+                >
+                  {effectiveTheme === 'dark' ? (
+                    <Sun className="h-4 w-4 flex-shrink-0" />
+                  ) : (
+                    <Moon className="h-4 w-4 flex-shrink-0" />
+                  )}
+                  <span className="truncate">
+                    {effectiveTheme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+                  </span>
+                </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton onClick={() => {

@@ -1,7 +1,7 @@
 import { supabase } from './supabase'
 import { EmailTracking, EmailTrackingCreate, EmailTrackingUpdate, EmailType, EmailStatus } from '@/types/email-tracking'
 
-// Re-export types for convenience
+
 export type { EmailTracking, EmailTrackingCreate, EmailTrackingUpdate, EmailType, EmailStatus }
 
 /**

@@ -1,4 +1,4 @@
-// Inventory and Financial Management Types
+
 import { Service } from './service'
 
 export interface InventoryCategory {
@@ -110,7 +110,7 @@ export interface ServiceRevenue {
   created_at: string
 }
 
-// Dashboard summary types
+
 export interface InventorySummary {
   total_items: number
   total_value: number
@@ -137,7 +137,7 @@ export interface LowStockItem {
   minimum_stock: number
 }
 
-// Form types
+
 export interface InventoryItemForm {
   category_id: string
   service_id?: string
@@ -179,7 +179,7 @@ export interface FinancialTransactionForm {
   receipt_number?: string
 }
 
-// Filter and search types
+
 export interface InventoryFilters {
   category_id?: string
   low_stock_only?: boolean

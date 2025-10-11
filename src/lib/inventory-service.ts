@@ -22,7 +22,7 @@ import {
 } from '@/types/inventory'
 
 export class InventoryService {
-  // Inventory Categories (using service_categories table)
+  
   static async getCategories(): Promise<InventoryCategory[]> {
     const { data, error } = await supabase
       .from('service_categories')
@@ -67,7 +67,7 @@ export class InventoryService {
     if (error) throw error
   }
 
-  // Inventory Items
+  
   static async getItems(filters?: InventoryFilters): Promise<InventoryItem[]> {
     let query = supabase
       .from('inventory_items')
@@ -152,7 +152,7 @@ export class InventoryService {
     if (error) throw error
   }
 
-  // Stock Movements
+  
   static async getStockMovements(itemId?: string, limit = 50): Promise<StockMovement[]> {
     let query = supabase
       .from('stock_movements')
@@ -176,10 +176,10 @@ export class InventoryService {
   static async adjustStock(adjustment: StockAdjustmentForm & { created_by: string }): Promise<void> {
     const { item_id, adjustment_type, quantity, reason, notes, created_by } = adjustment
 
-    // Get current item
+    
     const item = await this.getItem(item_id)
     
-    // Calculate new stock level
+    
     const quantityChange = adjustment_type === 'increase' ? quantity : -quantity
     const newStock = item.current_stock + quantityChange
 
@@ -187,12 +187,12 @@ export class InventoryService {
       throw new Error('Cannot reduce stock below zero')
     }
 
-    // Start transaction
+    
     const { error: transactionError } = await supabase.rpc('begin')
     if (transactionError) throw transactionError
 
     try {
-      // Update item stock
+      
       const { error: updateError } = await supabase
         .from('inventory_items')
         .update({ current_stock: newStock })
@@ -200,7 +200,7 @@ export class InventoryService {
 
       if (updateError) throw updateError
 
-      // Record stock movement
+      
       const { error: movementError } = await supabase
         .from('stock_movements')
         .insert([{
@@ -213,18 +213,18 @@ export class InventoryService {
 
       if (movementError) throw movementError
 
-      // Commit transaction
+      
       const { error: commitError } = await supabase.rpc('commit')
       if (commitError) throw commitError
 
     } catch (error) {
-      // Rollback transaction
+      
       await supabase.rpc('rollback')
       throw error
     }
   }
 
-  // Purchase Orders
+  
   static async getPurchaseOrders(filters?: PurchaseOrderFilters): Promise<PurchaseOrder[]> {
     let query = supabase
       .from('purchase_orders')
@@ -271,12 +271,12 @@ export class InventoryService {
   static async createPurchaseOrder(order: PurchaseOrderForm & { created_by: string }): Promise<PurchaseOrder> {
     const { items, created_by, ...orderData } = order
 
-    // Generate order number
+    
     const orderNumber = `PO-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`
 
-    // Calculate totals
+    
     const subtotal = items.reduce((sum, item) => sum + (item.quantity_ordered * item.unit_cost), 0)
-    const total_amount = subtotal // Could add tax and shipping later
+    const total_amount = subtotal 
 
     const { data: purchaseOrder, error: orderError } = await supabase
       .from('purchase_orders')
@@ -292,7 +292,7 @@ export class InventoryService {
 
     if (orderError) throw orderError
 
-    // Add items
+    
     const orderItems = items.map(item => ({
       ...item,
       purchase_order_id: purchaseOrder.id,
@@ -326,12 +326,12 @@ export class InventoryService {
   }
 
   static async receivePurchaseOrder(id: string, receivedItems: { item_id: string; quantity_received: number }[], created_by: string): Promise<void> {
-    // Start transaction
+    
     const { error: transactionError } = await supabase.rpc('begin')
     if (transactionError) throw transactionError
 
     try {
-      // Update purchase order status
+      
       const { error: orderError } = await supabase
         .from('purchase_orders')
         .update({ 
@@ -342,9 +342,9 @@ export class InventoryService {
 
       if (orderError) throw orderError
 
-      // Update received quantities and stock levels
+      
       for (const receivedItem of receivedItems) {
-        // Update purchase order item
+        
         const { error: itemError } = await supabase
           .from('purchase_order_items')
           .update({ quantity_received: receivedItem.quantity_received })
@@ -353,7 +353,7 @@ export class InventoryService {
 
         if (itemError) throw itemError
 
-        // Update inventory stock
+        
         const { error: stockError } = await supabase.rpc('increment_stock', {
           item_id: receivedItem.item_id,
           quantity: receivedItem.quantity_received
@@ -361,7 +361,7 @@ export class InventoryService {
 
         if (stockError) throw stockError
 
-        // Record stock movement
+        
         const { error: movementError } = await supabase
           .from('stock_movements')
           .insert([{
@@ -377,18 +377,18 @@ export class InventoryService {
         if (movementError) throw movementError
       }
 
-      // Commit transaction
+      
       const { error: commitError } = await supabase.rpc('commit')
       if (commitError) throw commitError
 
     } catch (error) {
-      // Rollback transaction
+      
       await supabase.rpc('rollback')
       throw error
     }
   }
 
-  // Financial Transactions
+  
   static async getFinancialTransactions(filters?: FinancialFilters): Promise<FinancialTransaction[]> {
     let query = supabase
       .from('financial_transactions')
@@ -437,7 +437,7 @@ export class InventoryService {
     return data
   }
 
-  // Dashboard Functions
+  
   static async getInventorySummary(): Promise<InventorySummary> {
     const [itemsResult, categoriesResult, lowStockResult] = await Promise.all([
       supabase
@@ -525,7 +525,7 @@ export class InventoryService {
     return data || []
   }
 
-  // Service-Inventory Relationship Methods
+  
   static async getServiceInventoryRelationships(): Promise<ServiceInventoryRelationship[]> {
     const { data, error } = await supabase
       .from('service_inventory_relationships')
@@ -614,7 +614,7 @@ export class InventoryService {
 
     if (error) throw error
 
-    // Group by service
+    
     const serviceMap = new Map<string, ServiceWithInventory>()
     
     data?.forEach((item: any) => {
@@ -635,7 +635,7 @@ export class InventoryService {
     return Array.from(serviceMap.values())
   }
 
-  // Check if service can be booked based on inventory availability
+  
   static async checkServiceInventoryAvailability(serviceId: string): Promise<{
     canBook: boolean
     insufficientItems: string[]
@@ -648,7 +648,7 @@ export class InventoryService {
     return data?.[0] || { canBook: true, insufficientItems: [] }
   }
 
-  // Get service inventory requirements
+  
   static async getServiceInventoryRequirements(serviceId: string): Promise<Array<{
     inventory_item_id: string
     item_name: string
@@ -665,7 +665,7 @@ export class InventoryService {
     return data || []
   }
 
-  // Process inventory consumption for a service booking
+  
   static async processServiceInventoryConsumption(
     serviceId: string,
     appointmentId: string,
@@ -687,7 +687,7 @@ export class InventoryService {
     return data || []
   }
 
-  // Update financial transaction
+  
   static async updateFinancialTransaction(
     transactionId: string,
     data: FinancialTransactionForm,

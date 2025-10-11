@@ -42,7 +42,7 @@ export function DatePicker({
           {date ? format(date, "PPP") : <span>{placeholder}</span>}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-0 bg-white z-[70]" align="start">
+      <PopoverContent className="w-auto p-0 bg-popover border border-border z-[70]" align="start">
         <Calendar
           mode="single"
           selected={date}
@@ -55,10 +55,10 @@ export function DatePicker({
             const today = new Date()
             today.setHours(0, 0, 0, 0)
             
-            // If allowSameDay is false, disable today and past dates
+            
             if (!allowSameDay && date <= today) return true
             
-            // If allowSameDay is true, only disable past dates (allow today)
+            
             if (allowSameDay && date < today) return true
             
             if (maxDate && date > maxDate) return true

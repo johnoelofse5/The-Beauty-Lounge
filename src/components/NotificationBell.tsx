@@ -17,7 +17,7 @@ export default function NotificationBell({ userId }: NotificationBellProps) {
   useEffect(() => {
     loadUnreadCount()
     
-    // Set up polling for new notifications every 30 seconds
+    
     const interval = setInterval(loadUnreadCount, 30000)
     return () => clearInterval(interval)
   }, [userId])
@@ -39,7 +39,7 @@ export default function NotificationBell({ userId }: NotificationBellProps) {
 
   const handleCloseNotificationCenter = () => {
     setShowNotificationCenter(false)
-    // Refresh unread count when closing
+    
     loadUnreadCount()
   }
 

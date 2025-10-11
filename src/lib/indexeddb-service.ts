@@ -22,7 +22,7 @@ class IndexedDBService {
   private version = 3
   private db: IDBDatabase | null = null
 
-  // Initialize the database
+  
   async init(): Promise<void> {
     return new Promise((resolve, reject) => {
       const request = indexedDB.open(this.dbName, this.version)
@@ -61,7 +61,7 @@ class IndexedDBService {
           }
         })
 
-        // Create a general cache store for any data
+        
         if (!db.objectStoreNames.contains('cache')) {
           const cacheStore = db.createObjectStore('cache', { keyPath: 'key' })
           cacheStore.createIndex('expiresAt', 'expiresAt', { unique: false })
@@ -70,7 +70,7 @@ class IndexedDBService {
     })
   }
 
-  // Store lookup data with expiration
+  
   async storeLookupData(
     type: string, 
     data: LookupData[], 
@@ -80,7 +80,7 @@ class IndexedDBService {
       await this.init()
     }
 
-    // Check if object store exists, if not, we need to recreate the database
+    
     if (!this.db || !this.db.objectStoreNames.contains(type)) {
       console.warn(`Object store ${type} not found, recreating database...`)
       await this.recreateDatabase()
@@ -100,9 +100,9 @@ class IndexedDBService {
         expiresAt
       }
 
-      // Clear existing data first
+      
       store.clear().onsuccess = () => {
-        // Add new data
+        
         data.forEach(item => {
           store.add(item)
         })
@@ -119,7 +119,7 @@ class IndexedDBService {
     })
   }
 
-  // Retrieve lookup data
+  
   async getLookupData(type: string): Promise<LookupData[] | null> {
     if (!this.db) {
       await this.init()
@@ -138,9 +138,9 @@ class IndexedDBService {
           return
         }
 
-        // Check if data is expired (using first item's timestamp as reference)
-        // For simplicity, we'll check if any data exists and assume it's fresh
-        // In a more sophisticated implementation, you'd store expiration per item
+        
+        
+        
         resolve(data)
       }
 
@@ -151,7 +151,7 @@ class IndexedDBService {
     })
   }
 
-  // Check if lookup data exists and is fresh
+  
   async hasFreshLookupData(type: string, maxAgeMinutes: number = 60): Promise<boolean> {
     if (!this.db) {
       await this.init()
@@ -164,7 +164,7 @@ class IndexedDBService {
 
       countRequest.onsuccess = () => {
         const count = countRequest.result
-        resolve(count > 0) // Simple check - if data exists, assume it's fresh
+        resolve(count > 0) 
       }
 
       countRequest.onerror = () => {
@@ -174,7 +174,7 @@ class IndexedDBService {
     })
   }
 
-  // Clear specific lookup data
+  
   async clearLookupData(type: string): Promise<void> {
     if (!this.db) {
       await this.init()
@@ -196,7 +196,7 @@ class IndexedDBService {
     })
   }
 
-  // Clear all cached data
+  
   async clearAllData(): Promise<void> {
     if (!this.db) {
       await this.init()
@@ -208,7 +208,7 @@ class IndexedDBService {
     await Promise.all(clearPromises)
   }
 
-  // Store any data with key-value pair and TTL
+  
   async storeCacheData(
     key: string, 
     data: any, 
@@ -243,7 +243,7 @@ class IndexedDBService {
     })
   }
 
-  // Retrieve cached data
+  
   async getCacheData(key: string): Promise<any | null> {
     if (!this.db) {
       await this.init()
@@ -262,9 +262,9 @@ class IndexedDBService {
           return
         }
 
-        // Check if data is expired
+        
         if (Date.now() > result.expiresAt) {
-          // Data is expired, remove it
+          
           this.removeCacheData(key)
           resolve(null)
           return
@@ -280,7 +280,7 @@ class IndexedDBService {
     })
   }
 
-  // Remove specific cached data
+  
   async removeCacheData(key: string): Promise<void> {
     if (!this.db) {
       await this.init()
@@ -302,7 +302,7 @@ class IndexedDBService {
     })
   }
 
-  // Clean up expired cache entries
+  
   async cleanupExpiredCache(): Promise<void> {
     if (!this.db) {
       await this.init()
@@ -331,18 +331,18 @@ class IndexedDBService {
     })
   }
 
-  // Recreate database with current version
+  
   async recreateDatabase(): Promise<void> {
     if (this.db) {
       this.db.close()
       this.db = null
     }
 
-    // Delete the existing database
+    
     return new Promise((resolve, reject) => {
       const deleteRequest = indexedDB.deleteDatabase(this.dbName)
       deleteRequest.onsuccess = () => {
-        // Reinitialize with new version
+        
         this.init().then(resolve).catch(reject)
       }
       deleteRequest.onerror = () => {
@@ -352,10 +352,10 @@ class IndexedDBService {
   }
 }
 
-// Export singleton instance
+
 export const indexedDBService = new IndexedDBService()
 
-// Initialize IndexedDB when the service is imported
+
 if (typeof window !== 'undefined') {
   indexedDBService.init().catch(error => {
     console.error('Failed to initialize IndexedDB:', error)

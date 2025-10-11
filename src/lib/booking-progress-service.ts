@@ -31,7 +31,7 @@ export class BookingProgressService {
    */
   static async saveProgress(userId: string, progress: Partial<BookingProgress>): Promise<BookingProgress | null> {
     try {
-      // First, check if there's existing progress for this user
+      
       const { data: existingProgressData, error: fetchError } = await supabase
         .from('booking_progress')
         .select('*')
@@ -40,7 +40,7 @@ export class BookingProgressService {
         .eq('is_deleted', false)
 
       if (fetchError) {
-        // If table doesn't exist, that's okay - just return null
+        
         if (fetchError.code === '42P01' || fetchError.message.includes('relation') || fetchError.message.includes('does not exist')) {
           return null
         }
@@ -62,12 +62,12 @@ export class BookingProgressService {
         external_client_info: progress.external_client_info ? JSON.stringify(progress.external_client_info) : null,
         practitioner_id: progress.practitioner_id || null,
         updated_at: new Date().toISOString(),
-        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 7 days from now
+        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() 
       }
 
       let result
       if (existingProgress) {
-        // Update existing progress
+        
         const { data: updateData, error } = await supabase
           .from('booking_progress')
           .update(progressData)
@@ -75,7 +75,7 @@ export class BookingProgressService {
           .select()
 
         if (error) {
-          // Handle RLS policy violations gracefully
+          
           if (error.code === '42501') {
             throw new Error('Permission denied: Unable to update booking progress')
           }
@@ -83,14 +83,14 @@ export class BookingProgressService {
         }
         result = updateData && updateData.length > 0 ? updateData[0] : null
       } else {
-        // Create new progress
+        
         const { data: insertData, error } = await supabase
           .from('booking_progress')
           .insert([progressData])
           .select()
 
         if (error) {
-          // Handle RLS policy violations gracefully
+          
           if (error.code === '42501') {
             throw new Error('Permission denied: Unable to save booking progress')
           }
@@ -122,15 +122,15 @@ export class BookingProgressService {
         throw error
       }
 
-      // If no progress exists, return null
+      
       if (!data || data.length === 0) {
         return null
       }
 
-      // Return the first (and should be only) progress record
+      
       return this.parseProgress(data[0])
     } catch (error) {
-      // Handle table doesn't exist or other database errors gracefully
+      
       throw error
     }
   }
@@ -140,7 +140,7 @@ export class BookingProgressService {
    */
   static async clearProgress(userId: string): Promise<void> {
     try {
-      // First check if there's any progress to clear
+      
       const { data: existingProgress, error: checkError } = await supabase
         .from('booking_progress')
         .select('id')
@@ -148,12 +148,12 @@ export class BookingProgressService {
         .eq('is_active', true)
         .eq('is_deleted', false)
 
-      // If no progress exists, that's fine - nothing to clear
+      
       if (!existingProgress || existingProgress.length === 0) {
         return
       }
 
-      // Clear the progress
+      
       const { error } = await supabase
         .from('booking_progress')
         .update({ 

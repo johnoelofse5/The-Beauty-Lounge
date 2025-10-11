@@ -31,7 +31,6 @@ export default function HomePage() {
     fetchServices()
   }, [])
 
-  // Set up intersection observer for scroll animations
   useEffect(() => {
     observerRef.current = new IntersectionObserver(
       (entries) => {
@@ -63,7 +62,6 @@ export default function HomePage() {
     }
   }, [])
 
-  // Observe elements when they're rendered
   useEffect(() => {
     if (observerRef.current && !loading) {
       const elementsToObserve = document.querySelectorAll('[data-animate-id]')
@@ -88,11 +86,11 @@ export default function HomePage() {
     <div className="min-h-screen bg-gray-50">
       {/* Header for non-authenticated users */}
       {!user && (
-        <header className="bg-white shadow-sm border-b border-gray-200">
+        <header className="bg-white dark:bg-gray-900 shadow-sm border-b border-gray-200 dark:border-gray-700">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center h-16">
               <div className="flex items-center">
-                <h1 className="text-xl font-bold text-gray-900 sm:text-2xl">
+                <h1 className="text-xl font-bold text-gray-900 dark:text-white sm:text-2xl">
                   The Beauty Lounge
                 </h1>
               </div>
@@ -100,13 +98,13 @@ export default function HomePage() {
               <div className="flex items-center space-x-3">
                 <Link
                   href="/login"
-                  className="text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
+                  className="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium"
                 >
                   Sign In
                 </Link>
                 <Link
                   href="/signup"
-                  className="bg-[#F2C7EB] text-gray-900 px-4 py-2 rounded-md hover:bg-[#E8A8D8] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#F2C7EB] text-sm font-medium"
+                  className="bg-[#F2C7EB] dark:bg-[#E8A8D8] text-gray-900 dark:text-gray-900 px-4 py-2 rounded-md hover:bg-[#E8A8D8] dark:hover:bg-[#F2C7EB] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#F2C7EB] text-sm font-medium"
                 >
                   Sign Up
                 </Link>
@@ -127,10 +125,19 @@ export default function HomePage() {
             transform: visibleElements.has('hero') ? 'translateY(0)' : 'translateY(30px)'
           }}
         >
-          <h2 className="text-3xl font-bold text-gray-900 sm:text-4xl">
+          {/* Company Logo */}
+          <div className="mb-8">
+            <img 
+              src="/assets/the beauty lounge logo.png" 
+              alt="The Beauty Lounge Logo" 
+              className="mx-auto h-40 w-auto sm:h-48"
+            />
+          </div>
+          
+          <h2 className="text-3xl font-bold text-gray-900 dark:text-white sm:text-4xl">
             Services
           </h2>
-          <p className="mt-3 text-lg text-gray-600 sm:mt-4">
+          <p className="mt-3 text-lg text-gray-600 dark:text-gray-300 sm:mt-4">
             Choose from our professional beauty and wellness services
           </p>
         </div>
@@ -157,7 +164,7 @@ export default function HomePage() {
           <div>
             {/* Sticky Category Navigation Bar */}
             <div 
-              className="sticky top-0 z-10 bg-gray-50 py-4 mb-6 -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 transition-all duration-700 ease-out"
+              className="sticky top-16 z-40 bg-gray-50 dark:bg-gray-900 py-4 px-4 sm:px-6 lg:px-8 transition-all duration-700 ease-out border-b border-gray-200 dark:border-gray-700 -mx-4 sm:-mx-6 lg:-mx-8"
               data-animate-id="category-nav"
               style={{
                 opacity: visibleElements.has('category-nav') ? 1 : 0,
@@ -178,7 +185,7 @@ export default function HomePage() {
                         const element = document.getElementById(`category-${categoryName.replace(/\s+/g, '-').toLowerCase()}`)
                         element?.scrollIntoView({ behavior: 'smooth', block: 'start' })
                       }}
-                      className="flex-shrink-0 px-4 py-2 bg-white border border-gray-200 rounded-full text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-colors whitespace-nowrap shadow-sm"
+                      className="flex-shrink-0 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-full text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:border-gray-300 dark:hover:border-gray-500 transition-colors whitespace-nowrap shadow-sm"
                     >
                       {categoryName}
                     </button>
@@ -289,7 +296,7 @@ export default function HomePage() {
               transform: visibleElements.has('cta') ? 'translateY(0)' : 'translateY(40px)'
             }}
           >
-            <div className="bg-indigo-50 rounded-lg p-8">
+            <div className="bg-gradient-to-r from-[#F2C7EB] to-[#E8A8D8] rounded-lg p-8">
               <h3 className="text-lg font-semibold text-gray-900 mb-2">
                 Ready to book your appointment?
               </h3>
@@ -298,7 +305,7 @@ export default function HomePage() {
               </p>
               <Link
                 href="/signup"
-                className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-gray-900 bg-[#F2C7EB] hover:bg-[#E8A8D8] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#F2C7EB] transition-colors"
               >
                 Get Started
               </Link>

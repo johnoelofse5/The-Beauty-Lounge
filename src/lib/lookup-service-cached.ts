@@ -7,14 +7,14 @@ import { LOOKUP_TYPE_CODES, LookupTypeCode } from '@/constants/lookup-codes'
 
 interface LookupQueryOptions {
   useCache?: boolean
-  cacheTTL?: number // Time to live in minutes
+  cacheTTL?: number 
   forceRefresh?: boolean
 }
 
 class LookupServiceCached {
-  private readonly CACHE_TTL = 60 // Default cache time in minutes
+  private readonly CACHE_TTL = 60 
 
-  // Generic method to fetch lookup data with caching
+  
   private async fetchLookupData(
     typeCode: LookupTypeCode,
     options: LookupQueryOptions = {}
@@ -27,7 +27,7 @@ class LookupServiceCached {
 
     const cacheKey = `lookup_${typeCode.toLowerCase()}`
 
-    // Try to get from cache first (if caching is enabled and not forcing refresh)
+    
     if (useCache && !forceRefresh) {
       try {
         const cachedData = await indexedDBService.getLookupData(cacheKey)
@@ -39,10 +39,10 @@ class LookupServiceCached {
       }
     }
 
-    // Fetch from database using the correct query structure
+    
     try {
       
-      // First get the lookup type ID
+      
       const { data: lookupType, error: typeError } = await supabase
         .from('lookup_type')
         .select('id')
@@ -52,7 +52,7 @@ class LookupServiceCached {
         .maybeSingle()
 
       if (typeError) {
-        // If PostgREST says no rows for single(), treat as not found (empty lookups) instead of throwing
+        
         if ((typeError as any).code === 'PGRST116') {
           console.warn(`Lookup type ${typeCode} not found (empty result)`)
           return []
@@ -66,7 +66,7 @@ class LookupServiceCached {
         return []
       }
 
-      // Then get the lookups for that type
+      
       const { data, error } = await supabase
         .from('lookup')
         .select('*')
@@ -82,7 +82,7 @@ class LookupServiceCached {
 
       const lookupData = data || []
 
-      // Store in cache if caching is enabled
+      
       if (useCache && lookupData.length > 0) {
         try {
           await indexedDBService.storeLookupData(cacheKey, lookupData, cacheTTL)
@@ -95,7 +95,7 @@ class LookupServiceCached {
     } catch (error) {
       console.error(`Error fetching ${typeCode}:`, error)
       
-      // If database fetch fails, try to return cached data as fallback
+      
       if (useCache) {
         try {
           const cachedData = await indexedDBService.getLookupData(cacheKey)
@@ -111,33 +111,33 @@ class LookupServiceCached {
     }
   }
 
-  // Get hours lookup data
+  
   async getHours(options: LookupQueryOptions = {}): Promise<Lookup[]> {
     return this.fetchLookupData(LOOKUP_TYPE_CODES.HOURS, options)
   }
 
-  // Get time slot intervals lookup data
+  
   async getTimeSlotIntervals(options: LookupQueryOptions = {}): Promise<Lookup[]> {
     return this.fetchLookupData(LOOKUP_TYPE_CODES.TIME_SLOT_INTERVALS, options)
   }
 
-  // Get service categories lookup data
+  
   async getServiceCategories(options: LookupQueryOptions = {}): Promise<Lookup[]> {
     return this.fetchLookupData(LOOKUP_TYPE_CODES.SERVICE_CATEGORIES, options)
   }
 
-  // Get appointment statuses lookup data
+  
   async getAppointmentStatuses(options: LookupQueryOptions = {}): Promise<Lookup[]> {
     return this.fetchLookupData(LOOKUP_TYPE_CODES.APPOINTMENT_STATUS, options)
   }
 
-  // Get user roles lookup data
+  
   async getUserRoles(options: LookupQueryOptions = {}): Promise<Lookup[]> {
     return this.fetchLookupData(LOOKUP_TYPE_CODES.USER_ROLES, options)
   }
 
 
-  // Clear cache for specific lookup type
+  
   async clearCache(typeCode: LookupTypeCode): Promise<void> {
     try {
       const cacheKey = `lookup_${typeCode.toLowerCase()}`
@@ -147,7 +147,7 @@ class LookupServiceCached {
     }
   }
 
-  // Clear all lookup caches
+  
   async clearAllCaches(): Promise<void> {
     try {
       await indexedDBService.clearAllData()
@@ -156,12 +156,12 @@ class LookupServiceCached {
     }
   }
 
-  // Refresh specific lookup data (force fetch from database and update cache)
+  
   async refreshLookupData(typeCode: LookupTypeCode): Promise<Lookup[]> {
     return this.fetchLookupData(typeCode, { forceRefresh: true })
   }
 
-  // Get cache status for all lookup types
+  
   async getCacheStatus(): Promise<Record<string, boolean>> {
     const lookupTypes = [
       LOOKUP_TYPE_CODES.HOURS,
@@ -186,7 +186,7 @@ class LookupServiceCached {
     return status
   }
 
-  // Preload all lookup data into cache
+  
   async preloadAllLookups(): Promise<void> {
     const lookupTypes = [
       LOOKUP_TYPE_CODES.HOURS,
@@ -211,7 +211,7 @@ class LookupServiceCached {
     await Promise.allSettled(preloadPromises)
   }
 
-  // Get lookup data with fallback to default values
+  
   async getLookupWithFallback(
     typeCode: LookupTypeCode,
     fallbackData: Lookup[],
@@ -225,7 +225,7 @@ class LookupServiceCached {
     }
   }
 
-  // Convenience method for getting measurements
+  
   async getMeasurements(options: LookupQueryOptions = {}): Promise<Lookup[]> {
     return this.fetchLookupData(LOOKUP_TYPE_CODES.MEASUREMENTS, { 
       useCache: true,
@@ -233,7 +233,7 @@ class LookupServiceCached {
     })
   }
 
-  // Convenience method for getting payment methods
+  
   async getPaymentMethods(options: LookupQueryOptions = {}): Promise<Lookup[]> {
     return this.fetchLookupData(LOOKUP_TYPE_CODES.PAYMENT_METHODS, { 
       useCache: true,
@@ -241,7 +241,7 @@ class LookupServiceCached {
     })
   }
 
-  // Convenience method for getting revenue types
+  
   async getRevenueTypes(options: LookupQueryOptions = {}): Promise<Lookup[]> {
     return this.fetchLookupData(LOOKUP_TYPE_CODES.REVENUE_TYPES, { 
       useCache: true,
@@ -249,7 +249,7 @@ class LookupServiceCached {
     })
   }
 
-  // Convenience method for getting transaction types
+  
   async getTransactionTypes(options: LookupQueryOptions = {}): Promise<Lookup[]> {
     return this.fetchLookupData(LOOKUP_TYPE_CODES.TRANSACTION_TYPES, { 
       useCache: true,
@@ -258,14 +258,14 @@ class LookupServiceCached {
   }
 }
 
-// Export singleton instance
+
 export const lookupServiceCached = new LookupServiceCached()
 
-// Initialize IndexedDB and preload data when the service is imported
+
 if (typeof window !== 'undefined') {
-  // Initialize IndexedDB
+  
   indexedDBService.init().then(() => {
-    // Preload critical lookup data
+    
     lookupServiceCached.preloadAllLookups().catch(error => {
       console.error('Failed to preload lookup data:', error)
     })

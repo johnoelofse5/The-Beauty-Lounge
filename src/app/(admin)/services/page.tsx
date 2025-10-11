@@ -18,7 +18,7 @@ export default function AdminServicesPage() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   
-  // Modal states
+  
   const [showServiceModal, setShowServiceModal] = useState(false)
   const [showCategoryModal, setShowCategoryModal] = useState(false)
   const [showServiceDetails, setShowServiceDetails] = useState(false)
@@ -26,12 +26,12 @@ export default function AdminServicesPage() {
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
   const [viewingService, setViewingService] = useState<ServiceWithCategory | null>(null)
   
-  // Animation states
+  
   const [isServiceModalClosing, setIsServiceModalClosing] = useState(false)
   const [isCategoryModalClosing, setIsCategoryModalClosing] = useState(false)
   const [isServiceDetailsClosing, setIsServiceDetailsClosing] = useState(false)
   
-  // Form states
+  
   const [serviceForm, setServiceForm] = useState<ServiceFormData>({
     name: '',
     description: '',
@@ -46,11 +46,11 @@ export default function AdminServicesPage() {
     display_order: 0
   })
 
-  // Validation error states
+  
   const [serviceFormErrors, setServiceFormErrors] = useState<{[key: string]: string}>({})
   const [categoryFormErrors, setCategoryFormErrors] = useState<{[key: string]: string}>({})
 
-  // Load data
+  
   useEffect(() => {
     if (user) {
       loadData()
@@ -88,7 +88,7 @@ export default function AdminServicesPage() {
     }, 3000)
   }
 
-  // Animation helper functions
+  
   const closeServiceDetails = () => {
     setIsServiceDetailsClosing(true)
     setTimeout(() => {
@@ -118,7 +118,7 @@ export default function AdminServicesPage() {
     }, 300)
   }
 
-  // Service CRUD operations
+  
   const handleSaveService = async (e: React.FormEvent) => {
     e.preventDefault()
     
@@ -128,7 +128,7 @@ export default function AdminServicesPage() {
     
     try {
       if (editingService) {
-        // Update existing service
+        
         const { error } = await supabase
           .from('services')
           .update({
@@ -144,7 +144,7 @@ export default function AdminServicesPage() {
         if (error) throw error
         showMessage('Service updated successfully')
       } else {
-        // Create new service
+        
         const { error } = await supabase
           .from('services')
           .insert([{
@@ -223,7 +223,7 @@ export default function AdminServicesPage() {
     return result.isValid
   }
 
-  // Category CRUD operations
+  
   const handleSaveCategory = async (e: React.FormEvent) => {
     e.preventDefault()
     
@@ -233,7 +233,7 @@ export default function AdminServicesPage() {
     
     try {
       if (editingCategory) {
-        // Update existing category
+        
         const { error } = await supabase
           .from('service_categories')
           .update({
@@ -247,7 +247,7 @@ export default function AdminServicesPage() {
         if (error) throw error
         showMessage('Category updated successfully')
       } else {
-        // Create new category
+        
         const { error } = await supabase
           .from('service_categories')
           .insert([{
@@ -784,7 +784,7 @@ export default function AdminServicesPage() {
                 <button
                   onClick={() => {
                     closeServiceDetails()
-                    // Delay the edit modal to allow close animation
+                    
                     setTimeout(() => handleEditService(viewingService), 100)
                   }}
                   className="flex-1 bg-[#F2C7EB] text-gray-900 px-4 py-3 rounded-lg font-medium hover:bg-[#E8A8D8] transition-colors"

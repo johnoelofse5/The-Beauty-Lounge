@@ -15,13 +15,13 @@ export default function ResetPasswordPage() {
   const [isValidSession, setIsValidSession] = useState(false)
 
   useEffect(() => {
-    // Check if we have a valid session for password reset
+    
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession()
       if (session) {
         setIsValidSession(true)
       } else {
-        // Try to get session from URL hash
+        
         const hashParams = new URLSearchParams(window.location.hash.substring(1))
         const accessToken = hashParams.get('access_token')
         const refreshToken = hashParams.get('refresh_token')
@@ -54,7 +54,7 @@ export default function ResetPasswordPage() {
       setConfirmPassword(value)
     }
     
-    if (error) setError(null) // Clear error when user starts typing
+    if (error) setError(null) 
   }
 
   const validateForm = (): boolean => {
@@ -97,7 +97,7 @@ export default function ResetPasswordPage() {
 
       setSuccess(true)
       
-      // Redirect to login after 3 seconds
+      
       setTimeout(() => {
         router.push('/login')
       }, 3000)

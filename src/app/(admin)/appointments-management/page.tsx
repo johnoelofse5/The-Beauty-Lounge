@@ -41,21 +41,17 @@ export default function AppointmentsPage() {
         return
       }
 
-      // Calculate date range based on view mode
       const { startDate, endDate } = getDateRange(currentDate, viewMode)
       
-      // Use role-based filtering
       const appointmentsData = await getFilteredAppointments(user.id, userRoleData.role)
       
-      // Filter by date range
       const filteredAppointments = appointmentsData.filter(apt => {
         const aptDate = apt.appointment_date
-        // Extract just the date part from timestamptz for comparison
         const aptDateOnly = aptDate.split('T')[0]
         return aptDateOnly >= startDate && aptDateOnly <= endDate
       })
 
-      // Load service details for each appointment
+      
       const appointmentsWithServices = await Promise.all(
         filteredAppointments.map(async (apt) => {
           const serviceIds = apt.service_ids || (apt.service_id ? [apt.service_id] : [])
@@ -94,14 +90,12 @@ export default function AppointmentsPage() {
     }
   }, [user, userRoleData, currentDate, viewMode])
 
-  // Load appointments
   useEffect(() => {
     if (user && userRoleData) {
       loadAppointments()
     }
   }, [user, userRoleData, loadAppointments])
 
-  // Helper function for date formatting to avoid timezone issues
   const formatDateForAPI = (date: Date) => {
     const year = date.getFullYear()
     const month = String(date.getMonth() + 1).padStart(2, '0')
@@ -115,16 +109,13 @@ export default function AppointmentsPage() {
 
     switch (mode) {
       case 'day':
-        // Same day
         break
       case 'week':
-        // Start of week to end of week
         const dayOfWeek = startDate.getDay()
         startDate.setDate(startDate.getDate() - dayOfWeek)
         endDate.setDate(endDate.getDate() + (6 - dayOfWeek))
         break
       case 'month':
-        // Start of month to end of month
         startDate.setDate(1)
         endDate.setMonth(endDate.getMonth() + 1)
         endDate.setDate(0)
@@ -138,7 +129,6 @@ export default function AppointmentsPage() {
   }
 
   const formatTime = (time: string): string => {
-    // If we have a datetime string, extract time and convert to local timezone
     if (time.includes('T') || time.includes('Z')) {
       const date = new Date(time)
       return date.toLocaleTimeString('en-US', {
@@ -148,7 +138,6 @@ export default function AppointmentsPage() {
         timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
       })
     }
-    // Fallback to old time parsing for backward compatibility
     const [hours, minutes] = time.split(':').map(Number)
     const period = hours >= 12 ? 'PM' : 'AM'
     const displayHours = hours > 12 ? hours - 12 : hours === 0 ? 12 : hours
@@ -156,7 +145,6 @@ export default function AppointmentsPage() {
   }
 
   const formatDate = (date: string): string => {
-    // If we have the new datetime column, use it for proper timezone handling
     if (date.includes('T') || date.includes('Z')) {
       return new Date(date).toLocaleDateString('en-US', {
         weekday: 'short',
@@ -165,7 +153,7 @@ export default function AppointmentsPage() {
         timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
       })
     }
-    // Fallback to old date parsing for backward compatibility
+    
     const [year, month, day] = date.split('-').map(Number)
     const localDate = new Date(year, month - 1, day)
     return localDate.toLocaleDateString('en-US', {
@@ -183,16 +171,16 @@ export default function AppointmentsPage() {
     return services.reduce((total, service) => total + (service.price || 0), 0)
   }
 
-  // Helper function to get the appropriate user info to display based on current user's role
+  
   const getDisplayUserInfo = (appointment: AppointmentExtended) => {
     
     if (!userRoleData?.role) return appointment.client
 
-    // If current user is a client, show practitioner info
+    
     if (canViewOwnAppointmentsOnly(userRoleData.role)) {
       return appointment.practitioner
     }
-    // If current user is a practitioner, show client info (handle external clients)
+    
     else if (isPractitioner(userRoleData.role)) {
       if (appointment.is_external_client) {
         return {
@@ -204,7 +192,7 @@ export default function AppointmentsPage() {
       }
       return appointment.client
     }
-    // If super admin, show client info by default (handle external clients)
+    
     else {
       if (appointment.is_external_client) {
         return {
@@ -218,7 +206,7 @@ export default function AppointmentsPage() {
     }
   }
 
-  // Set up intersection observer for scroll animations
+  
   useEffect(() => {
     observerRef.current = new IntersectionObserver(
       (entries) => {
@@ -250,7 +238,7 @@ export default function AppointmentsPage() {
     }
   }, [])
 
-  // Observe elements when they're rendered
+  
   useEffect(() => {
     if (observerRef.current && !loading) {
       const elementsToObserve = document.querySelectorAll('[data-animate-id]')
@@ -293,11 +281,11 @@ export default function AppointmentsPage() {
   }
 
   const openEditModal = () => {
-    // Close any other open modals first
+    
     setShowAppointmentModal(false)
     setShowCreateModal(false)
     setSelectedCreateDate(null)
-    // Open edit modal
+    
     setShowEditModal(true)
   }
 
@@ -310,11 +298,11 @@ export default function AppointmentsPage() {
   }
 
   const openCreateModal = (date: Date) => {
-    // Close any other open modals first
+    
     setShowAppointmentModal(false)
     setShowEditModal(false)
     setSelectedAppointment(null)
-    // Open create modal
+    
     setSelectedCreateDate(date)
     setShowCreateModal(true)
   }
@@ -328,7 +316,7 @@ export default function AppointmentsPage() {
     }, 300)
   }
 
-  // Helper function to format date as YYYY-MM-DD in local timezone
+  
   const formatDateForDB = (date: Date) => {
     const year = date.getFullYear()
     const month = String(date.getMonth() + 1).padStart(2, '0')
@@ -338,20 +326,20 @@ export default function AppointmentsPage() {
 
   const getAppointmentsForDate = (date: string) => {
     return appointments.filter(apt => {
-      // Handle timestamptz columns - extract date part for comparison
+      
       if (apt.appointment_date && apt.appointment_date.includes('T')) {
         const aptDate = new Date(apt.appointment_date)
         const aptDateString = formatDateForAPI(aptDate)
         return aptDateString === date
       }
-      // Fallback for old format
+      
       return apt.appointment_date === date
     })
   }
 
   const getAppointmentsForTimeSlot = (date: string, hour: number) => {
     return appointments.filter(apt => {
-      // Handle timestamptz columns
+      
       if (apt.appointment_date && apt.appointment_date.includes('T')) {
         const aptDate = new Date(apt.appointment_date)
         const aptDateString = formatDateForAPI(aptDate)
@@ -360,7 +348,7 @@ export default function AppointmentsPage() {
         const startHour = aptStartTime.getHours()
         return startHour === hour
       }
-      // Fallback for old format
+      
       if (apt.appointment_date !== date) return false
       const startHour = parseInt(apt.start_time.split(':')[0])
       return startHour === hour
@@ -582,7 +570,7 @@ export default function AppointmentsPage() {
       currentDay.setDate(currentDay.getDate() + 1)
     }
     
-    // Get all appointments for the current month
+    
     const currentMonthDays = days.filter(day => day.getMonth() === month)
     const monthAppointments = currentMonthDays.map(day => {
       const dateStr = formatDateForDB(day)
@@ -945,7 +933,7 @@ export default function AppointmentsPage() {
                   {(() => {
                     return userRoleData?.role && canViewOwnAppointmentsOnly(userRoleData.role)
                   })() ? (
-                    // Client viewing appointments - show practitioner info first
+                    
                     <>
                       {/* Practitioner Information */}
                       <div>
@@ -1025,7 +1013,7 @@ export default function AppointmentsPage() {
                       </div>
                     </>
                   ) : (
-                    // Practitioner or admin viewing appointments - show client info first
+                    
                     <>
                       {/* Client Information */}
                       <div>
@@ -1222,7 +1210,7 @@ export default function AppointmentsPage() {
   )
 }
 
-// Create Appointment Modal Component
+
 function CreateAppointmentModal({
   selectedDate,
   isClosing,
@@ -1257,7 +1245,7 @@ function CreateAppointmentModal({
   const [existingAppointments, setExistingAppointments] = useState<any[]>([])
   const [loadingSlots, setLoadingSlots] = useState(false)
 
-  // Helper function to format date for API
+  
   const formatDateForAPI = (date: Date) => {
     const year = date.getFullYear()
     const month = String(date.getMonth() + 1).padStart(2, '0')
@@ -1265,7 +1253,7 @@ function CreateAppointmentModal({
     return `${year}-${month}-${day}`
   }
 
-  // Load existing appointments for the selected date and practitioner
+  
   const loadExistingAppointments = useCallback(async () => {
     if (!selectedDate || !selectedPractitioner) {
       setExistingAppointments([])
@@ -1275,10 +1263,10 @@ function CreateAppointmentModal({
     try {
       setLoadingSlots(true)
       
-      // Clear existing appointments first to prevent stale data
+      
       setExistingAppointments([])
       
-      // Format the selected date for comparison
+      
       const selectedDateStr = formatDateForAPI(selectedDate)
       
       const { data, error } = await supabase
@@ -1300,7 +1288,7 @@ function CreateAppointmentModal({
     }
   }, [selectedDate, selectedPractitioner])
 
-  // Load existing appointments when date or practitioner changes
+  
   useEffect(() => {
     if (selectedDate && selectedPractitioner) {
       loadExistingAppointments()
@@ -1309,7 +1297,7 @@ function CreateAppointmentModal({
     }
   }, [selectedDate, selectedPractitioner, loadExistingAppointments])
 
-  // Load data on mount
+  
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -1323,15 +1311,15 @@ function CreateAppointmentModal({
         setPractitioners(practitionersData.data || [])
         setClients(clientsData.data || [])
         
-        // Set practitioner based on user role
+        
         if (userRoleData?.role?.name === 'practitioner') {
-          // If current user is a practitioner, set them as the selected practitioner
+          
           const currentPractitioner = practitionersData.data?.find(p => p.id === userRoleData.user?.id)
           if (currentPractitioner) {
             setSelectedPractitioner(currentPractitioner)
           }
         } else if (userRoleData?.role?.name === 'super_admin' && practitionersData.data && practitionersData.data.length > 0) {
-          // If admin, select first practitioner by default
+          
           setSelectedPractitioner(practitionersData.data[0])
         }
       } catch (err) {
@@ -1384,7 +1372,7 @@ function CreateAppointmentModal({
         return
       }
 
-      // Calculate end time based on total service duration
+      
       const totalDuration = selectedServices.reduce((sum, service) => sum + service.duration_minutes, 0)
       const [hours, minutes] = selectedTimeSlot.split(':').map(Number)
       const startTimeMinutes = hours * 60 + minutes
@@ -1393,7 +1381,7 @@ function CreateAppointmentModal({
       const endMins = endTimeMinutes % 60
       const endTimeString = `${endHours.toString().padStart(2, '0')}:${endMins.toString().padStart(2, '0')}`
 
-      // Format date for database using local date formatting to avoid timezone issues
+      
       const year = selectedDate.getFullYear()
       const month = String(selectedDate.getMonth() + 1).padStart(2, '0')
       const day = String(selectedDate.getDate()).padStart(2, '0')
@@ -1401,7 +1389,7 @@ function CreateAppointmentModal({
       const appointmentDateTime = new Date(`${dateString}T${selectedTimeSlot}`).toISOString()
       const endDateTime = new Date(`${dateString}T${endTimeString}`).toISOString()
 
-      // Create appointment
+      
       const appointmentData = {
         user_id: isExternalClient ? null : selectedClient!.id,
         practitioner_id: selectedPractitioner.id,
@@ -1432,7 +1420,7 @@ function CreateAppointmentModal({
         return
       }
 
-      // Send SMS notifications
+      
       try {
         await AppointmentSMSService.sendAppointmentNotifications(insertedAppointment.id, 'confirmation')
       } catch (smsError) {
