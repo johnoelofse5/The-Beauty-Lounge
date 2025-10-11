@@ -133,32 +133,40 @@ body {
 }
 
 /* Shadcn/ui utility classes */
-.bg-background { 
-  background-color: hsl(var(--background)); 
+.bg-background {
+  background-color: hsl(var(--background));
 }
-.text-foreground { 
-  color: hsl(var(--foreground)); 
+
+.text-foreground {
+  color: hsl(var(--foreground));
 }
-.bg-popover { 
-  background-color: hsl(var(--popover)); 
+
+.bg-popover {
+  background-color: hsl(var(--popover));
 }
-.text-popover-foreground { 
-  color: hsl(var(--popover-foreground)); 
+
+.text-popover-foreground {
+  color: hsl(var(--popover-foreground));
 }
-.bg-accent { 
-  background-color: hsl(var(--accent)); 
+
+.bg-accent {
+  background-color: hsl(var(--accent));
 }
-.text-accent-foreground { 
-  color: hsl(var(--accent-foreground)); 
+
+.text-accent-foreground {
+  color: hsl(var(--accent-foreground));
 }
-.text-muted-foreground { 
-  color: hsl(var(--muted-foreground)); 
+
+.text-muted-foreground {
+  color: hsl(var(--muted-foreground));
 }
-.border-input { 
-  border-color: hsl(var(--input)); 
+
+.border-input {
+  border-color: hsl(var(--input));
 }
-.border-border { 
-  border-color: hsl(var(--border)); 
+
+.border-border {
+  border-color: hsl(var(--border));
 }
 
 /* Line clamp utility for truncating text */
@@ -171,11 +179,15 @@ body {
 
 /* Hide scrollbar utility */
 .scrollbar-hide {
-  -ms-overflow-style: none;  /* Internet Explorer 10+ */
-  scrollbar-width: none;  /* Firefox */
+  -ms-overflow-style: none;
+  /* Internet Explorer 10+ */
+  scrollbar-width: none;
+  /* Firefox */
 }
-.scrollbar-hide::-webkit-scrollbar { 
-  display: none;  /* Safari and Chrome */
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+  /* Safari and Chrome */
 }
 
 /* Modal animation classes */
@@ -191,6 +203,7 @@ body {
   from {
     transform: translateY(100%);
   }
+
   to {
     transform: translateY(0);
   }
@@ -200,6 +213,7 @@ body {
   from {
     transform: translate(-50%, 100%);
   }
+
   to {
     transform: translate(-50%, -50%);
   }
@@ -244,34 +258,44 @@ body {
 .light .bg-gray-50 {
   background: linear-gradient(135deg, #f9fafb, #f3f4f6) !important;
 }
+
 .light .bg-gray-100 {
   background: linear-gradient(135deg, #f3f4f6, #e5e7eb) !important;
 }
+
 .light .bg-white {
   background: linear-gradient(135deg, #ffffff, #f8fafc) !important;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
 }
+
 .light .bg-gray-200 {
   background: linear-gradient(135deg, #e5e7eb, #d1d5db) !important;
 }
+
 .light .bg-gray-300 {
   background: linear-gradient(135deg, #d1d5db, #9ca3af) !important;
 }
+
 .light .bg-gray-400 {
   background: linear-gradient(135deg, #9ca3af, #6b7280) !important;
 }
+
 .light .bg-gray-500 {
   background: linear-gradient(135deg, #6b7280, #4b5563) !important;
 }
+
 .light .bg-gray-600 {
   background: linear-gradient(135deg, #4b5563, #374151) !important;
 }
+
 .light .bg-gray-700 {
   background: linear-gradient(135deg, #374151, #1f2937) !important;
 }
+
 .light .bg-gray-800 {
   background: linear-gradient(135deg, #1f2937, #111827) !important;
 }
+
 .light .bg-gray-900 {
   background: linear-gradient(135deg, #111827, #0f172a) !important;
 }
@@ -279,18 +303,23 @@ body {
 .light .text-gray-900 {
   color: #111827 !important;
 }
+
 .light .text-gray-800 {
   color: #1f2937 !important;
 }
+
 .light .text-gray-700 {
   color: #374151 !important;
 }
+
 .light .text-gray-600 {
   color: #4b5563 !important;
 }
+
 .light .text-gray-500 {
   color: #6b7280 !important;
 }
+
 .light .text-gray-400 {
   color: #9ca3af !important;
 }
@@ -298,9 +327,11 @@ body {
 .light .border-gray-300 {
   border-color: #d1d5db !important;
 }
+
 .light .border-gray-200 {
   border-color: #e5e7eb !important;
 }
+
 .light .border-gray-100 {
   border-color: #f3f4f6 !important;
 }
@@ -487,34 +518,44 @@ body {
 .dark .bg-gray-50 {
   background: linear-gradient(135deg, oklch(0.145 0 0), oklch(0.165 0.02 300)) !important;
 }
+
 .dark .bg-gray-100 {
   background: linear-gradient(135deg, oklch(0.165 0.02 300), oklch(0.185 0.03 320)) !important;
 }
+
 .dark .bg-white {
   background: linear-gradient(135deg, oklch(0.185 0.03 320), oklch(0.205 0.04 340)) !important;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2) !important;
 }
+
 .dark .bg-gray-200 {
   background: linear-gradient(135deg, oklch(0.165 0.02 300), oklch(0.185 0.03 320)) !important;
 }
+
 .dark .bg-gray-300 {
   background: linear-gradient(135deg, oklch(0.185 0.03 320), oklch(0.205 0.04 340)) !important;
 }
+
 .dark .bg-gray-400 {
   background: linear-gradient(135deg, oklch(0.205 0.04 340), oklch(0.225 0.05 360)) !important;
 }
+
 .dark .bg-gray-500 {
   background: linear-gradient(135deg, oklch(0.225 0.05 360), oklch(0.245 0.06 20)) !important;
 }
+
 .dark .bg-gray-600 {
   background: linear-gradient(135deg, oklch(0.245 0.06 20), oklch(0.265 0.07 40)) !important;
 }
+
 .dark .bg-gray-700 {
   background: linear-gradient(135deg, oklch(0.265 0.07 40), oklch(0.285 0.08 60)) !important;
 }
+
 .dark .bg-gray-800 {
   background: linear-gradient(135deg, oklch(0.285 0.08 60), oklch(0.305 0.09 80)) !important;
 }
+
 .dark .bg-gray-900 {
   background: linear-gradient(135deg, oklch(0.305 0.09 80), oklch(0.325 0.10 100)) !important;
 }
@@ -522,18 +563,23 @@ body {
 .dark .text-gray-900 {
   color: oklch(0.985 0 0) !important;
 }
+
 .dark .text-gray-800 {
   color: oklch(0.985 0 0) !important;
 }
+
 .dark .text-gray-700 {
   color: oklch(0.985 0 0) !important;
 }
+
 .dark .text-gray-600 {
   color: oklch(0.708 0 0) !important;
 }
+
 .dark .text-gray-500 {
   color: oklch(0.708 0 0) !important;
 }
+
 .dark .text-gray-400 {
   color: oklch(0.708 0 0) !important;
 }
@@ -541,9 +587,11 @@ body {
 .dark .border-gray-300 {
   border-color: oklch(0.269 0 0) !important;
 }
+
 .dark .border-gray-200 {
   border-color: oklch(0.269 0 0) !important;
 }
+
 .dark .border-gray-100 {
   border-color: oklch(0.269 0 0) !important;
 }
@@ -811,157 +859,196 @@ body {
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
   }
-  
+
   /* Smooth transitions for theme changes */
   * {
     transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
   }
-  
-/* Dark mode specific adjustments - only when system prefers dark */
-@media (prefers-color-scheme: dark) {
-  /* Only apply when no manual theme is set */
-  :root:not(.light) .bg-gray-50 {
-    background-color: oklch(0.145 0 0) !important;
+
+  /* Dark mode specific adjustments - only when system prefers dark */
+  @media (prefers-color-scheme: dark) {
+
+    /* Only apply when no manual theme is set */
+    :root.dark,
+    :root:not(.light) .bg-gray-50 {
+      background-color: oklch(0.145 0 0) !important;
+    }
+
+    :root.dark,
+    :root:not(.light) .bg-gray-100 {
+      background-color: oklch(0.145 0 0) !important;
+    }
+
+    :root.dark,
+    :root:not(.light) .bg-white {
+      background-color: oklch(0.145 0 0) !important;
+    }
+
+    :root.dark,
+    :root:not(.light) .bg-gray-200 {
+      background-color: oklch(0.145 0 0) !important;
+    }
+    :root.dark,
+    :root:not(.light) .bg-gray-300 {
+      background-color: oklch(0.145 0 0) !important;
+    }
+    :root.dark,
+    :root:not(.light) .bg-gray-400 {
+      background-color: oklch(0.145 0 0) !important;
+    }
+    :root.dark,
+    :root:not(.light) .bg-gray-500 {
+      background-color: oklch(0.145 0 0) !important;
+    }
+    :root.dark,
+    :root:not(.light) .bg-gray-600 {
+      background-color: oklch(0.145 0 0) !important;
+    }
+    :root.dark,
+    :root:not(.light) .bg-gray-700 {
+      background-color: oklch(0.145 0 0) !important;
+    }
+    :root.dark,
+    :root:not(.light) .bg-gray-800 {
+      background-color: oklch(0.145 0 0) !important;
+    }
+    :root.dark,
+    :root:not(.light) .bg-gray-900 {
+      background-color: oklch(0.145 0 0) !important;
+    }
+    :root.dark,
+    /* Text colors for dark mode */
+    :root:not(.light) .text-gray-900 {
+      color: oklch(0.985 0 0) !important;
+    }
+    :root.dark,
+    :root:not(.light) .text-gray-800 {
+      color: oklch(0.985 0 0) !important;
+    }
+    :root.dark,
+    :root:not(.light) .text-gray-700 {
+      color: oklch(0.985 0 0) !important;
+    }
+    :root.dark,
+    :root:not(.light) .text-gray-600 {
+      color: oklch(0.708 0 0) !important;
+    }
+    :root.dark,
+    :root:not(.light) .text-gray-500 {
+      color: oklch(0.708 0 0) !important;
+    }
+    :root.dark,
+    :root:not(.light) .text-gray-400 {
+      color: oklch(0.708 0 0) !important;
+    }
+    :root.dark,
+    /* Border colors for dark mode */
+    :root:not(.light) .border-gray-300 {
+      border-color: oklch(0.269 0 0) !important;
+    }
+    :root.dark,
+    :root:not(.light) .border-gray-200 {
+      border-color: oklch(0.269 0 0) !important;
+    }
+
+    :root.dark,
+    :root:not(.light) .border-gray-100 {
+      border-color: oklch(0.269 0 0) !important;
+    }
+
+    /* Custom dark mode styles for your brand colors */
+    :root.dark,
+    :root:not(.light) .bg-gradient-to-br {
+      background: linear-gradient(to bottom right, #1a1a1a, #2d1b2d);
+    }
+
+    /* Force main content areas to use consistent dark shade */
+    :root.dark,
+    :root:not(.light) main {
+      background-color: oklch(0.145 0 0) !important;
+    }
+
+    /* Target any white containers or cards */
+    :root.dark,
+    :root:not(.light) .bg-white,
+    :root:not(.light) [class*="bg-white"],
+    :root:not(.light) .card,
+    :root:not(.light) .container,
+    :root:not(.light) .content,
+    :root.dark,
+    :root:not(.light) .main-content {
+      background-color: oklch(0.145 0 0) !important;
+    }
+
+    /* Ensure all containers use the same dark shade */
+    :root.dark,
+    :root:not(.light) div[class*="bg-"]:not([class*="bg-transparent"]):not([class*="bg-current"]) {
+      background-color: oklch(0.145 0 0) !important;
+    }
+
+    /* Target specific common container classes */
+    :root.dark,
+    :root:not(.light) .rounded-lg,
+    :root:not(.light) .rounded-md,
+    :root:not(.light) .rounded-xl,
+    :root:not(.light) .shadow-sm,
+    :root.dark,
+    :root:not(.light) .shadow-md,
+    :root:not(.light) .shadow-lg,
+    :root:not(.light) .p-4,
+    :root:not(.light) .p-6,
+    :root.dark,
+    :root:not(.light) .p-8,
+    :root:not(.light) .px-4,
+    :root:not(.light) .py-4,
+    :root:not(.light) .px-6,
+    :root.dark,
+    :root:not(.light) .py-6 {
+      background-color: oklch(0.145 0 0) !important;
+    }
+
+    /* Ensure header bar matches sidebar */
+    :root.dark,
+    :root:not(.light) header {
+      background-color: oklch(0.145 0 0) !important;
+    }
+
+    /* Target any remaining white backgrounds */
+    :root.dark,
+    :root:not(.light) [style*="background-color: white"],
+    :root:not(.light) [style*="background-color: #fff"],
+    :root:not(.light) [style*="background-color: #ffffff"] {
+      background-color: oklch(0.145 0 0) !important;
+    }
+
+    /* Sidebar trigger button dark mode styling */
+    :root.dark,
+    :root:not(.light) [data-sidebar="trigger"] {
+      background-color: oklch(0.269 0 0) !important;
+      color: oklch(0.985 0 0) !important;
+      border-color: oklch(0.269 0 0) !important;
+    }
+
+    :root.dark,
+    :root:not(.light) [data-sidebar="trigger"]:hover {
+      background-color: oklch(0.205 0 0) !important;
+      color: oklch(0.985 0 0) !important;
+    }
+
+    /* Header dark mode styling */
+    :root.dark,
+    :root:not(.light) header {
+      background-color: oklch(0.145 0 0) !important;
+      border-color: oklch(0.269 0 0) !important;
+    }
+
+    :root.dark,
+    :root:not(.light) header h1 {
+      color: oklch(0.985 0 0) !important;
+    }
   }
-  :root:not(.light) .bg-gray-100 {
-    background-color: oklch(0.145 0 0) !important;
-  }
-  :root:not(.light) .bg-white {
-    background-color: oklch(0.145 0 0) !important;
-  }
-  :root:not(.light) .bg-gray-200 {
-    background-color: oklch(0.145 0 0) !important;
-  }
-  :root:not(.light) .bg-gray-300 {
-    background-color: oklch(0.145 0 0) !important;
-  }
-  :root:not(.light) .bg-gray-400 {
-    background-color: oklch(0.145 0 0) !important;
-  }
-  :root:not(.light) .bg-gray-500 {
-    background-color: oklch(0.145 0 0) !important;
-  }
-  :root:not(.light) .bg-gray-600 {
-    background-color: oklch(0.145 0 0) !important;
-  }
-  :root:not(.light) .bg-gray-700 {
-    background-color: oklch(0.145 0 0) !important;
-  }
-  :root:not(.light) .bg-gray-800 {
-    background-color: oklch(0.145 0 0) !important;
-  }
-  :root:not(.light) .bg-gray-900 {
-    background-color: oklch(0.145 0 0) !important;
-  }
-  
-  /* Text colors for dark mode */
-  :root:not(.light) .text-gray-900 {
-    color: oklch(0.985 0 0) !important;
-  }
-  :root:not(.light) .text-gray-800 {
-    color: oklch(0.985 0 0) !important;
-  }
-  :root:not(.light) .text-gray-700 {
-    color: oklch(0.985 0 0) !important;
-  }
-  :root:not(.light) .text-gray-600 {
-    color: oklch(0.708 0 0) !important;
-  }
-  :root:not(.light) .text-gray-500 {
-    color: oklch(0.708 0 0) !important;
-  }
-  :root:not(.light) .text-gray-400 {
-    color: oklch(0.708 0 0) !important;
-  }
-  
-  /* Border colors for dark mode */
-  :root:not(.light) .border-gray-300 {
-    border-color: oklch(0.269 0 0) !important;
-  }
-  :root:not(.light) .border-gray-200 {
-    border-color: oklch(0.269 0 0) !important;
-  }
-  :root:not(.light) .border-gray-100 {
-    border-color: oklch(0.269 0 0) !important;
-  }
-  
-  /* Custom dark mode styles for your brand colors */
-  :root:not(.light) .bg-gradient-to-br {
-    background: linear-gradient(to bottom right, #1a1a1a, #2d1b2d);
-  }
-  
-  /* Force main content areas to use consistent dark shade */
-  :root:not(.light) main {
-    background-color: oklch(0.145 0 0) !important;
-  }
-  
-  /* Target any white containers or cards */
-  :root:not(.light) .bg-white,
-  :root:not(.light) [class*="bg-white"],
-  :root:not(.light) .card,
-  :root:not(.light) .container,
-  :root:not(.light) .content,
-  :root:not(.light) .main-content {
-    background-color: oklch(0.145 0 0) !important;
-  }
-  
-  /* Ensure all containers use the same dark shade */
-  :root:not(.light) div[class*="bg-"]:not([class*="bg-transparent"]):not([class*="bg-current"]) {
-    background-color: oklch(0.145 0 0) !important;
-  }
-  
-  /* Target specific common container classes */
-  :root:not(.light) .rounded-lg,
-  :root:not(.light) .rounded-md,
-  :root:not(.light) .rounded-xl,
-  :root:not(.light) .shadow-sm,
-  :root:not(.light) .shadow-md,
-  :root:not(.light) .shadow-lg,
-  :root:not(.light) .p-4,
-  :root:not(.light) .p-6,
-  :root:not(.light) .p-8,
-  :root:not(.light) .px-4,
-  :root:not(.light) .py-4,
-  :root:not(.light) .px-6,
-  :root:not(.light) .py-6 {
-    background-color: oklch(0.145 0 0) !important;
-  }
-  
-  /* Ensure header bar matches sidebar */
-  :root:not(.light) header {
-    background-color: oklch(0.145 0 0) !important;
-  }
-  
-  /* Target any remaining white backgrounds */
-  :root:not(.light) [style*="background-color: white"],
-  :root:not(.light) [style*="background-color: #fff"],
-  :root:not(.light) [style*="background-color: #ffffff"] {
-    background-color: oklch(0.145 0 0) !important;
-  }
-  
-  /* Sidebar trigger button dark mode styling */
-  :root:not(.light) [data-sidebar="trigger"] {
-    background-color: oklch(0.269 0 0) !important;
-    color: oklch(0.985 0 0) !important;
-    border-color: oklch(0.269 0 0) !important;
-  }
-  
-  :root:not(.light) [data-sidebar="trigger"]:hover {
-    background-color: oklch(0.205 0 0) !important;
-    color: oklch(0.985 0 0) !important;
-  }
-  
-  /* Header dark mode styling */
-  :root:not(.light) header {
-    background-color: oklch(0.145 0 0) !important;
-    border-color: oklch(0.269 0 0) !important;
-  }
-  
-  :root:not(.light) header h1 {
-    color: oklch(0.985 0 0) !important;
-  }
-}
 }
