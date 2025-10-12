@@ -7,16 +7,15 @@ import { CheckCircle, XCircle, Clock, User, Calendar, Phone, Mail } from 'lucide
 import { AppointmentCompletionNotificationProps, CompletedAppointment } from '@/types'
 import { useToast } from '@/contexts/ToastContext'
 import { AppointmentCompletionService } from '@/lib/appointment-completion-service'
+import { isPractitioner, isSuperAdmin } from '@/lib/rbac'
+import { useAuth } from '@/contexts/AuthContext'
 
 export default function AppointmentCompletionNotification({ onClose }: AppointmentCompletionNotificationProps) {
   const [appointments, setAppointments] = useState<CompletedAppointment[]>([])
   const [loading, setLoading] = useState(true)
   const [processingIds, setProcessingIds] = useState<Set<string>>(new Set())
   const { showSuccess, showError } = useToast()
-
-  useEffect(() => {
-    loadCompletedAppointments()
-  }, [])
+  const { userRoleData } = useAuth()
 
   const loadCompletedAppointments = async () => {
     try {
@@ -29,6 +28,16 @@ export default function AppointmentCompletionNotification({ onClose }: Appointme
     } finally {
       setLoading(false)
     }
+  }
+
+  useEffect(() => {
+    loadCompletedAppointments()
+  }, [])
+
+  const canAccessNotification = userRoleData?.role && (isPractitioner(userRoleData.role) || isSuperAdmin(userRoleData.role))
+  
+  if (!canAccessNotification) {
+    return null
   }
 
   const handleMarkCompleted = async (appointmentId: string) => {
