@@ -158,7 +158,7 @@ export default function SignUpPage() {
       showSuccess('Account created successfully! Redirecting to login...')
       setSuccess(true)
       setTimeout(() => {
-        router.push('/login')
+        router.push('/')
       }, 2000)
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to verify OTP and create account'

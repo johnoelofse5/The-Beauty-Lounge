@@ -14,14 +14,14 @@ const AuthContext = createContext<AuthContextType>({
   session: null,
   loading: true,
   userRoleData: null,
-  signUp: async () => {},
-  signIn: async () => {},
-  signUpWithPhone: async () => {},
-  signInWithPhone: async () => {},
-  sendOTP: async () => {},
+  signUp: async () => { },
+  signIn: async () => { },
+  signUpWithPhone: async () => { },
+  signInWithPhone: async () => { },
+  sendOTP: async () => { },
   verifyOTP: async () => false,
-  signOut: async () => {},
-  resetPassword: async () => {},
+  signOut: async () => { },
+  resetPassword: async () => { },
 })
 
 export const useAuth = () => {
@@ -39,7 +39,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true)
   const [userRoleData, setUserRoleData] = useState<UserWithRoleAndPermissions | null>(null)
 
-  
+
   useEffect(() => {
     const loadUserRoleData = async () => {
       if (user?.id) {
@@ -54,11 +54,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, [user])
 
   useEffect(() => {
-    
+
     supabase.auth.getSession().then(({ data: { session }, error }) => {
       if (error) {
         console.error('Error getting session:', error)
-        
+
         setSession(null)
         setUser(null)
         setUserRoleData(null)
@@ -69,15 +69,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setLoading(false)
     })
 
-    
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        
+
         if (event === 'SIGNED_OUT') {
           setSession(null)
           setUser(null)
           setUserRoleData(null)
-          
+
           router.push('/')
         } else if (event === 'TOKEN_REFRESHED') {
           setSession(session)
@@ -94,7 +94,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, [router])
 
   const signUp = async (email: string, password: string, userData?: UserSignUpData) => {
-    
+
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
@@ -111,10 +111,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       throw new Error(authError.message)
     }
 
-    
+
     if (authData.user) {
       try {
-        
+
         const { data: clientRole, error: roleError } = await supabase
           .from('roles')
           .select('id')
@@ -123,10 +123,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
         if (roleError) {
           console.error('Error fetching client role:', roleError)
-          
+
         }
 
-        
+
         const { error: userError } = await supabase
           .from('users')
           .insert({
@@ -135,19 +135,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             first_name: userData?.first_name || '',
             last_name: userData?.last_name || '',
             phone: userData?.phone || '',
-            role_id: clientRole?.id || null, 
+            role_id: clientRole?.id || null,
             is_active: true,
             is_deleted: false
           })
 
         if (userError) {
           console.error('Error creating user record:', userError)
-          
-          
+
+
         }
       } catch (err) {
         console.error('Error in user creation process:', err)
-        
+
       }
     }
   }
@@ -167,11 +167,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       const { error } = await supabase.auth.signOut()
       if (error) {
-        
-        
+
+
         if (error.message.includes('session_not_found') || error.message.includes('Session from session_id claim in JWT does not exist')) {
           console.warn('Session already expired, clearing local state and redirecting to login')
-          
+
           setSession(null)
           setUser(null)
           setUserRoleData(null)
@@ -180,11 +180,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }
         throw new Error(error.message)
       }
-      
+
       router.push('/')
     } catch (err) {
-      
-      
+
+
       console.error('Error during logout:', err)
       setSession(null)
       setUser(null)
@@ -195,35 +195,35 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const resetPassword = async (email: string) => {
     let trackingId: string | null = null
-    
+
     try {
-      
+
       const tracking = await trackPasswordResetEmail(email, {
         user_email: email,
         reset_requested_at: new Date().toISOString()
       })
       trackingId = tracking.id
 
-      
+
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/reset-password`,
       })
 
       if (error) {
-        
+
         if (trackingId) {
           await markEmailAsFailed(trackingId, error.message)
         }
         throw new Error(error.message)
       }
 
-      
+
       if (trackingId) {
         await markEmailAsSent(trackingId)
       }
 
     } catch (err) {
-      
+
       if (trackingId) {
         await markEmailAsFailed(trackingId, err instanceof Error ? err.message : 'Unknown error')
       }
@@ -231,7 +231,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }
 
-  
+
   const sendOTP = async (phone: string, purpose: 'signup' | 'signin' | 'password_reset') => {
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/send-otp`, {
@@ -277,15 +277,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }
 
   const signUpWithPhone = async (phone: string, firstName: string, lastName: string, otpCode: string) => {
-    
+
     await verifyOTP(phone, otpCode, 'signup')
 
-    
+
     const tempPassword = `temp_${phone}_${Date.now()}`
-    
-    
+
+
     const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: `${phone}@temp.mobile`, 
+      email: `${phone}@temp.mobile`,
       password: tempPassword,
       options: {
         data: {
@@ -300,25 +300,27 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       throw new Error(authError.message)
     }
 
-    
+
     if (authData.user) {
-      
+
       const { data: existingUser, error: checkError } = await supabase
         .from('users')
         .select('id, phone, first_name, last_name')
         .eq('id', authData.user.id)
         .single()
 
-      if (existingUser && !checkError) {
-        
-        if (existingUser.phone === phone) {
-          throw new Error('User already exists with this phone number. Please try logging in instead.')
-        } else {
-          throw new Error('User already exists with a different phone number. Please contact support.')
-        }
+      if (existingUser && !checkError && existingUser?.phone === phone) {
+        throw new Error('User already exists with this phone number. Please try logging in instead.')
+      }
+      if (
+        typeof existingUser?.phone === "string" &&
+        existingUser?.phone.trim() &&
+        existingUser?.phone !== phone
+      ) {
+        throw new Error('User already exists with a different phone number. Please contact support.')
       }
 
-      
+
       const { data: clientRole, error: roleError } = await supabase
         .from('roles')
         .select('id')
@@ -327,16 +329,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       if (roleError) {
         console.error('Error fetching client role:', roleError)
-        
+
       }
 
-      
-      
+
+
       const { error: userError } = await supabase
         .from('users')
         .upsert({
           id: authData.user.id,
-          email: `${phone}@temp.mobile`, 
+          email: `${phone}@temp.mobile`,
           first_name: firstName,
           last_name: lastName,
           phone: phone,
@@ -344,11 +346,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           is_active: true,
           is_deleted: false
         }, {
-          onConflict: 'id' 
+          onConflict: 'id'
         })
 
       if (userError) {
-        
+
         if (userError.code === '23505') {
           throw new Error('User already exists. Please try logging in instead.')
         } else if (userError.code === '42703') {
@@ -361,10 +363,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }
 
   const signInWithPhone = async (phone: string, otpCode: string) => {
-    
+
     await verifyOTP(phone, otpCode, 'signin')
 
-    
+
     const { data: userData, error: userError } = await supabase
       .from('users')
       .select('*')
@@ -377,7 +379,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       throw new Error('User not found. Please sign up first.')
     }
 
-    
+
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/create-mobile-session`, {
         method: 'POST',
@@ -385,7 +387,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
         },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           userId: userData.id,
           email: userData.email,
           phone: phone
@@ -398,9 +400,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         throw new Error(data.message || 'Failed to create session')
       }
 
-      
+
       const tempPassword = data.tempPassword
-      
+
       const { error: signInError } = await supabase.auth.signInWithPassword({
         email: userData.email,
         password: tempPassword
@@ -410,22 +412,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         throw new Error('Session creation failed. Please try again.')
       }
 
-      
-      
-      
+
+
+
     } catch (error) {
       throw new Error('Authentication failed. Please try again.')
     }
   }
 
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      session, 
+    <AuthContext.Provider value={{
+      user,
+      session,
       loading,
       userRoleData,
-      signUp, 
-      signIn, 
+      signUp,
+      signIn,
       signUpWithPhone,
       signInWithPhone,
       sendOTP,
