@@ -3,12 +3,14 @@
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { CheckCircle, XCircle, Clock, User, Calendar, Phone, Mail } from 'lucide-react'
+import { CheckCircle, XCircle, Clock, User, Calendar, Phone, Mail, Receipt } from 'lucide-react'
 import { AppointmentCompletionNotificationProps, CompletedAppointment } from '@/types'
 import { useToast } from '@/contexts/ToastContext'
 import { AppointmentCompletionService } from '@/lib/appointment-completion-service'
 import { isPractitioner, isSuperAdmin } from '@/lib/rbac'
 import { useAuth } from '@/contexts/AuthContext'
+import { InvoiceService } from '@/lib/invoice-service'
+import { InvoiceSMSService } from '@/lib/invoice-sms-service'
 
 export default function AppointmentCompletionNotification({ onClose }: AppointmentCompletionNotificationProps) {
   const [appointments, setAppointments] = useState<CompletedAppointment[]>([])
@@ -71,6 +73,34 @@ export default function AppointmentCompletionNotification({ onClose }: Appointme
     } catch (error) {
       console.error('Error marking appointment as cancelled:', error)
       showError('Failed to mark appointment as cancelled')
+    } finally {
+      setProcessingIds(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(appointmentId)
+        return newSet
+      })
+    }
+  }
+
+  const handleSendInvoice = async (appointmentId: string) => {
+    try {
+      setProcessingIds(prev => new Set(prev).add(appointmentId))
+      
+      const invoiceStatus = await InvoiceSMSService.getInvoiceStatus(appointmentId)
+      if (invoiceStatus.data?.invoice_exists) {
+        showError('Invoice already sent for this appointment')
+        return
+      }
+
+      const result = await InvoiceSMSService.sendInvoiceSMS(appointmentId)
+
+      if (result.success) {
+        showSuccess('Invoice sent successfully via SMS!')
+      } else {
+        showError(`Failed to send invoice: ${result.message}`)
+      }
+    } catch (error) {
+      showError('Failed to send invoice')
     } finally {
       setProcessingIds(prev => {
         const newSet = new Set(prev)
@@ -160,26 +190,39 @@ export default function AppointmentCompletionNotification({ onClose }: Appointme
             </div>
 
             {/* Action Buttons */}
-            <div className="flex space-x-2">
-              <Button
-                size="sm"
-                className="flex-1 bg-green-600 hover:bg-green-700 text-white"
-                onClick={() => handleMarkCompleted(appointment.id)}
-                disabled={processingIds.has(appointment.id)}
-              >
-                <CheckCircle className="h-4 w-4 mr-1" />
-                Completed
-              </Button>
+            <div className="space-y-2">
+              <div className="flex space-x-2">
+                <Button
+                  size="sm"
+                  className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                  onClick={() => handleMarkCompleted(appointment.id)}
+                  disabled={processingIds.has(appointment.id)}
+                >
+                  <CheckCircle className="h-4 w-4 mr-1" />
+                  Completed
+                </Button>
+                
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="flex-1 border-red-300 text-red-600 hover:bg-red-50"
+                  onClick={() => handleMarkCancelled(appointment.id)}
+                  disabled={processingIds.has(appointment.id)}
+                >
+                  <XCircle className="h-4 w-4 mr-1" />
+                  Cancelled
+                </Button>
+              </div>
               
               <Button
                 size="sm"
                 variant="outline"
-                className="flex-1 border-red-300 text-red-600 hover:bg-red-50"
-                onClick={() => handleMarkCancelled(appointment.id)}
+                className="w-full border-blue-300 text-blue-600 hover:bg-blue-50"
+                onClick={() => handleSendInvoice(appointment.id)}
                 disabled={processingIds.has(appointment.id)}
               >
-                <XCircle className="h-4 w-4 mr-1" />
-                Cancelled
+                <Receipt className="h-4 w-4 mr-1" />
+                Send Invoice via SMS
               </Button>
             </div>
           </CardContent>

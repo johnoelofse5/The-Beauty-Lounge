@@ -12,6 +12,7 @@ import EditAppointmentModal from '@/components/EditAppointmentModal'
 import { DatePicker } from '@/components/date-picker'
 import TimeSlotSelector from '@/components/TimeSlotSelector'
 import { AppointmentSMSService } from '@/lib/appointment-sms-service'
+import { InvoiceSMSService } from '@/lib/invoice-sms-service'
 
 export default function AppointmentsPage() {
   const { user, loading: authLoading, userRoleData } = useAuth()
@@ -30,6 +31,7 @@ export default function AppointmentsPage() {
   const [isCreateModalClosing, setIsCreateModalClosing] = useState(false)
   const [selectedCreateDate, setSelectedCreateDate] = useState<Date | null>(null)
   const [visibleElements, setVisibleElements] = useState<Set<string>>(new Set())
+  const [processingInvoiceIds, setProcessingInvoiceIds] = useState<Set<string>>(new Set())
   const observerRef = useRef<IntersectionObserver | null>(null)
 
   const loadAppointments = useCallback(async () => {
@@ -314,6 +316,34 @@ export default function AppointmentsPage() {
       setSelectedCreateDate(null)
       setIsCreateModalClosing(false)
     }, 300)
+  }
+
+  const handleSendInvoice = async (appointmentId: string) => {
+    try {
+      setProcessingInvoiceIds(prev => new Set(prev).add(appointmentId))
+
+      const invoiceStatus = await InvoiceSMSService.getInvoiceStatus(appointmentId)
+      if (invoiceStatus.data?.invoice_exists) {
+        showError('Invoice already sent for this appointment')
+        return
+      }
+
+      const result = await InvoiceSMSService.sendInvoiceSMS(appointmentId, user?.id)
+
+      if (result.success) {
+        showSuccess('Invoice sent successfully via SMS!')
+      } else {
+        showError(`Failed to send invoice: ${result.message}`)
+      }
+    } catch (error) {
+      showError('Failed to send invoice')
+    } finally {
+      setProcessingInvoiceIds(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(appointmentId)
+        return newSet
+      })
+    }
   }
 
   
@@ -1156,28 +1186,58 @@ export default function AppointmentsPage() {
 
               {/* Actions */}
               <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 rounded-b-xl">
-                <div className="flex space-x-3">
-                  {/* Show edit button for clients viewing their own appointments or practitioners viewing appointments assigned to them */}
-                  {userRoleData?.role && selectedAppointment.status === 'scheduled' && (
-                    (canViewOwnAppointmentsOnly(userRoleData.role) && selectedAppointment.user_id === userRoleData.user?.id) ||
-                    (isPractitioner(userRoleData.role) && selectedAppointment.practitioner_id === userRoleData.user?.id)
+                <div className="space-y-3">
+                  {/* Invoice button for completed appointments */}
+                  {userRoleData?.role && selectedAppointment.status === 'completed' && (
+                    isPractitioner(userRoleData.role) ||
+                    (userRoleData.role?.name === 'super_admin')
                   ) && (
                     <button
-                      onClick={openEditModal}
-                      className="flex-1 bg-blue-600 text-white px-3 py-2 lg:px-4 lg:py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors text-sm lg:text-base"
+                      onClick={() => handleSendInvoice(selectedAppointment.id)}
+                      disabled={processingInvoiceIds.has(selectedAppointment.id)}
+                      className="w-full bg-green-600 text-white px-3 py-2 lg:px-4 lg:py-3 rounded-lg font-medium hover:bg-green-700 transition-colors text-sm lg:text-base disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
                     >
-                      Edit Appointment
+                      {processingInvoiceIds.has(selectedAppointment.id) ? (
+                        <>
+                          <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                          </svg>
+                          <span>Sending Invoice...</span>
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                          <span>Send Invoice via SMS</span>
+                        </>
+                      )}
                     </button>
                   )}
-                  <button
-                    onClick={closeAppointmentModal}
-                    className={`${userRoleData?.role && selectedAppointment.status === 'scheduled' && (
+                  
+                  <div className="flex space-x-3">
+                    {/* Show edit button for clients viewing their own appointments or practitioners viewing appointments assigned to them */}
+                    {userRoleData?.role && selectedAppointment.status === 'scheduled' && (
                       (canViewOwnAppointmentsOnly(userRoleData.role) && selectedAppointment.user_id === userRoleData.user?.id) ||
                       (isPractitioner(userRoleData.role) && selectedAppointment.practitioner_id === userRoleData.user?.id)
-                    ) ? 'flex-1' : 'w-full'} bg-gray-600 text-white px-3 py-2 lg:px-4 lg:py-3 rounded-lg font-medium hover:bg-gray-700 transition-colors text-sm lg:text-base`}
-                  >
-                    Close
-                  </button>
+                    ) && (
+                      <button
+                        onClick={openEditModal}
+                        className="flex-1 bg-blue-600 text-white px-3 py-2 lg:px-4 lg:py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors text-sm lg:text-base"
+                      >
+                        Edit Appointment
+                      </button>
+                    )}
+                    <button
+                      onClick={closeAppointmentModal}
+                      className={`${userRoleData?.role && selectedAppointment.status === 'scheduled' && (
+                        (canViewOwnAppointmentsOnly(userRoleData.role) && selectedAppointment.user_id === userRoleData.user?.id) ||
+                        (isPractitioner(userRoleData.role) && selectedAppointment.practitioner_id === userRoleData.user?.id)
+                      ) ? 'flex-1' : 'w-full'} bg-gray-600 text-white px-3 py-2 lg:px-4 lg:py-3 rounded-lg font-medium hover:bg-gray-700 transition-colors text-sm lg:text-base`}
+                    >
+                      Close
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
