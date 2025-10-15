@@ -7,7 +7,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-interface InvoiceService {
+interface InvoiceLineItem {
   id: string
   name: string
   price: number
@@ -21,7 +21,7 @@ interface InvoiceData {
   client_id: string
   practitioner_id: string
   total_amount: number
-  services_data: InvoiceService[]
+  services_data: InvoiceLineItem[]
   client_name: string
   client_phone: string
   client_email?: string
@@ -222,7 +222,7 @@ async function generateInvoiceForAppointment(supabase: any, appointmentId: strin
     ? (appointment as any).service_ids.filter((id: any) => typeof id === 'string')
     : ((appointment as any).service_id ? [(appointment as any).service_id] : [])
 
-  let servicesData: InvoiceService[] = []
+  let servicesData: InvoiceLineItem[] = []
   if (serviceIds.length > 0) {
     const { data: servicesRows, error: servicesFetchError } = await supabase
       .from('services')

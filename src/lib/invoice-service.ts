@@ -1,6 +1,6 @@
 import { supabase } from './supabase'
 
-export interface InvoiceService {
+export interface InvoiceLineItem {
   id: string
   name: string
   price: number
@@ -14,7 +14,7 @@ export interface InvoiceData {
   client_id: string
   practitioner_id: string
   total_amount: number
-  services_data: InvoiceService[]
+  services_data: InvoiceLineItem[]
   client_name: string
   client_phone: string
   client_email?: string
@@ -43,7 +43,7 @@ export interface AppointmentWithServices {
   practitioner_first_name: string
   practitioner_last_name: string
   service_names: string[]
-  services_data: InvoiceService[]
+  services_data: InvoiceLineItem[]
   notes?: string
   status: string
 }
@@ -142,7 +142,7 @@ export class InvoiceService {
         ? (appointment as any).service_ids.filter((id: any) => typeof id === 'string')
         : ((appointment as any).service_id ? [(appointment as any).service_id] : [])
 
-      let servicesData: InvoiceService[] = []
+      let servicesData: InvoiceLineItem[] = []
       if (serviceIds.length > 0) {
         const { data: servicesRows, error: servicesFetchError } = await supabase
           .from('services')

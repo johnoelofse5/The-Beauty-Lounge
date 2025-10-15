@@ -9,7 +9,7 @@ import { useToast } from '@/contexts/ToastContext'
 import { AppointmentCompletionService } from '@/lib/appointment-completion-service'
 import { isPractitioner, isSuperAdmin } from '@/lib/rbac'
 import { useAuth } from '@/contexts/AuthContext'
-import { InvoiceService } from '@/lib/invoice-service'
+import { InvoiceService as InvoiceSvc } from '@/lib/invoice-service'
 import { InvoiceSMSService } from '@/lib/invoice-sms-service'
 
 export default function AppointmentCompletionNotification({ onClose }: AppointmentCompletionNotificationProps) {
