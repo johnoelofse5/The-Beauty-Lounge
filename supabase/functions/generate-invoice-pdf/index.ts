@@ -91,7 +91,7 @@ serve(async (req) => {
 
     draw('The Beauty Lounge', 50, 800, 20, true)
     draw(`Invoice: ${invoice.invoice_number}`, 50, 780, 12, true)
-    draw(`Date: ${new Date(invoice.invoice_date).toLocaleDateString('en-ZA')}`, 50, 765)
+    draw(`Date: ${invoice.invoice_date ? new Date(invoice.invoice_date).toLocaleDateString('en-ZA') : new Date().toLocaleDateString('en-ZA')}`, 50, 765)
     page.drawRectangle({ x: 50, y: 755, width: 495.28, height: 1, color: rgb(0.9, 0.9, 0.9) })
 
     draw('Bill To', 50, 735, 12, true)
@@ -99,7 +99,7 @@ serve(async (req) => {
     if (invoice.client_phone) draw(`Phone: ${invoice.client_phone}`, 50, 705)
 
     draw('Appointment', 350, 735, 12, true)
-    draw(`Date: ${new Date(invoice.appointment_date).toLocaleDateString('en-ZA')}`, 350, 720)
+    draw(`Date: ${invoice.appointment_date ? new Date(invoice.appointment_date).toLocaleDateString('en-ZA') : 'N/A'}`, 350, 720)
 
     page.drawRectangle({ x: 50, y: 700, width: 495.28, height: 1, color: rgb(0.9, 0.9, 0.9) })
     draw('Services', 50, 685, 14, true)
@@ -155,16 +155,23 @@ serve(async (req) => {
       throw new Error(`Failed to update invoice with PDF URL: ${updateError.message}`)
     }
 
+    const responseData = { 
+      success: true, 
+      message: 'Invoice PDF generated successfully',
+      data: {
+        invoice_id: invoice.id,
+        invoice_number: invoice.invoice_number,
+        pdf_url: publicUrl,
+        client_name: invoice.client_name,
+        total_amount: invoice.total_amount,
+        services_data: invoice.services_data,
+        appointment_date: invoice.appointment_date,
+        invoice_date: invoice.invoice_date
+      }
+    }
+
     return new Response(
-      JSON.stringify({ 
-        success: true, 
-        message: 'Invoice PDF generated successfully',
-        data: {
-          invoice_id: invoice.id,
-          invoice_number: invoice.invoice_number,
-          pdf_url: publicUrl
-        }
-      }),
+      JSON.stringify(responseData),
       { 
         status: 200, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -262,9 +269,10 @@ async function generateInvoiceForAppointment(supabase: any, appointmentId: strin
       client_phone: client.phone,
       client_email: client.email,
       appointment_date: appointment.appointment_date,
+      invoice_date: new Date().toISOString(),
       status: 'generated'
     })
-    .select()
+    .select('id, invoice_number, client_name, total_amount, client_email, services_data, appointment_date, invoice_date')
     .single()
 
   if (invoiceError) {

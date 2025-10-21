@@ -12,7 +12,7 @@ import EditAppointmentModal from '@/components/EditAppointmentModal'
 import { DatePicker } from '@/components/date-picker'
 import TimeSlotSelector from '@/components/TimeSlotSelector'
 import { AppointmentSMSService } from '@/lib/appointment-sms-service'
-import { InvoiceSMSService } from '@/lib/invoice-sms-service'
+import { sendInvoiceEmail } from '@/lib/email-service'
 
 export default function AppointmentsPage() {
   const { user, loading: authLoading, userRoleData } = useAuth()
@@ -32,6 +32,7 @@ export default function AppointmentsPage() {
   const [selectedCreateDate, setSelectedCreateDate] = useState<Date | null>(null)
   const [visibleElements, setVisibleElements] = useState<Set<string>>(new Set())
   const [processingInvoiceIds, setProcessingInvoiceIds] = useState<Set<string>>(new Set())
+  const [processingDownloadIds, setProcessingDownloadIds] = useState<Set<string>>(new Set())
   const observerRef = useRef<IntersectionObserver | null>(null)
 
   const loadAppointments = useCallback(async () => {
@@ -322,16 +323,31 @@ export default function AppointmentsPage() {
     try {
       setProcessingInvoiceIds(prev => new Set(prev).add(appointmentId))
 
-      const invoiceStatus = await InvoiceSMSService.getInvoiceStatus(appointmentId)
-      if (invoiceStatus.data?.invoice_exists) {
-        showError('Invoice already sent for this appointment')
+      const appointment = appointments.find(apt => apt.id === appointmentId)
+      if (!appointment) {
+        showError('Appointment not found')
         return
       }
 
-      const result = await InvoiceSMSService.sendInvoiceSMS(appointmentId, user?.id)
+      if (!appointment.client?.email && !appointment.client_email) {
+        showError('Client email not available for this appointment')
+        return
+      }
+
+      const currentUserId = user?.id
+      if (!currentUserId) {
+        showError('User not authenticated')
+        return
+      }
+
+      const result = await sendInvoiceEmail(
+        appointmentId,
+        currentUserId,
+        appointment.client?.email || appointment.client_email || ''
+      )
 
       if (result.success) {
-        showSuccess('Invoice sent successfully via SMS!')
+        showSuccess('Invoice sent successfully via email!')
       } else {
         showError(`Failed to send invoice: ${result.message}`)
       }
@@ -339,6 +355,61 @@ export default function AppointmentsPage() {
       showError('Failed to send invoice')
     } finally {
       setProcessingInvoiceIds(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(appointmentId)
+        return newSet
+      })
+    }
+  }
+
+  const handleDownloadPDF = async (appointmentId: string) => {
+    try {
+      setProcessingDownloadIds(prev => new Set(prev).add(appointmentId))
+
+      const currentUserId = user?.id
+      if (!currentUserId) {
+        showError('User not authenticated')
+        return
+      }
+
+      const generatePayload = {
+        appointment_id: appointmentId,
+        current_user_id: currentUserId,
+      };
+
+      const { data: invoiceData, error: invoiceError } = await supabase.functions.invoke(
+        'generate-invoice-pdf',
+        { body: generatePayload }
+      );
+
+      if (invoiceError || !invoiceData?.success) {
+        showError(invoiceData?.message || 'Failed to generate invoice PDF')
+        return
+      }
+
+      const invoice = invoiceData.data;
+
+      const pdfResponse = await fetch(invoice.pdf_url);
+      if (!pdfResponse.ok) {
+        throw new Error('Failed to fetch PDF file');
+      }
+
+      const pdfBlob = await pdfResponse.blob();
+      const url = window.URL.createObjectURL(pdfBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Invoice_${invoice.invoice_number}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      showSuccess('PDF downloaded successfully!')
+    } catch (error) {
+      console.error('Error downloading PDF:', error)
+      showError('Failed to download PDF')
+    } finally {
+      setProcessingDownloadIds(prev => {
         const newSet = new Set(prev)
         newSet.delete(appointmentId)
         return newSet
@@ -1209,7 +1280,35 @@ export default function AppointmentsPage() {
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                           </svg>
-                          <span>Send Invoice via SMS</span>
+                          <span>Send Invoice via Email</span>
+                        </>
+                      )}
+                    </button>
+                  )}
+
+                  {/* Download PDF button for completed appointments */}
+                  {userRoleData?.role && selectedAppointment.status === 'completed' && (
+                    isPractitioner(userRoleData.role) ||
+                    (userRoleData.role?.name === 'super_admin')
+                  ) && (
+                    <button
+                      onClick={() => handleDownloadPDF(selectedAppointment.id)}
+                      disabled={processingDownloadIds.has(selectedAppointment.id)}
+                      className="w-full bg-blue-600 text-white px-3 py-2 lg:px-4 lg:py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors text-sm lg:text-base disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+                    >
+                      {processingDownloadIds.has(selectedAppointment.id) ? (
+                        <>
+                          <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                          </svg>
+                          <span>Generating PDF...</span>
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                          <span>Download PDF</span>
                         </>
                       )}
                     </button>

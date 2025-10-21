@@ -9,8 +9,7 @@ import { useToast } from '@/contexts/ToastContext'
 import { AppointmentCompletionService } from '@/lib/appointment-completion-service'
 import { isPractitioner, isSuperAdmin } from '@/lib/rbac'
 import { useAuth } from '@/contexts/AuthContext'
-import { InvoiceService as InvoiceSvc } from '@/lib/invoice-service'
-import { InvoiceSMSService } from '@/lib/invoice-sms-service'
+import { sendInvoiceEmail } from '@/lib/email-service'
 
 export default function AppointmentCompletionNotification({ onClose }: AppointmentCompletionNotificationProps) {
   const [appointments, setAppointments] = useState<CompletedAppointment[]>([])
@@ -86,16 +85,31 @@ export default function AppointmentCompletionNotification({ onClose }: Appointme
     try {
       setProcessingIds(prev => new Set(prev).add(appointmentId))
       
-      const invoiceStatus = await InvoiceSMSService.getInvoiceStatus(appointmentId)
-      if (invoiceStatus.data?.invoice_exists) {
-        showError('Invoice already sent for this appointment')
+      const appointment = appointments.find(apt => apt.id === appointmentId)
+      if (!appointment) {
+        showError('Appointment not found')
         return
       }
 
-      const result = await InvoiceSMSService.sendInvoiceSMS(appointmentId)
+      if (!appointment.client_email) {
+        showError('Client email not available for this appointment')
+        return
+      }
+
+      const currentUserId = userRoleData?.user.id
+      if (!currentUserId) {
+        showError('User not authenticated')
+        return
+      }
+
+      const result = await sendInvoiceEmail(
+        appointmentId,
+        currentUserId,
+        appointment.client_email
+      )
 
       if (result.success) {
-        showSuccess('Invoice sent successfully via SMS!')
+        showSuccess('Invoice sent successfully via email!')
       } else {
         showError(`Failed to send invoice: ${result.message}`)
       }
@@ -222,7 +236,7 @@ export default function AppointmentCompletionNotification({ onClose }: Appointme
                 disabled={processingIds.has(appointment.id)}
               >
                 <Receipt className="h-4 w-4 mr-1" />
-                Send Invoice via SMS
+                Send Invoice via Email
               </Button>
             </div>
           </CardContent>
