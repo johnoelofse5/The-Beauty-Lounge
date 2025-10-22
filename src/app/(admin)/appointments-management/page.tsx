@@ -1833,7 +1833,7 @@ function CreateAppointmentModal({
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Email (Optional)</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1"></label>
                       <input
                         type="email"
                         value={externalClientInfo.email}
