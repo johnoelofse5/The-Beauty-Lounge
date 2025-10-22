@@ -12,7 +12,7 @@ export interface AuthContextType {
     signUp: (email: string, password: string, userData?: UserSignUpData) => Promise<void>;
     signIn: (email: string, password: string) => Promise<void>;
     
-    signUpWithPhone: (phone: string, firstName: string, lastName: string, otpCode: string) => Promise<void>;
+    signUpWithPhone: (phone: string, email: string, firstName: string, lastName: string, otpCode: string) => Promise<void>;
     signInWithPhone: (phone: string, otpCode: string) => Promise<void>;
     sendOTP: (phone: string, purpose: 'signup' | 'signin' | 'password_reset') => Promise<void>;
     verifyOTP: (phone: string, otpCode: string, purpose: 'signup' | 'signin' | 'password_reset') => Promise<boolean>;

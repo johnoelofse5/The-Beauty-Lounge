@@ -14,6 +14,7 @@ export interface AppointmentFormData {
   
   export interface SignUpFormData {
     phone: string;
+    email: string;
     first_name: string;
     last_name: string;
     otp_code?: string;

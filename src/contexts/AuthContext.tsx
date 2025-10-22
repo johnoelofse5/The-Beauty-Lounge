@@ -276,7 +276,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }
 
-  const signUpWithPhone = async (phone: string, firstName: string, lastName: string, otpCode: string) => {
+  const signUpWithPhone = async (phone: string, email: string, firstName: string, lastName: string, otpCode: string) => {
 
     await verifyOTP(phone, otpCode, 'signup')
 
@@ -285,7 +285,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
 
     const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: `${phone}@temp.mobile`,
+      email: email,
       password: tempPassword,
       options: {
         data: {
@@ -338,7 +338,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         .from('users')
         .upsert({
           id: authData.user.id,
-          email: `${phone}@temp.mobile`,
+          email: email,
           first_name: firstName,
           last_name: lastName,
           phone: phone,
