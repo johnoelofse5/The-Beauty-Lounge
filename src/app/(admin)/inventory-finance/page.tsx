@@ -20,28 +20,29 @@ import { ServiceWithCategory } from '@/types/service'
 import { Category } from '@/types/service-category'
 import { lookupServiceCached } from '@/lib/lookup-service-cached'
 import { Lookup } from '@/types/lookup'
-import { 
-  ValidationInput, 
-  ValidationTextarea, 
+import {
+  ValidationInput,
+  ValidationTextarea,
   ValidationSelect,
-  useValidation 
+  useValidation
 } from '@/components/validation/ValidationComponents'
 import { SelectItem } from '@/components/ui/select'
 import { DatePicker } from '@/components/date-picker'
+import jsPDF from 'jspdf'
 
 export default function InventoryFinancePage() {
   const { user, userRoleData } = useAuth()
   const { showSuccess, showError } = useToast()
-  
+
   const [activeTab, setActiveTab] = useState<'dashboard' | 'inventory' | 'service-inventory' | 'purchases' | 'finances'>('dashboard')
   const [loading, setLoading] = useState(true)
-  
-  
+
+
   const [inventorySummary, setInventorySummary] = useState<InventorySummary | null>(null)
   const [financialSummary, setFinancialSummary] = useState<FinancialSummary | null>(null)
   const [lowStockItems, setLowStockItems] = useState<LowStockItem[]>([])
-  
-  
+
+
   const hasAccess = userRoleData?.role?.name === 'super_admin' || userRoleData?.role?.name === 'practitioner'
 
   useEffect(() => {
@@ -58,7 +59,7 @@ export default function InventoryFinancePage() {
         InventoryService.getFinancialSummary(),
         InventoryService.getLowStockItems()
       ])
-      
+
       setInventorySummary(inventory)
       setFinancialSummary(financial)
       setLowStockItems(lowStock)
@@ -120,11 +121,10 @@ export default function InventoryFinancePage() {
                 <button
                   key={tab.key}
                   onClick={() => setActiveTab(tab.key as any)}
-                  className={`${
-                    activeTab === tab.key
+                  className={`${activeTab === tab.key
                       ? 'border-indigo-500 text-indigo-600'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  } whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm flex items-center space-x-2`}
+                    } whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm flex items-center space-x-2`}
                 >
                   <span>{tab.icon}</span>
                   <span>{tab.label}</span>
@@ -144,11 +144,10 @@ export default function InventoryFinancePage() {
                   <button
                     key={tab.key}
                     onClick={() => setActiveTab(tab.key as any)}
-                    className={`${
-                      activeTab === tab.key
+                    className={`${activeTab === tab.key
                         ? 'border-indigo-500 text-indigo-600 bg-indigo-50'
                         : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-                    } flex-shrink-0 py-3 px-4 border-b-2 font-medium text-sm flex flex-col items-center space-y-1 min-w-[120px] rounded-t-lg transition-all duration-200`}
+                      } flex-shrink-0 py-3 px-4 border-b-2 font-medium text-sm flex flex-col items-center space-y-1 min-w-[120px] rounded-t-lg transition-all duration-200`}
                   >
                     <span className="text-lg">{tab.icon}</span>
                     <span className="text-xs leading-tight text-center">{tab.label}</span>
@@ -199,7 +198,7 @@ export default function InventoryFinancePage() {
         )}
 
         {activeTab === 'finances' && (
-          <FinancialTransactionsView 
+          <FinancialTransactionsView
             user={user}
             showSuccess={showSuccess}
             showError={showError}
@@ -332,7 +331,7 @@ function DashboardView({
             <h3 className="text-base sm:text-lg font-medium text-gray-900">Low Stock Alert</h3>
             <p className="text-xs sm:text-sm text-gray-600">Items that need restocking</p>
           </div>
-          
+
           {/* Mobile View - Cards */}
           <div className="sm:hidden">
             <div className="divide-y divide-gray-200">
@@ -342,11 +341,10 @@ function DashboardView({
                     <h4 className="text-sm font-medium text-gray-900 truncate pr-2">
                       {item.item_name}
                     </h4>
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full flex-shrink-0 ${
-                      item.current_stock === 0
+                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full flex-shrink-0 ${item.current_stock === 0
                         ? 'bg-red-100 text-red-800'
                         : 'bg-yellow-100 text-yellow-800'
-                    }`}>
+                      }`}>
                       {item.current_stock === 0 ? 'Out of Stock' : 'Low Stock'}
                     </span>
                   </div>
@@ -398,11 +396,10 @@ function DashboardView({
                         {item.minimum_stock}
                       </td>
                       <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                          item.current_stock === 0
+                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${item.current_stock === 0
                             ? 'bg-red-100 text-red-800'
                             : 'bg-yellow-100 text-yellow-800'
-                        }`}>
+                          }`}>
                           {item.current_stock === 0 ? 'Out of Stock' : 'Low Stock'}
                         </span>
                       </td>
@@ -438,9 +435,8 @@ function DashboardView({
               <div className="border-t pt-3 sm:pt-4">
                 <div className="flex justify-between items-center">
                   <span className="text-sm sm:text-base font-medium text-gray-900">Net Profit</span>
-                  <span className={`text-sm sm:text-base font-medium truncate ml-2 ${
-                    (financialSummary?.monthly_profit || 0) >= 0 ? 'text-green-600' : 'text-red-600'
-                  }`}>
+                  <span className={`text-sm sm:text-base font-medium truncate ml-2 ${(financialSummary?.monthly_profit || 0) >= 0 ? 'text-green-600' : 'text-red-600'
+                    }`}>
                     {formatCurrency(financialSummary?.monthly_profit || 0)}
                   </span>
                 </div>
@@ -470,9 +466,8 @@ function DashboardView({
               <div className="border-t pt-3 sm:pt-4">
                 <div className="flex justify-between items-center">
                   <span className="text-sm sm:text-base font-medium text-gray-900">Net Profit</span>
-                  <span className={`text-sm sm:text-base font-medium truncate ml-2 ${
-                    (financialSummary?.yearly_profit || 0) >= 0 ? 'text-green-600' : 'text-red-600'
-                  }`}>
+                  <span className={`text-sm sm:text-base font-medium truncate ml-2 ${(financialSummary?.yearly_profit || 0) >= 0 ? 'text-green-600' : 'text-red-600'
+                    }`}>
                     {formatCurrency(financialSummary?.yearly_profit || 0)}
                   </span>
                 </div>
@@ -512,7 +507,7 @@ function InventoryView({
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
   const [sortBy, setSortBy] = useState<'name' | 'stock' | 'value'>('name')
 
-  
+
   const [formData, setFormData] = useState<InventoryItemForm & { service_id?: string }>({
     category_id: '',
     service_id: '',
@@ -524,7 +519,7 @@ function InventoryView({
     unit_cost: 0,
   })
 
-  
+
   const [editFormData, setEditFormData] = useState<InventoryItemForm & { service_id?: string }>({
     category_id: '',
     service_id: '',
@@ -536,11 +531,11 @@ function InventoryView({
     unit_cost: 0,
   })
 
-  
+
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
   const [editFormErrors, setEditFormErrors] = useState<Record<string, string>>({})
 
-  
+
   const updateFormField = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }))
     if (formErrors[field]) {
@@ -548,7 +543,7 @@ function InventoryView({
     }
   }
 
-  
+
   const updateEditFormField = (field: string, value: any) => {
     setEditFormData(prev => ({ ...prev, [field]: value }))
     if (editFormErrors[field]) {
@@ -556,7 +551,7 @@ function InventoryView({
     }
   }
 
-  
+
   const openAddModal = () => {
     setShowAddModal(true)
     setIsAddModalClosing(false)
@@ -571,7 +566,7 @@ function InventoryView({
     }, 300)
   }
 
-  
+
   const openEditModal = (item: InventoryItem) => {
     setEditingItem(item)
     setEditFormData({
@@ -623,13 +618,13 @@ function InventoryView({
     }
   }
 
-  
+
   useEffect(() => {
     if (formData.category_id) {
       const categoryName = categories.find(cat => cat.id === formData.category_id)?.name
       if (categoryName) {
-        
-        const categoryServices = services.filter(service => 
+
+        const categoryServices = services.filter(service =>
           service.category_name === categoryName
         )
         setFilteredServices(categoryServices)
@@ -639,11 +634,11 @@ function InventoryView({
     } else {
       setFilteredServices([])
     }
-    
+
     setFormData(prev => ({ ...prev, service_id: '' }))
   }, [formData.category_id, categories, services])
 
-  
+
   const validateForm = () => {
     const errors: Record<string, string> = {}
 
@@ -666,7 +661,7 @@ function InventoryView({
 
   const handleAddItem = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!validateForm()) {
       showError('Please fix the errors in the form')
       return
@@ -697,10 +692,10 @@ function InventoryView({
     }
   }
 
-  
+
   const handleUpdateItem = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!editingItem) return
 
     try {
@@ -717,7 +712,7 @@ function InventoryView({
     }
   }
 
-  
+
   const handleDeleteItem = async (itemId: string) => {
     if (!confirm('Are you sure you want to delete this inventory item?')) {
       return
@@ -738,7 +733,7 @@ function InventoryView({
 
   const filteredItems = items.filter(item => {
     const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (item.sku && item.sku.toLowerCase().includes(searchTerm.toLowerCase()))
+      (item.sku && item.sku.toLowerCase().includes(searchTerm.toLowerCase()))
     const matchesCategory = !selectedCategory || selectedCategory === 'all' || item.category_id === selectedCategory
     return matchesSearch && matchesCategory
   })
@@ -844,18 +839,17 @@ function InventoryView({
                     <p className="text-xs sm:text-sm text-gray-500">SKU: {item.sku}</p>
                   )}
                 </div>
-                <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full flex-shrink-0 ml-2 ${
-                  item.current_stock === 0
+                <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full flex-shrink-0 ml-2 ${item.current_stock === 0
                     ? 'bg-red-100 text-red-800'
                     : item.current_stock <= item.minimum_stock
-                    ? 'bg-yellow-100 text-yellow-800'
-                    : 'bg-green-100 text-green-800'
-                }`}>
+                      ? 'bg-yellow-100 text-yellow-800'
+                      : 'bg-green-100 text-green-800'
+                  }`}>
                   {item.current_stock === 0
                     ? 'Out of Stock'
                     : item.current_stock <= item.minimum_stock
-                    ? 'Low Stock'
-                    : 'In Stock'
+                      ? 'Low Stock'
+                      : 'In Stock'
                   }
                 </span>
               </div>
@@ -867,7 +861,7 @@ function InventoryView({
                     {item.current_stock} {item.unit_of_measure}
                   </span>
                 </div>
-                
+
                 <div className="flex justify-between items-center">
                   <span className="text-xs sm:text-sm text-gray-600">Unit Cost:</span>
                   <span className="text-xs sm:text-sm font-medium text-gray-900">
@@ -949,16 +943,15 @@ function InventoryView({
       {showAddModal && (
         <div className="fixed inset-0 z-[60] pointer-events-none">
           {/* Backdrop - invisible but blocks clicks */}
-          <div 
-            className="absolute inset-0 pointer-events-auto" 
+          <div
+            className="absolute inset-0 pointer-events-auto"
             onClick={closeAddModal}
           />
-          
+
           {/* Modal Content */}
-          <div className={`fixed bottom-0 left-0 right-0 lg:top-1/2 lg:left-1/2 lg:transform lg:-translate-x-1/2 lg:-translate-y-1/2 lg:bottom-auto lg:right-auto lg:w-full lg:max-w-2xl bg-white rounded-t-xl lg:rounded-xl shadow-2xl transform transition-transform duration-300 ease-out max-h-[95vh] lg:max-h-[90vh] flex flex-col pointer-events-auto overflow-visible ${
-              isAddModalClosing
-                ? 'translate-y-full lg:translate-y-full lg:translate-x-[-50%]'
-                : 'translate-y-0 lg:translate-x-[-50%] lg:translate-y-[-50%] modal-enter lg:modal-enter-desktop'
+          <div className={`fixed bottom-0 left-0 right-0 lg:top-1/2 lg:left-1/2 lg:transform lg:-translate-x-1/2 lg:-translate-y-1/2 lg:bottom-auto lg:right-auto lg:w-full lg:max-w-2xl bg-white rounded-t-xl lg:rounded-xl shadow-2xl transform transition-transform duration-300 ease-out max-h-[95vh] lg:max-h-[90vh] flex flex-col pointer-events-auto overflow-visible ${isAddModalClosing
+              ? 'translate-y-full lg:translate-y-full lg:translate-x-[-50%]'
+              : 'translate-y-0 lg:translate-x-[-50%] lg:translate-y-[-50%] modal-enter lg:modal-enter-desktop'
             }`}
             onClick={(e) => e.stopPropagation()}
           >
@@ -996,7 +989,7 @@ function InventoryView({
                       required
                       error={formErrors.name}
                     />
-                    
+
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <ValidationSelect
                         label="Category"
@@ -1019,11 +1012,11 @@ function InventoryView({
                           value={formData.service_id || ''}
                           onValueChange={(value) => updateFormField('service_id', value)}
                           placeholder={
-                            !formData.category_id 
-                              ? 'Select a category first' 
-                              : filteredServices.length === 0 
-                              ? 'No services available' 
-                              : 'Select Service (Optional)'
+                            !formData.category_id
+                              ? 'Select a category first'
+                              : filteredServices.length === 0
+                                ? 'No services available'
+                                : 'Select Service (Optional)'
                           }
                           error={formErrors.service_id}
                         >
@@ -1133,16 +1126,15 @@ function InventoryView({
       {showEditModal && editingItem && (
         <div className="fixed inset-0 z-[60] pointer-events-none">
           {/* Backdrop - invisible but blocks clicks */}
-          <div 
-            className="absolute inset-0 pointer-events-auto" 
+          <div
+            className="absolute inset-0 pointer-events-auto"
             onClick={closeEditModal}
           />
-          
+
           {/* Modal Content */}
-          <div className={`fixed bottom-0 left-0 right-0 lg:top-1/2 lg:left-1/2 lg:transform lg:-translate-x-1/2 lg:-translate-y-1/2 lg:bottom-auto lg:right-auto lg:w-full lg:max-w-2xl bg-white rounded-t-xl lg:rounded-xl shadow-2xl transform transition-transform duration-300 ease-out max-h-[95vh] lg:max-h-[90vh] flex flex-col pointer-events-auto overflow-visible ${
-              isEditModalClosing
-                ? 'translate-y-full lg:translate-y-full lg:translate-x-[-50%]'
-                : 'translate-y-0 lg:translate-x-[-50%] lg:translate-y-[-50%] modal-enter lg:modal-enter-desktop'
+          <div className={`fixed bottom-0 left-0 right-0 lg:top-1/2 lg:left-1/2 lg:transform lg:-translate-x-1/2 lg:-translate-y-1/2 lg:bottom-auto lg:right-auto lg:w-full lg:max-w-2xl bg-white rounded-t-xl lg:rounded-xl shadow-2xl transform transition-transform duration-300 ease-out max-h-[95vh] lg:max-h-[90vh] flex flex-col pointer-events-auto overflow-visible ${isEditModalClosing
+              ? 'translate-y-full lg:translate-y-full lg:translate-x-[-50%]'
+              : 'translate-y-0 lg:translate-x-[-50%] lg:translate-y-[-50%] modal-enter lg:modal-enter-desktop'
             }`}
             onClick={(e) => e.stopPropagation()}
           >
@@ -1180,7 +1172,7 @@ function InventoryView({
                       required
                       error={editFormErrors.name}
                     />
-                    
+
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <ValidationSelect
                         label="Category"
@@ -1203,11 +1195,11 @@ function InventoryView({
                           value={editFormData.service_id || ''}
                           onValueChange={(value) => updateEditFormField('service_id', value)}
                           placeholder={
-                            !editFormData.category_id 
-                              ? 'Select a category first' 
-                              : filteredServices.length === 0 
-                              ? 'No services available' 
-                              : 'Select Service (Optional)'
+                            !editFormData.category_id
+                              ? 'Select a category first'
+                              : filteredServices.length === 0
+                                ? 'No services available'
+                                : 'Select Service (Optional)'
                           }
                           error={editFormErrors.service_id}
                         >
@@ -1342,25 +1334,25 @@ function ServiceInventoryView({
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedService, setSelectedService] = useState<string>('all')
 
-  
+
   const [formData, setFormData] = useState<ServiceInventoryRelationshipForm>({
     service_id: '',
     inventory_item_id: '',
     quantity_used: 1
   })
 
-  
+
   const [editFormData, setEditFormData] = useState<ServiceInventoryRelationshipForm>({
     service_id: '',
     inventory_item_id: '',
     quantity_used: 1
   })
 
-  
+
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
   const [editFormErrors, setEditFormErrors] = useState<Record<string, string>>({})
 
-  
+
   const updateFormField = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }))
     if (formErrors[field]) {
@@ -1368,7 +1360,7 @@ function ServiceInventoryView({
     }
   }
 
-  
+
   const updateEditFormField = (field: string, value: any) => {
     setEditFormData(prev => ({ ...prev, [field]: value }))
     if (editFormErrors[field]) {
@@ -1376,7 +1368,7 @@ function ServiceInventoryView({
     }
   }
 
-  
+
   const openAddModal = () => {
     setShowAddModal(true)
     setIsAddModalClosing(false)
@@ -1396,7 +1388,7 @@ function ServiceInventoryView({
     }, 300)
   }
 
-  
+
   const openEditModal = (relationship: ServiceInventoryRelationship) => {
     setEditingRelationship(relationship)
     setEditFormData({
@@ -1441,7 +1433,7 @@ function ServiceInventoryView({
     }
   }
 
-  
+
   const validateForm = () => {
     const errors: Record<string, string> = {}
     if (!formData.service_id) {
@@ -1474,10 +1466,10 @@ function ServiceInventoryView({
     return Object.keys(errors).length === 0
   }
 
-  
+
   const handleAddRelationship = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!validateForm()) {
       showError('Please fix the errors in the form')
       return
@@ -1503,10 +1495,10 @@ function ServiceInventoryView({
     }
   }
 
-  
+
   const handleUpdateRelationship = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!editingRelationship || !validateEditForm()) {
       showError('Please fix the errors in the form')
       return
@@ -1526,7 +1518,7 @@ function ServiceInventoryView({
     }
   }
 
-  
+
   const handleDeleteRelationship = async (id: string) => {
     if (!confirm('Are you sure you want to delete this service inventory relationship?')) {
       return
@@ -1545,10 +1537,10 @@ function ServiceInventoryView({
     }
   }
 
-  
+
   const filteredRelationships = relationships.filter(rel => {
     const matchesSearch = rel.service?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         rel.inventory_item?.name.toLowerCase().includes(searchTerm.toLowerCase())
+      rel.inventory_item?.name.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesService = !selectedService || selectedService === 'all' || rel.service_id === selectedService
     return matchesSearch && matchesService
   })
@@ -1616,7 +1608,7 @@ function ServiceInventoryView({
             </span>
           </div>
         </div>
-        
+
         {filteredRelationships.length === 0 ? (
           <div className="text-center py-8">
             <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-gray-100">
@@ -1715,15 +1707,14 @@ function ServiceInventoryView({
       {/* Add Relationship Modal */}
       {showAddModal && (
         <div className="fixed inset-0 z-[60] pointer-events-none">
-          <div 
-            className="absolute inset-0 pointer-events-auto" 
+          <div
+            className="absolute inset-0 pointer-events-auto"
             onClick={closeAddModal}
           />
-          
-          <div className={`fixed bottom-0 left-0 right-0 lg:top-1/2 lg:left-1/2 lg:transform lg:-translate-x-1/2 lg:-translate-y-1/2 lg:bottom-auto lg:right-auto lg:w-full lg:max-w-2xl bg-white rounded-t-xl lg:rounded-xl shadow-2xl transform transition-transform duration-300 ease-out max-h-[95vh] lg:max-h-[90vh] flex flex-col pointer-events-auto overflow-visible ${
-              isAddModalClosing
-                ? 'translate-y-full lg:translate-y-full lg:translate-x-[-50%]'
-                : 'translate-y-0 lg:translate-x-[-50%] lg:translate-y-[-50%] modal-enter lg:modal-enter-desktop'
+
+          <div className={`fixed bottom-0 left-0 right-0 lg:top-1/2 lg:left-1/2 lg:transform lg:-translate-x-1/2 lg:-translate-y-1/2 lg:bottom-auto lg:right-auto lg:w-full lg:max-w-2xl bg-white rounded-t-xl lg:rounded-xl shadow-2xl transform transition-transform duration-300 ease-out max-h-[95vh] lg:max-h-[90vh] flex flex-col pointer-events-auto overflow-visible ${isAddModalClosing
+              ? 'translate-y-full lg:translate-y-full lg:translate-x-[-50%]'
+              : 'translate-y-0 lg:translate-x-[-50%] lg:translate-y-[-50%] modal-enter lg:modal-enter-desktop'
             }`}
             onClick={(e) => e.stopPropagation()}
           >
@@ -1814,15 +1805,14 @@ function ServiceInventoryView({
       {/* Edit Relationship Modal */}
       {showEditModal && editingRelationship && (
         <div className="fixed inset-0 z-[60] pointer-events-none">
-          <div 
-            className="absolute inset-0 pointer-events-auto" 
+          <div
+            className="absolute inset-0 pointer-events-auto"
             onClick={closeEditModal}
           />
-          
-          <div className={`fixed bottom-0 left-0 right-0 lg:top-1/2 lg:left-1/2 lg:transform lg:-translate-x-1/2 lg:-translate-y-1/2 lg:bottom-auto lg:right-auto lg:w-full lg:max-w-2xl bg-white rounded-t-xl lg:rounded-xl shadow-2xl transform transition-transform duration-300 ease-out max-h-[95vh] lg:max-h-[90vh] flex flex-col pointer-events-auto overflow-visible ${
-              isEditModalClosing
-                ? 'translate-y-full lg:translate-y-full lg:translate-x-[-50%]'
-                : 'translate-y-0 lg:translate-x-[-50%] lg:translate-y-[-50%] modal-enter lg:modal-enter-desktop'
+
+          <div className={`fixed bottom-0 left-0 right-0 lg:top-1/2 lg:left-1/2 lg:transform lg:-translate-x-1/2 lg:-translate-y-1/2 lg:bottom-auto lg:right-auto lg:w-full lg:max-w-2xl bg-white rounded-t-xl lg:rounded-xl shadow-2xl transform transition-transform duration-300 ease-out max-h-[95vh] lg:max-h-[90vh] flex flex-col pointer-events-auto overflow-visible ${isEditModalClosing
+              ? 'translate-y-full lg:translate-y-full lg:translate-x-[-50%]'
+              : 'translate-y-0 lg:translate-x-[-50%] lg:translate-y-[-50%] modal-enter lg:modal-enter-desktop'
             }`}
             onClick={(e) => e.stopPropagation()}
           >
@@ -1940,7 +1930,7 @@ function FinancialTransactionsView({
   const [sortBy, setSortBy] = useState<'date' | 'amount' | 'type'>('date')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
 
-  
+
   const [formData, setFormData] = useState<FinancialTransactionForm>({
     transaction_type: 'income',
     category: '',
@@ -1950,7 +1940,7 @@ function FinancialTransactionsView({
     receipt_number: ''
   })
 
-  
+
   const [editFormData, setEditFormData] = useState<FinancialTransactionForm>({
     transaction_type: 'income',
     category: '',
@@ -1960,11 +1950,11 @@ function FinancialTransactionsView({
     receipt_number: ''
   })
 
-  
+
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
   const [editFormErrors, setEditFormErrors] = useState<Record<string, string>>({})
 
-  
+
   const updateFormField = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }))
     if (formErrors[field]) {
@@ -1972,7 +1962,7 @@ function FinancialTransactionsView({
     }
   }
 
-  
+
   const updateEditFormField = (field: string, value: any) => {
     setEditFormData(prev => ({ ...prev, [field]: value }))
     if (editFormErrors[field]) {
@@ -1980,7 +1970,7 @@ function FinancialTransactionsView({
     }
   }
 
-  
+
   const openAddModal = () => {
     setShowAddModal(true)
     setIsAddModalClosing(false)
@@ -1995,7 +1985,7 @@ function FinancialTransactionsView({
     }, 300)
   }
 
-  
+
   const openEditModal = (transaction: FinancialTransaction) => {
     setEditingTransaction(transaction)
     setEditFormData({
@@ -2048,7 +2038,7 @@ function FinancialTransactionsView({
   }
 
 
-  
+
   const validateForm = () => {
     const errors: Record<string, string> = {}
     if (!formData.category.trim()) {
@@ -2083,7 +2073,7 @@ function FinancialTransactionsView({
 
   const handleAddTransaction = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!validateForm()) {
       showError('Please fix the errors in the form')
       return
@@ -2114,7 +2104,7 @@ function FinancialTransactionsView({
 
   const handleUpdateTransaction = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!editingTransaction || !validateEditForm()) {
       showError('Please fix the errors in the form')
       return
@@ -2150,9 +2140,52 @@ function FinancialTransactionsView({
     })
   }
 
+  const handleDownloadReport = () => {
+    const currentDate = new Date()
+    const currentMonth = currentDate.getMonth()
+    const currentYear = currentDate.getFullYear()
+
+    const monthlyTransactions = transactions.filter(transaction => {
+      const transactionDate = new Date(transaction.transaction_date)
+      return transactionDate.getMonth() === currentMonth && transactionDate.getFullYear() === currentYear
+    })
+
+    const totalIncome = monthlyTransactions
+      .filter(t => t.transaction_type === 'income')
+      .reduce((sum, t) => sum + t.amount, 0)
+
+    const totalExpenses = monthlyTransactions
+      .filter(t => t.transaction_type === 'expense')
+      .reduce((sum, t) => sum + t.amount, 0)
+
+    const netProfit = totalIncome - totalExpenses
+
+    const doc = new jsPDF()
+    doc.setFontSize(20)
+    doc.text('Monthly Financial Report', 20, 30)
+    doc.setFontSize(12)
+    doc.text(`Month: ${currentDate.toLocaleString('default', { month: 'long' })} ${currentYear}`, 20, 50)
+    doc.text(`Total Income: ${formatCurrency(totalIncome)}`, 20, 70)
+    doc.text(`Total Expenses: ${formatCurrency(totalExpenses)}`, 20, 90)
+    doc.text(`Net Profit: ${formatCurrency(netProfit)}`, 20, 110)
+
+    doc.text('Transaction Details:', 20, 130)
+    let y = 150
+    monthlyTransactions.forEach(transaction => {
+      if (y > 270) {
+        doc.addPage()
+        y = 30
+      }
+      doc.text(`${transaction.transaction_date}: ${transaction.category} - ${transaction.transaction_type === 'income' ? '+' : '-'}${formatCurrency(transaction.amount)}`, 20, y)
+      y += 10
+    })
+
+    doc.save(`financial-report-${currentYear}-${currentMonth + 1}.pdf`)
+  }
+
   const filteredTransactions = transactions.filter(transaction => {
     const matchesSearch = transaction.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         transaction.receipt_number?.toLowerCase().includes(searchTerm.toLowerCase())
+      transaction.receipt_number?.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesType = filterType === 'all' || transaction.transaction_type === filterType
     const matchesCategory = filterCategory === 'all' || transaction.category === filterCategory
     return matchesSearch && matchesType && matchesCategory
@@ -2190,15 +2223,26 @@ function FinancialTransactionsView({
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Financial Transactions</h1>
           <p className="text-sm text-gray-600">Track money coming in and going out</p>
         </div>
-        <button
-          onClick={openAddModal}
-          className="w-full sm:w-auto bg-indigo-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2"
-        >
-          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-          </svg>
-          Add Transaction
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={handleDownloadReport}
+            className="w-full sm:w-auto bg-green-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
+          >
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            Download Report PDF
+          </button>
+          <button
+            onClick={openAddModal}
+            className="w-full sm:w-auto bg-indigo-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2"
+          >
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+            Add Transaction
+          </button>
+        </div>
       </div>
 
       {/* Financial Summary */}
@@ -2251,9 +2295,8 @@ function FinancialTransactionsView({
               </div>
               <div className="ml-3 sm:ml-4">
                 <p className="text-xs sm:text-sm font-medium text-gray-500">Net Profit</p>
-                <p className={`text-lg sm:text-xl font-semibold ${
-                  summary.net_profit >= 0 ? 'text-green-600' : 'text-red-600'
-                }`}>
+                <p className={`text-lg sm:text-xl font-semibold ${summary.net_profit >= 0 ? 'text-green-600' : 'text-red-600'
+                  }`}>
                   {formatCurrency(summary.net_profit)}
                 </p>
               </div>
@@ -2345,9 +2388,8 @@ function FinancialTransactionsView({
                 <div className="flex items-center justify-between">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3">
-                      <div className={`w-2 h-2 rounded-full ${
-                        transaction.transaction_type === 'income' ? 'bg-green-500' : 'bg-red-500'
-                      }`} />
+                      <div className={`w-2 h-2 rounded-full ${transaction.transaction_type === 'income' ? 'bg-green-500' : 'bg-red-500'
+                        }`} />
                       <div>
                         <p className="text-sm font-medium text-gray-900 truncate">
                           {transaction.category}
@@ -2361,9 +2403,8 @@ function FinancialTransactionsView({
                   </div>
                   <div className="flex items-center gap-4">
                     <div className="text-right">
-                      <p className={`text-sm font-medium ${
-                        transaction.transaction_type === 'income' ? 'text-green-600' : 'text-red-600'
-                      }`}>
+                      <p className={`text-sm font-medium ${transaction.transaction_type === 'income' ? 'text-green-600' : 'text-red-600'
+                        }`}>
                         {transaction.transaction_type === 'income' ? '+' : '-'}{formatCurrency(transaction.amount)}
                       </p>
                       <p className="text-xs text-gray-500">
@@ -2391,16 +2432,15 @@ function FinancialTransactionsView({
       {showAddModal && (
         <div className="fixed inset-0 z-[60] pointer-events-auto">
           {/* Backdrop - invisible but blocks clicks */}
-          <div 
-            className="absolute inset-0" 
+          <div
+            className="absolute inset-0"
             onClick={closeAddModal}
           />
-          
+
           {/* Modal Content */}
-          <div className={`fixed bottom-0 left-0 right-0 lg:top-1/2 lg:left-1/2 lg:transform lg:-translate-x-1/2 lg:-translate-y-1/2 lg:bottom-auto lg:right-auto lg:w-full lg:max-w-2xl bg-white rounded-t-xl lg:rounded-xl shadow-2xl transform transition-transform duration-300 ease-out max-h-[95vh] lg:max-h-[90vh] flex flex-col pointer-events-auto overflow-visible ${
-              isAddModalClosing
-                ? 'translate-y-full lg:translate-y-full lg:translate-x-[-50%]'
-                : 'translate-y-0 lg:translate-x-[-50%] lg:translate-y-[-50%] modal-enter lg:modal-enter-desktop'
+          <div className={`fixed bottom-0 left-0 right-0 lg:top-1/2 lg:left-1/2 lg:transform lg:-translate-x-1/2 lg:-translate-y-1/2 lg:bottom-auto lg:right-auto lg:w-full lg:max-w-2xl bg-white rounded-t-xl lg:rounded-xl shadow-2xl transform transition-transform duration-300 ease-out max-h-[95vh] lg:max-h-[90vh] flex flex-col pointer-events-auto overflow-visible ${isAddModalClosing
+              ? 'translate-y-full lg:translate-y-full lg:translate-x-[-50%]'
+              : 'translate-y-0 lg:translate-x-[-50%] lg:translate-y-[-50%] modal-enter lg:modal-enter-desktop'
             }`}
             onClick={(e) => e.stopPropagation()}
           >
@@ -2548,16 +2588,15 @@ function FinancialTransactionsView({
       {showEditModal && editingTransaction && (
         <div className="fixed inset-0 z-[60] pointer-events-auto">
           {/* Backdrop - invisible but blocks clicks */}
-          <div 
-            className="absolute inset-0" 
+          <div
+            className="absolute inset-0"
             onClick={closeEditModal}
           />
-          
+
           {/* Modal Content */}
-          <div className={`fixed bottom-0 left-0 right-0 lg:top-1/2 lg:left-1/2 lg:transform lg:-translate-x-1/2 lg:-translate-y-1/2 lg:bottom-auto lg:right-auto lg:w-full lg:max-w-2xl bg-white rounded-t-xl lg:rounded-xl shadow-2xl transform transition-transform duration-300 ease-out max-h-[95vh] lg:max-h-[90vh] flex flex-col pointer-events-auto overflow-visible ${
-              isEditModalClosing
-                ? 'translate-y-full lg:translate-y-full lg:translate-x-[-50%]'
-                : 'translate-y-0 lg:translate-x-[-50%] lg:translate-y-[-50%] modal-enter lg:modal-enter-desktop'
+          <div className={`fixed bottom-0 left-0 right-0 lg:top-1/2 lg:left-1/2 lg:transform lg:-translate-x-1/2 lg:-translate-y-1/2 lg:bottom-auto lg:right-auto lg:w-full lg:max-w-2xl bg-white rounded-t-xl lg:rounded-xl shadow-2xl transform transition-transform duration-300 ease-out max-h-[95vh] lg:max-h-[90vh] flex flex-col pointer-events-auto overflow-visible ${isEditModalClosing
+              ? 'translate-y-full lg:translate-y-full lg:translate-x-[-50%]'
+              : 'translate-y-0 lg:translate-x-[-50%] lg:translate-y-[-50%] modal-enter lg:modal-enter-desktop'
             }`}
             onClick={(e) => e.stopPropagation()}
           >

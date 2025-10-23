@@ -16,6 +16,7 @@ import { ValidationService } from '@/lib/validation-service'
 import TimeSlotSelector from '@/components/TimeSlotSelector'
 import { BookingProgressService, BookingProgress } from '@/lib/booking-progress-service'
 import { AppointmentSMSService } from '@/lib/appointment-sms-service'
+import { InventoryService } from '@/lib/inventory-service'
 
 export default function AppointmentsPage() {
   const { user, userRoleData, loading: authLoading } = useAuth()
@@ -655,7 +656,23 @@ export default function AppointmentsPage() {
       if (!insertedAppointment) {
         throw new Error('Failed to create appointment')
       }
+      const totalAmount = selectedServices.reduce((sum, service) => sum + (service.price || 0), 0)
 
+      const transactionData = {
+        transaction_type: 'income' as const,
+        category: 'service_revenue',
+        amount: totalAmount,
+        transaction_date: new Date().toISOString().split('T')[0],
+        payment_method: 'Pending',
+        receipt_number: `APPT-${insertedAppointment.id}`
+      }
+
+      try {
+        await InventoryService.createFinancialTransaction(transactionData, user.id)
+      } catch (transactionError) {
+        console.error('Error creating financial transaction:', transactionError)
+        showError('Appointment booked, but failed to record financial transaction')
+      }
 
       try {
         await AppointmentSMSService.sendAppointmentNotifications(insertedAppointment.id)
@@ -975,8 +992,8 @@ export default function AppointmentsPage() {
                               transition: `all 0.6s ease-out ${serviceIndex * 0.1}s`
                             }}
                             className={`bg-white rounded-lg border shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer ${isSelected
-                                ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-200'
-                                : 'border-gray-200 hover:border-indigo-300'
+                              ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-200'
+                              : 'border-gray-200 hover:border-indigo-300'
                               }`}
                           >
                             <div className="p-4 sm:p-6">
@@ -1147,8 +1164,8 @@ export default function AppointmentsPage() {
                   key={practitioner.id}
                   onClick={() => setSelectedPractitioner(practitioner)}
                   className={`bg-white rounded-lg border shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer ${selectedPractitioner?.id === practitioner.id
-                      ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-200'
-                      : 'border-gray-200 hover:border-indigo-300'
+                    ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-200'
+                    : 'border-gray-200 hover:border-indigo-300'
                     }`}
                 >
                   <div className="p-6">
@@ -1217,8 +1234,8 @@ export default function AppointmentsPage() {
                   setSelectedClient(null)
                 }}
                 className={`bg-white rounded-lg border shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer ${isExternalClient
-                    ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-200'
-                    : 'border-gray-200 hover:border-indigo-300'
+                  ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-200'
+                  : 'border-gray-200 hover:border-indigo-300'
                   }`}
               >
                 <div className="p-6">
@@ -1332,8 +1349,8 @@ export default function AppointmentsPage() {
                       setIsExternalClient(false)
                     }}
                     className={`bg-white rounded-lg border shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer ${selectedClient?.id === client.id
-                        ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-200'
-                        : 'border-gray-200 hover:border-indigo-300'
+                      ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-200'
+                      : 'border-gray-200 hover:border-indigo-300'
                       }`}
                   >
                     <div className="p-6">

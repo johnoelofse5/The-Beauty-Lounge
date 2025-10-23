@@ -27,6 +27,7 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [formData, setFormData] = useState({
+    email: user?.email || '',
     first_name: '',
     last_name: '',
     phone: '',
@@ -57,6 +58,7 @@ export default function ProfilePage() {
 
       setProfileData(data)
       setFormData({
+        email: user?.email || '',
         first_name: data.first_name || '',
         last_name: data.last_name || '',
         phone: data.phone || '',
@@ -94,6 +96,7 @@ export default function ProfilePage() {
           first_name: formData.first_name || null,
           last_name: formData.last_name || null,
           phone: formData.phone || null,
+          email: formData.email,
           updated_at: new Date().toISOString()
         })
         .eq('id', user.id)
@@ -118,6 +121,7 @@ export default function ProfilePage() {
   const handleCancel = () => {
     if (profileData) {
       setFormData({
+        email: profileData.email || '',
         first_name: profileData.first_name || '',
         last_name: profileData.last_name || '',
         phone: profileData.phone || '',
@@ -221,6 +225,16 @@ export default function ProfilePage() {
 
               <div>
                 <ValidationInput
+                  label="Email Address"
+                  error={formErrors.email}
+                  name="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  disabled={!isEditing}
+                  placeholder="Enter your email address"
+                />
+                <ValidationInput
                   label="Phone Number"
                   error={formErrors.phone}
                   name="phone"
@@ -230,17 +244,6 @@ export default function ProfilePage() {
                   disabled={!isEditing}
                   placeholder="Enter your phone number"
                 />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Email Address
-                </label>
-                <div className="flex items-center px-3 py-2 border border-gray-300 rounded-lg bg-gray-50">
-                  <Mail className="h-4 w-4 text-gray-400 mr-3" />
-                  <span className="text-gray-900 text-sm">{profileData.email}</span>
-                </div>
-                <p className="mt-1 text-xs text-gray-500">Email cannot be changed</p>
               </div>
             </div>
 

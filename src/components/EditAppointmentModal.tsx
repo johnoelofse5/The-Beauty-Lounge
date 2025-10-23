@@ -8,6 +8,8 @@ import { DatePicker } from '@/components/date-picker'
 import { hasPermission, isPractitioner } from '@/lib/rbac'
 import TimeSlotSelector from '@/components/TimeSlotSelector'
 import { AppointmentSMSService } from '@/lib/appointment-sms-service'
+import { InventoryService } from '@/lib/inventory-service'
+import { useToast } from '@/contexts/ToastContext'
 
 export default function EditAppointmentModal({
     appointment,
@@ -26,17 +28,23 @@ export default function EditAppointmentModal({
     const [success, setSuccess] = useState(false)
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
     const [deleting, setDeleting] = useState(false)
+    const { showSuccess, showError } = useToast()
 
-    
+
     useEffect(() => {
         if (appointment) {
             setSelectedDate(new Date(appointment.appointment_date))
-            setSelectedTimeSlot(appointment.start_time)
+            const startTime = new Date(appointment.start_time).toLocaleTimeString('en-US', {
+                hour12: false,
+                hour: '2-digit',
+                minute: '2-digit'
+            })
+            setSelectedTimeSlot(startTime)
             setSelectedServices(appointment.services || [])
         }
     }, [appointment])
 
-    
+
     useEffect(() => {
         const loadServices = async () => {
             try {
@@ -50,7 +58,7 @@ export default function EditAppointmentModal({
         loadServices()
     }, [])
 
-    
+
     useEffect(() => {
         if (selectedDate && appointment?.practitioner) {
             loadExistingAppointments()
@@ -74,7 +82,7 @@ export default function EditAppointmentModal({
 
         try {
             setLoading(true)
-            
+
             const { data, error } = await supabase
                 .from('appointments')
                 .select('start_time, end_time')
@@ -82,7 +90,7 @@ export default function EditAppointmentModal({
                 .eq('practitioner_id', appointment.practitioner_id)
                 .eq('is_active', true)
                 .eq('is_deleted', false)
-                .neq('id', appointment.id) 
+                .neq('id', appointment.id)
 
             if (error) throw error
             setExistingAppointments(data || [])
@@ -119,30 +127,35 @@ export default function EditAppointmentModal({
                 throw new Error('Please select a date and time')
             }
 
-            
+            const finalDate = selectedDate || new Date(appointment.appointment_date)
+            const finalTimeSlot = selectedTimeSlot || new Date(appointment.start_time).toLocaleTimeString('en-US', {
+                hour12: false,
+                hour: '2-digit',
+                minute: '2-digit'
+            })
+
             const totalDuration = selectedServices.reduce((sum, service) => sum + service.duration_minutes, 0)
-            
-            const [hours, minutes] = selectedTimeSlot.split(':').map(Number)
+
+            const [hours, minutes] = finalTimeSlot.split(':').map(Number)
             const startTimeMinutes = hours * 60 + minutes
             const endTimeMinutes = startTimeMinutes + totalDuration
             const endHours = Math.floor(endTimeMinutes / 60)
             const endMins = endTimeMinutes % 60
             const endTimeString = `${endHours.toString().padStart(2, '0')}:${endMins.toString().padStart(2, '0')}`
 
-            
-            const year = selectedDate.getFullYear()
-            const month = String(selectedDate.getMonth() + 1).padStart(2, '0')
-            const day = String(selectedDate.getDate()).padStart(2, '0')
+
+            const year = finalDate.getFullYear()
+            const month = String(finalDate.getMonth() + 1).padStart(2, '0')
+            const day = String(finalDate.getDate()).padStart(2, '0')
             const dateString = `${year}-${month}-${day}`
-            const appointmentDateTime = new Date(`${dateString}T${selectedTimeSlot}`).toISOString()
+            const appointmentDateTime = new Date(`${dateString}T${finalTimeSlot}`).toISOString()
             const endDateTime = new Date(`${dateString}T${endTimeString}`).toISOString()
 
-            
             const { error: updateError } = await supabase
                 .from('appointments')
                 .update({
                     service_ids: selectedServices.map(s => s.id),
-                    
+
                     appointment_date: appointmentDateTime,
                     start_time: appointmentDateTime,
                     end_time: endDateTime,
@@ -151,13 +164,42 @@ export default function EditAppointmentModal({
                 .eq('id', appointment.id)
 
             if (updateError) throw updateError
+            const newTotalAmount = selectedServices.reduce((sum, service) => sum + (service.price || 0), 0)
+            const receiptNumber = `APPT-${appointment.id}`
 
-            
+            const { data: existingTransaction, error: fetchError } = await supabase
+                .from('financial_transactions')
+                .select('id')
+                .eq('receipt_number', receiptNumber)
+                .single()
+
+            if (fetchError && fetchError.code !== 'PGRST116') {
+                console.error('Error fetching financial transaction:', fetchError)
+            } else if (existingTransaction) {
+                const updateData = {
+                    transaction_type: 'income' as const,
+                    category: 'service_revenue',
+                    amount: newTotalAmount,
+                    transaction_date: new Date().toISOString().split('T')[0],
+                    updated_by: userRoleData?.user?.id || ''
+                }
+                await InventoryService.updateFinancialTransaction(existingTransaction.id, updateData, userRoleData?.user?.id || '')
+            } else {
+                const transactionData = {
+                    transaction_type: 'income' as const,
+                    category: 'service_revenue',
+                    amount: newTotalAmount,
+                    transaction_date: new Date().toISOString().split('T')[0],
+                    payment_method: 'Pending',
+                    receipt_number: receiptNumber
+                }
+                await InventoryService.createFinancialTransaction(transactionData, userRoleData?.user?.id || '')
+            }
+
             try {
                 await AppointmentSMSService.sendRescheduleSMS(appointment.id)
             } catch (smsError) {
                 console.error('Error sending reschedule SMS notifications:', smsError)
-                
             }
 
             setSuccess(true)
@@ -192,12 +234,25 @@ export default function EditAppointmentModal({
 
             if (deleteError) throw deleteError
 
-            
+            const receiptNumber = `APPT-${appointment.id}`
+            const { error: deleteTransactionError } = await supabase
+                .from('financial_transactions')
+                .update({
+                    is_deleted: true,
+                    is_active: false,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('receipt_number', receiptNumber)
+
+            if (deleteTransactionError) {
+                console.error('Error deleting financial transaction:', deleteTransactionError)
+                showError('Appointment deleted, but failed to remove financial transaction')
+            }
+
             try {
                 await AppointmentSMSService.sendCancellationSMS(appointment.id)
             } catch (smsError) {
                 console.error('Error sending cancellation SMS notifications:', smsError)
-                
             }
 
             setSuccess(true)
@@ -212,10 +267,10 @@ export default function EditAppointmentModal({
         }
     }
 
-    
+
     const canDeleteAppointment = () => {
-        return isPractitioner(userRoleData?.role || null) && 
-               hasPermission(userRoleData?.permissions || [], 'appointments', 'delete')
+        return isPractitioner(userRoleData?.role || null) &&
+            hasPermission(userRoleData?.permissions || [], 'appointments', 'delete')
     }
 
     const formatTime = (time: string) => {
@@ -227,7 +282,7 @@ export default function EditAppointmentModal({
     }
 
     const formatDate = (dateString: string) => {
-        
+
         if (dateString.includes('T') || dateString.includes('Z')) {
             return new Date(dateString).toLocaleDateString('en-US', {
                 weekday: 'long',
@@ -237,7 +292,7 @@ export default function EditAppointmentModal({
                 timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
             })
         }
-        
+
         const [year, month, day] = dateString.split('-').map(Number)
         const localDate = new Date(year, month - 1, day)
         return localDate.toLocaleDateString('en-US', {
@@ -251,18 +306,17 @@ export default function EditAppointmentModal({
     return (
         <div className="fixed inset-0 z-50 pointer-events-auto">
             {/* Backdrop - invisible but blocks clicks */}
-            <div 
-                className="absolute inset-0" 
+            <div
+                className="absolute inset-0"
                 onClick={onClose}
             />
-            
+
             {/* Modal Content */}
-            <div 
-                className={`fixed bottom-0 left-0 right-0 lg:top-1/2 lg:left-1/2 lg:transform lg:-translate-x-1/2 lg:-translate-y-1/2 lg:bottom-auto lg:right-auto lg:w-full lg:max-w-2xl bg-white rounded-t-xl lg:rounded-xl shadow-2xl transform transition-transform duration-300 ease-out max-h-[95vh] lg:max-h-[90vh] flex flex-col ${
-                    isClosing
-                        ? 'translate-y-full lg:translate-y-full lg:translate-x-[-50%]'
-                        : 'translate-y-0 lg:translate-x-[-50%] lg:translate-y-[-50%] modal-enter lg:modal-enter-desktop'
-                }`}
+            <div
+                className={`fixed bottom-0 left-0 right-0 lg:top-1/2 lg:left-1/2 lg:transform lg:-translate-x-1/2 lg:-translate-y-1/2 lg:bottom-auto lg:right-auto lg:w-full lg:max-w-2xl bg-white rounded-t-xl lg:rounded-xl shadow-2xl transform transition-transform duration-300 ease-out max-h-[95vh] lg:max-h-[90vh] flex flex-col ${isClosing
+                    ? 'translate-y-full lg:translate-y-full lg:translate-x-[-50%]'
+                    : 'translate-y-0 lg:translate-x-[-50%] lg:translate-y-[-50%] modal-enter lg:modal-enter-desktop'
+                    }`}
                 onClick={(e) => e.stopPropagation()}
             >
 
@@ -286,52 +340,52 @@ export default function EditAppointmentModal({
                     </button>
                 </div>
 
-                 {/* Content */}
-                 <div className="flex-1 overflow-y-auto px-6 py-4">
-                     {success ? (
-                         <div className="text-center py-8">
-                             <div className="w-16 h-16 mx-auto mb-4 bg-green-100 rounded-full flex items-center justify-center">
-                                 <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                 </svg>
-                             </div>
-                             <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                                 {deleting ? 'Appointment Deleted!' : 'Appointment Updated!'}
-                             </h3>
-                             <p className="text-gray-600">
-                                 {deleting ? 'The appointment has been successfully deleted.' : 'Your appointment has been successfully updated.'}
-                             </p>
-                         </div>
-                     ) : showDeleteConfirm ? (
-                         /* Delete Confirmation Content */
-                         <div className="space-y-6">
-                             <div className="text-center py-4">
-                                 <div className="w-16 h-16 mx-auto mb-4 bg-red-100 rounded-full flex items-center justify-center">
-                                     <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                                     </svg>
-                                 </div>
-                                 <h3 className="text-lg font-semibold text-gray-900 mb-2">Delete Appointment</h3>
-                                 <p className="text-gray-600 mb-4">
-                                     Are you sure you want to delete this appointment? This action cannot be undone.
-                                 </p>
-                                 <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                                     <div className="flex">
-                                         <div className="flex-shrink-0">
-                                             <svg className="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
-                                                 <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                                             </svg>
-                                         </div>
-                                         <div className="ml-3">
-                                             <p className="text-sm text-red-800">
-                                                 <strong>Warning:</strong> This will permanently delete the appointment.
-                                             </p>
-                                         </div>
-                                     </div>
-                                 </div>
-                             </div>
-                         </div>
-                     ) : (
+                {/* Content */}
+                <div className="flex-1 overflow-y-auto px-6 py-4">
+                    {success ? (
+                        <div className="text-center py-8">
+                            <div className="w-16 h-16 mx-auto mb-4 bg-green-100 rounded-full flex items-center justify-center">
+                                <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                </svg>
+                            </div>
+                            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                                {deleting ? 'Appointment Deleted!' : 'Appointment Updated!'}
+                            </h3>
+                            <p className="text-gray-600">
+                                {deleting ? 'The appointment has been successfully deleted.' : 'Your appointment has been successfully updated.'}
+                            </p>
+                        </div>
+                    ) : showDeleteConfirm ? (
+                        /* Delete Confirmation Content */
+                        <div className="space-y-6">
+                            <div className="text-center py-4">
+                                <div className="w-16 h-16 mx-auto mb-4 bg-red-100 rounded-full flex items-center justify-center">
+                                    <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                                    </svg>
+                                </div>
+                                <h3 className="text-lg font-semibold text-gray-900 mb-2">Delete Appointment</h3>
+                                <p className="text-gray-600 mb-4">
+                                    Are you sure you want to delete this appointment? This action cannot be undone.
+                                </p>
+                                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                                    <div className="flex">
+                                        <div className="flex-shrink-0">
+                                            <svg className="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                                            </svg>
+                                        </div>
+                                        <div className="ml-3">
+                                            <p className="text-sm text-red-800">
+                                                <strong>Warning:</strong> This will permanently delete the appointment.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
                         <form onSubmit={handleSubmit} className="space-y-6">
                             {error && (
                                 <div className="bg-red-50 border border-red-200 rounded-lg p-4">
@@ -361,15 +415,15 @@ export default function EditAppointmentModal({
                                                 key={service.id}
                                                 onClick={() => handleServiceToggle(service)}
                                                 className={`p-4 rounded-lg border cursor-pointer transition-colors ${isSelected
-                                                        ? 'border-indigo-500 bg-indigo-50'
-                                                        : 'border-gray-200 hover:border-gray-300'
+                                                    ? 'border-indigo-500 bg-indigo-50'
+                                                    : 'border-gray-200 hover:border-gray-300'
                                                     }`}
                                             >
                                                 <div className="flex items-center justify-between">
                                                     <div className="flex items-center space-x-3">
                                                         <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${isSelected
-                                                                ? 'border-indigo-500 bg-indigo-500'
-                                                                : 'border-gray-300'
+                                                            ? 'border-indigo-500 bg-indigo-500'
+                                                            : 'border-gray-300'
                                                             }`}>
                                                             {isSelected && (
                                                                 <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
@@ -463,62 +517,63 @@ export default function EditAppointmentModal({
                     )}
                 </div>
 
-                 {/* Actions */}
-                 {!success && (
-                     <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 rounded-b-xl">
-                         <div className="flex space-x-3">
-                             {showDeleteConfirm ? (
-                                 /* Delete Confirmation Actions */
-                                 <>
-                                     <button
-                                         type="button"
-                                         onClick={() => setShowDeleteConfirm(false)}
-                                         className="flex-1 bg-gray-600 text-white px-3 py-2 lg:px-4 lg:py-3 rounded-lg font-medium hover:bg-gray-700 transition-colors text-sm lg:text-base"
-                                     >
-                                         Cancel
-                                     </button>
-                                     <button
-                                         type="button"
-                                         onClick={handleDeleteAppointment}
-                                         disabled={deleting}
-                                         className="flex-1 bg-red-600 text-white px-3 py-2 lg:px-4 lg:py-3 rounded-lg font-medium hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm lg:text-base"
-                                     >
-                                         {deleting ? 'Deleting...' : 'Delete Appointment'}
-                                     </button>
-                                 </>
-                             ) : (
-                                 /* Edit Actions */
-                                 <>
-                                     <button
-                                         type="button"
-                                         onClick={onClose}
-                                         className="flex-1 bg-gray-600 text-white px-3 py-2 lg:px-4 lg:py-3 rounded-lg font-medium hover:bg-gray-700 transition-colors text-sm lg:text-base"
-                                     >
-                                         Cancel
-                                     </button>
-                                     {canDeleteAppointment() && (
-                                         <button
-                                             type="button"
-                                             onClick={() => setShowDeleteConfirm(true)}
-                                             className="flex-1 bg-red-600 text-white px-3 py-2 lg:px-4 lg:py-3 rounded-lg font-medium hover:bg-red-700 transition-colors text-sm lg:text-base"
-                                         >
-                                             Delete
-                                         </button>
-                                     )}
-                                     <button
-                                         type="submit"
-                                         onClick={handleSubmit}
-                                         disabled={loading || selectedServices.length === 0 || !selectedDate || !selectedTimeSlot}
-                                         className="flex-1 bg-indigo-600 text-white px-3 py-2 lg:px-4 lg:py-3 rounded-lg font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm lg:text-base"
-                                     >
-                                         {loading ? 'Updating...' : 'Update Appointment'}
-                                     </button>
-                                 </>
-                             )}
-                         </div>
-                     </div>
-                 )}
+                {/* Actions */}
+                {!success && (
+                    <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 rounded-b-xl">
+                        <div className="flex space-x-3">
+                            {showDeleteConfirm ? (
+                                /* Delete Confirmation Actions */
+                                <>
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowDeleteConfirm(false)}
+                                        className="flex-1 bg-gray-600 text-white px-3 py-2 lg:px-4 lg:py-3 rounded-lg font-medium hover:bg-gray-700 transition-colors text-sm lg:text-base"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={handleDeleteAppointment}
+                                        disabled={deleting}
+                                        className="flex-1 bg-red-600 text-white px-3 py-2 lg:px-4 lg:py-3 rounded-lg font-medium hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm lg:text-base"
+                                    >
+                                        {deleting ? 'Deleting...' : 'Delete Appointment'}
+                                    </button>
+                                </>
+                            ) : (
+                                /* Edit Actions */
+                                <>
+                                    <button
+                                        type="button"
+                                        onClick={onClose}
+                                        className="flex-1 bg-gray-600 text-white px-3 py-2 lg:px-4 lg:py-3 rounded-lg font-medium hover:bg-gray-700 transition-colors text-sm lg:text-base"
+                                    >
+                                        Cancel
+                                    </button>
+                                    {canDeleteAppointment() && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowDeleteConfirm(true)}
+                                            className="flex-1 bg-red-600 text-white px-3 py-2 lg:px-4 lg:py-3 rounded-lg font-medium hover:bg-red-700 transition-colors text-sm lg:text-base"
+                                        >
+                                            Delete
+                                        </button>
+                                    )}
+                                    <button
+                                        type="submit"
+                                        onClick={handleSubmit}
+                                        disabled={loading || selectedServices.length === 0 || !selectedDate || !selectedTimeSlot}
+                                        className="flex-1 bg-indigo-600 text-white px-3 py-2 lg:px-4 lg:py-3 rounded-lg font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm lg:text-base"
+                                    >
+                                        {loading ? 'Updating...' : 'Update Appointment'}
+                                    </button>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                )}
             </div>
 
         </div>
-)}
+    )
+}

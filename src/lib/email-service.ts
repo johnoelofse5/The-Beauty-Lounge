@@ -73,48 +73,48 @@ export async function sendInvoiceEmail(
     const pdfBase64 = await blobToBase64(pdfBlob);
 
     const html = `
-<!DOCTYPE html>
-<html>
-<head>
+      <!DOCTYPE html>
+      <html>
+      <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Invoice ${invoice.invoice_number}</title>
-</head>
+      </head>
 <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4;">
   <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 20px;">
     <div style="text-align: center; margin-bottom: 30px; padding: 20px; background: linear-gradient(135deg, #F2C7EB, #E8A8D8); border-radius: 10px;">
       <h1 style="color: #374151; margin: 0; font-size: 28px; font-weight: bold;">Invoice ${invoice.invoice_number}</h1>
-    </div>
+          </div>
     
     <div style="padding: 20px;">
       <p style="font-size: 16px; color: #374151; margin-bottom: 20px;">Dear ${invoice.client_name},</p>
       
       <p style="font-size: 16px; color: #374151; margin-bottom: 20px;">Thank you for your business! Please find your invoice attached to this email.</p>
-      
+            
       <div style="background-color: #f9fafb; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #E8A8D8;">
         <p style="margin: 0; font-size: 18px; color: #374151;"><strong>Total Amount: R${invoice.total_amount?.toFixed(2)}</strong></p>
-      </div>
-      
+            </div>
+            
       <div style="background-color: #dbeafe; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #3b82f6;">
         <p style="margin: 0; font-size: 14px; color: #1e40af;"><strong>📎 Invoice Attached</strong></p>
         <p style="margin: 5px 0 0 0; font-size: 14px; color: #1e40af;">Your invoice is attached as a PDF document. Please download and save it for your records.</p>
-      </div>
-      
+            </div>
+            
       <p style="font-size: 16px; color: #374151; margin-bottom: 20px;">If you have any questions about this invoice, please don't hesitate to contact us.</p>
       
       <p style="font-size: 16px; color: #374151; margin-bottom: 20px;">Thank you for your business!</p>
       
       <p style="font-size: 16px; color: #374151; margin-bottom: 0;">Best regards,<br/><strong>The Beauty Lounge</strong></p>
-    </div>
+          </div>
     
     <div style="text-align: center; margin-top: 30px; padding: 20px; background-color: #f9fafb; border-radius: 8px; font-size: 12px; color: #6b7280;">
       <p style="margin: 0;">This is an automated invoice. Please do not reply to this email.</p>
       <p style="margin: 5px 0 0 0;">&copy; ${new Date().getFullYear()} The Beauty Lounge. All rights reserved.</p>
-    </div>
-  </div>
-</body>
-</html>
-`;
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
 
     const text = `
 Invoice ${invoice.invoice_number}
