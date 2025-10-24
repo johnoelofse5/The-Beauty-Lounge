@@ -77,8 +77,8 @@ export default function ProfilePage() {
       ...prev,
       [name]: value
     }))
-    
-    
+
+
     if (formErrors[name]) {
       setFormErrors(prev => ({ ...prev, [name]: '' }))
     }
@@ -90,6 +90,12 @@ export default function ProfilePage() {
     setSaving(true)
 
     try {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      if (!emailRegex.test(formData.email)) {
+        setFormErrors({ email: 'Please enter a valid email address' })
+        return
+      }
+
       const { error } = await supabase
         .from('users')
         .update({
@@ -107,9 +113,20 @@ export default function ProfilePage() {
         return
       }
 
-      showSuccess('Profile updated successfully!')
+      if (formData.email !== user.email) {
+        const { error: authError } = await supabase.auth.updateUser({ email: formData.email })
+        if (authError) {
+          console.error('Error updating auth email:', authError)
+          showError('Profile updated, but failed to update email in authentication. Please try again.')
+          return
+        }
+        showSuccess('Profile updated! Please check your new email for confirmation to complete the email change.')
+      } else {
+        showSuccess('Profile updated successfully!')
+      }
+
       setIsEditing(false)
-      await loadProfileData() 
+      await loadProfileData()
     } catch (err) {
       console.error('Error updating profile:', err)
       showError('Failed to update profile')
@@ -159,8 +176,8 @@ export default function ProfilePage() {
       <div className="max-w-4xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
-          <Link 
-            href="/" 
+          <Link
+            href="/"
             className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700 mb-4"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
@@ -179,7 +196,7 @@ export default function ProfilePage() {
               </div>
               <div className="ml-6">
                 <h2 className="text-xl font-semibold text-gray-900">
-                  {profileData.first_name && profileData.last_name 
+                  {profileData.first_name && profileData.last_name
                     ? `${profileData.first_name} ${profileData.last_name}`
                     : profileData.email
                   }
