@@ -35,7 +35,7 @@ serve(async (req) => {
       .select('id, start_time, status')
       .gte('start_time', today.toISOString())
       .lt('start_time', tomorrow.toISOString())
-      .in('status', ['confirmed', 'pending'])
+      .in('status', ['scheduled'])
 
     if (error) {
       throw new Error(`Database error: ${error.message}`)

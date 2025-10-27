@@ -1,5 +1,5 @@
-import { serve } from 'https:
-import { createClient } from 'https:
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -186,7 +186,7 @@ serve(async (req) => {
           body: msg.body
         }))
         
-        const response = await fetch('https:
+        const response = await fetch('https://api.bulksms.com/v1/messages', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
