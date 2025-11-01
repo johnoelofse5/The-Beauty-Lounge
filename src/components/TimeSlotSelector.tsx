@@ -18,6 +18,7 @@ export default function TimeSlotSelector({
   const [loading, setLoading] = useState(false)
   const [workingSchedule, setWorkingSchedule] = useState<WorkingSchedule[]>([])
   const [currentAppointments, setCurrentAppointments] = useState<any[]>([])
+  const [isDateBlocked, setIsDateBlocked] = useState(false)
 
   
   useEffect(() => {
@@ -37,6 +38,25 @@ export default function TimeSlotSelector({
 
     loadWorkingSchedule()
   }, [practitionerId])
+
+  useEffect(() => {
+    const checkBlockedDate = async () => {
+      if (!selectedDate || !practitionerId) {
+        setIsDateBlocked(false)
+        return
+      }
+
+      try {
+        const blocked = await ScheduleService.isDateBlocked(practitionerId, selectedDate)
+        setIsDateBlocked(blocked)
+      } catch (error) {
+        console.error('Error checking blocked date:', error)
+        setIsDateBlocked(false)
+      }
+    }
+
+    checkBlockedDate()
+  }, [selectedDate?.toLocaleDateString('en-CA'), practitionerId])
 
   
   useEffect(() => {
@@ -119,6 +139,20 @@ export default function TimeSlotSelector({
       <div className="space-y-4">
         <h3 className="text-lg font-semibold text-gray-900">Available Time Slots</h3>
         <p className="text-gray-500 text-center py-8">Please select a date to view available time slots</p>
+      </div>
+    )
+  }
+
+  if (isDateBlocked) {
+    return (
+      <div className="space-y-4">
+        <h3 className="text-lg font-semibold text-gray-900">Available Time Slots</h3>
+        <div className="bg-red-50 border border-red-200 rounded-md p-4">
+          <p className="text-red-800 font-medium">This date is blocked</p>
+          <p className="text-sm text-red-600 mt-1">
+            This practitioner has blocked this date from bookings. Please select a different date.
+          </p>
+        </div>
       </div>
     )
   }

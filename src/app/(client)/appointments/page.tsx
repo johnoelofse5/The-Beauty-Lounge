@@ -17,6 +17,7 @@ import TimeSlotSelector from '@/components/TimeSlotSelector'
 import { BookingProgressService, BookingProgress } from '@/lib/booking-progress-service'
 import { AppointmentSMSService } from '@/lib/appointment-sms-service'
 import { InventoryService } from '@/lib/inventory-service'
+import { ScheduleService } from '@/lib/schedule-service'
 
 export default function AppointmentsPage() {
   const { user, userRoleData, loading: authLoading } = useAuth()
@@ -38,6 +39,7 @@ export default function AppointmentsPage() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined)
   const [selectedTime, setSelectedTime] = useState<string>('')
   const [notes, setNotes] = useState<string>('')
+  const [blockedDates, setBlockedDates] = useState<string[]>([])
 
 
   const [isExternalClient, setIsExternalClient] = useState<boolean>(false)
@@ -362,6 +364,25 @@ export default function AppointmentsPage() {
       setExistingAppointments([])
     }
   }, [selectedDate, selectedPractitioner, loadExistingAppointments])
+
+  useEffect(() => {
+    const loadBlockedDates = async () => {
+      if (!selectedPractitioner?.id) {
+        setBlockedDates([])
+        return
+      }
+
+      try {
+        const blocked = await ScheduleService.getBlockedDates(selectedPractitioner.id)
+        setBlockedDates(blocked)
+      } catch (error) {
+        console.error('Error loading blocked dates:', error)
+        setBlockedDates([])
+      }
+    }
+
+    loadBlockedDates()
+  }, [selectedPractitioner?.id])
 
 
   useEffect(() => {
@@ -1506,6 +1527,7 @@ export default function AppointmentsPage() {
                   minDate={allowSameDayBooking ? undefined : getTomorrowDate()}
                   maxDate={getMaxDate()}
                   allowSameDay={allowSameDayBooking}
+                  blockedDates={blockedDates}
                   className="w-full max-w-sm"
                 />
                 <p className="mt-2 text-sm text-gray-500">

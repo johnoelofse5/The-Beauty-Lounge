@@ -36,4 +36,5 @@ export interface DatePickerProps {
   maxDate?: Date
   className?: string
   allowSameDay?: boolean
+  blockedDates?: string[]
 }

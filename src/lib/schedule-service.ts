@@ -207,4 +207,163 @@ export class ScheduleService {
       sunday: { day_of_week: 0, day_name: 'Sunday', start_time: '08:00:00', end_time: '19:00:00', time_slot_interval_minutes: 30, is_active: false }
     }
   }
+
+  private static formatDateLocal(date: Date): string {
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  }
+
+  private static getTodayLocal(): string {
+    const today = new Date()
+    return this.formatDateLocal(today)
+  }
+  
+  static async getBlockedDates(practitionerId: string): Promise<string[]> {
+    const { data, error } = await supabase
+      .from('blocked_dates')
+      .select('blocked_date')
+      .eq('practitioner_id', practitionerId)
+      .eq('is_active', true)
+      .eq('is_deleted', false)
+      .gte('blocked_date', ScheduleService.getTodayLocal())
+      .order('blocked_date', { ascending: true })
+
+    if (error) {
+      console.error('Error fetching blocked dates:', error)
+      throw new Error('Failed to fetch blocked dates')
+    }
+
+    return (data || []).map(item => item.blocked_date)
+  }
+
+  static async isDateBlocked(practitionerId: string, date: Date): Promise<boolean> {
+    const dateString = ScheduleService.formatDateLocal(date)
+    
+    const { data, error } = await supabase
+      .from('blocked_dates')
+      .select('id')
+      .eq('practitioner_id', practitionerId)
+      .eq('blocked_date', dateString)
+      .eq('is_active', true)
+      .eq('is_deleted', false)
+      .limit(1)
+
+    if (error) {
+      console.error('Error checking blocked date:', error)
+      return false
+    }
+
+    return (data || []).length > 0
+  }
+
+  static async addBlockedDate(practitionerId: string, date: Date, reason?: string): Promise<void> {
+    const localDate = new Date(date)
+    localDate.setHours(0, 0, 0, 0)
+    const dateString = ScheduleService.formatDateLocal(localDate)
+    
+    const { data: existingData, error: checkError } = await supabase
+      .from('blocked_dates')
+      .select('id')
+      .eq('practitioner_id', practitionerId)
+      .eq('blocked_date', dateString)
+      .limit(1)
+      .maybeSingle()
+    
+    const existing = existingData
+
+    if (existing) {
+      const { error } = await supabase
+        .from('blocked_dates')
+        .update({
+          reason: reason || null,
+          is_active: true,
+          is_deleted: false
+        })
+        .eq('id', existing.id)
+
+      if (error) {
+        console.error('Error updating blocked date:', error)
+        throw new Error('Failed to add blocked date')
+      }
+    } else {
+      const { error } = await supabase
+        .from('blocked_dates')
+        .insert({
+          practitioner_id: practitionerId,
+          blocked_date: dateString,
+          reason: reason || null,
+          is_active: true,
+          is_deleted: false
+        })
+
+      if (error) {
+        console.error('Error adding blocked date:', error)
+        throw new Error('Failed to add blocked date')
+      }
+    }
+  }
+
+  static async removeBlockedDate(practitionerId: string, date: Date): Promise<void> {
+    const localDate = new Date(date)
+    localDate.setHours(0, 0, 0, 0)
+    const dateString = ScheduleService.formatDateLocal(localDate)
+    
+    const { data: functionResult, error: functionError } = await supabase
+      .rpc('soft_delete_blocked_date', {
+        p_practitioner_id: practitionerId,
+        p_blocked_date: dateString
+      })
+
+    if (!functionError && functionResult === true) {
+      return
+    }
+
+    if (functionError && functionError.code === '42883') {
+      const { data, error } = await supabase
+        .from('blocked_dates')
+        .update({ is_deleted: true, is_active: false })
+        .eq('practitioner_id', practitionerId)
+        .eq('blocked_date', dateString)
+        .eq('is_deleted', false)
+        .select()
+
+      if (error) {
+        console.error('Error removing blocked date:', error)
+        throw new Error(`Failed to remove blocked date: ${error.message || 'Unknown error'}`)
+      }
+
+      if (!data || data.length === 0) {
+        console.warn(`No blocked date found to remove for date: ${dateString}`)
+      }
+    } else if (functionError) {
+      console.error('Error calling soft_delete_blocked_date function:', functionError)
+      throw new Error(`Failed to remove blocked date: ${functionError.message || 'Unknown error'}`)
+    } else if (functionResult === false) {
+      console.warn(`No blocked date found to remove for date: ${dateString}`)
+    }
+  }
+
+  static async getBlockedDatesWithDetails(practitionerId: string): Promise<Array<{ id: string; blocked_date: string; reason: string | null }>> {
+    const { data, error } = await supabase
+      .from('blocked_dates')
+      .select('id, blocked_date, reason')
+      .eq('practitioner_id', practitionerId)
+      .eq('is_active', true)
+      .eq('is_deleted', false)
+      .gte('blocked_date', ScheduleService.getTodayLocal())
+      .order('blocked_date', { ascending: true })
+
+    if (error) {
+      console.error('Error fetching blocked dates with details:', error)
+      throw new Error('Failed to fetch blocked dates')
+    }
+
+    return (data || []).map(item => ({
+      id: item.id,
+      blocked_date: item.blocked_date,
+      reason: item.reason
+    }))
+  }
 }

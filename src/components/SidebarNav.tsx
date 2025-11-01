@@ -35,7 +35,8 @@ import {
   TrendingUp,
   DollarSign,
   Sun,
-  Moon
+  Moon,
+  Ban
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useTheme } from '@/hooks/useTheme'
@@ -152,6 +153,12 @@ export default function SidebarNav({ title = "The Beauty Lounge" }: SidebarNavPr
       title: "Working Schedule",
       url: "/schedule",
       icon: Clock,
+      show: permissions.canManageSchedule,
+    },
+    {
+      title: "Blocked Dates",
+      url: "/blocked-dates",
+      icon: Ban,
       show: permissions.canManageSchedule,
     },
     {

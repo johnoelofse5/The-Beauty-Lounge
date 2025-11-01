@@ -22,7 +22,8 @@ export function DatePicker({
   disabled = false,
   maxDate,
   className,
-  allowSameDay = false
+  allowSameDay = false,
+  blockedDates = []
 }: DatePickerProps & { onChange?: (date: Date | null) => void }) {
   const [open, setOpen] = React.useState(false)
 
@@ -62,6 +63,10 @@ export function DatePicker({
             if (allowSameDay && date < today) return true
             
             if (maxDate && date > maxDate) return true
+            
+            const dateString = format(date, 'yyyy-MM-dd')
+            if (blockedDates.includes(dateString)) return true
+            
             return false
           }}
           initialFocus
