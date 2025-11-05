@@ -28,7 +28,7 @@ import {
 } from '@/components/validation/ValidationComponents'
 import { SelectItem } from '@/components/ui/select'
 import { DatePicker } from '@/components/date-picker'
-import jsPDF from 'jspdf'
+import { supabase } from '@/lib/supabase'
 
 export default function InventoryFinancePage() {
   const { user, userRoleData } = useAuth()
@@ -1929,6 +1929,12 @@ function FinancialTransactionsView({
   const [filterCategory, setFilterCategory] = useState<string>('all')
   const [sortBy, setSortBy] = useState<'date' | 'amount' | 'type'>('date')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
+  
+  // Report selection state
+  const currentDate = new Date()
+  const [selectedMonth, setSelectedMonth] = useState<string>(String(currentDate.getMonth() + 1))
+  const [selectedYear, setSelectedYear] = useState<string>(String(currentDate.getFullYear()))
+  const [selectedYearlyYear, setSelectedYearlyYear] = useState<string>(String(currentDate.getFullYear()))
 
 
   const [formData, setFormData] = useState<FinancialTransactionForm>({
@@ -2140,47 +2146,107 @@ function FinancialTransactionsView({
     })
   }
 
-  const handleDownloadReport = () => {
-    const currentDate = new Date()
-    const currentMonth = currentDate.getMonth()
-    const currentYear = currentDate.getFullYear()
-
-    const monthlyTransactions = transactions.filter(transaction => {
-      const transactionDate = new Date(transaction.transaction_date)
-      return transactionDate.getMonth() === currentMonth && transactionDate.getFullYear() === currentYear
-    })
-
-    const totalIncome = monthlyTransactions
-      .filter(t => t.transaction_type === 'income')
-      .reduce((sum, t) => sum + t.amount, 0)
-
-    const totalExpenses = monthlyTransactions
-      .filter(t => t.transaction_type === 'expense')
-      .reduce((sum, t) => sum + t.amount, 0)
-
-    const netProfit = totalIncome - totalExpenses
-
-    const doc = new jsPDF()
-    doc.setFontSize(20)
-    doc.text('Monthly Financial Report', 20, 30)
-    doc.setFontSize(12)
-    doc.text(`Month: ${currentDate.toLocaleString('default', { month: 'long' })} ${currentYear}`, 20, 50)
-    doc.text(`Total Income: ${formatCurrency(totalIncome)}`, 20, 70)
-    doc.text(`Total Expenses: ${formatCurrency(totalExpenses)}`, 20, 90)
-    doc.text(`Net Profit: ${formatCurrency(netProfit)}`, 20, 110)
-
-    doc.text('Transaction Details:', 20, 130)
-    let y = 150
-    monthlyTransactions.forEach(transaction => {
-      if (y > 270) {
-        doc.addPage()
-        y = 30
+  const handleMonthlyReport = async () => {
+    try {
+      setLoading(true)
+      const reportDate = new Date()
+      const selectedYearNum = parseInt(selectedYear)
+      const selectedMonthNum = parseInt(selectedMonth) - 1 // 0-indexed
+      
+      const dateFrom = new Date(selectedYearNum, selectedMonthNum, 1).toISOString().split('T')[0]
+      
+      const isCurrentMonth = selectedYearNum === reportDate.getFullYear() && selectedMonthNum === reportDate.getMonth()
+      let dateTo: string
+      if (isCurrentMonth) {
+        dateTo = reportDate.toISOString().split('T')[0]
+      } else {
+        const lastDay = new Date(selectedYearNum, selectedMonthNum + 1, 0)
+        dateTo = lastDay.toISOString().split('T')[0]
       }
-      doc.text(`${transaction.transaction_date}: ${transaction.category} - ${transaction.transaction_type === 'income' ? '+' : '-'}${formatCurrency(transaction.amount)}`, 20, y)
-      y += 10
-    })
 
-    doc.save(`financial-report-${currentYear}-${currentMonth + 1}.pdf`)
+      const { data, error } = await supabase.functions.invoke('generate-financial-transaction-pdf', {
+        body: {
+          report_type: 'monthly',
+          date_from: dateFrom,
+          date_to: dateTo
+        }
+      })
+
+      if (error || !data?.success) {
+        showError(data?.message || 'Failed to generate monthly financial report')
+        return
+      }
+
+      if (data.data?.pdf_url) {
+        const response = await fetch(data.data.pdf_url)
+        const blob = await response.blob()
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `monthly-financial-report-${selectedYearNum}-${String(selectedMonthNum + 1).padStart(2, '0')}.pdf`
+        document.body.appendChild(a)
+        a.click()
+        window.URL.revokeObjectURL(url)
+        document.body.removeChild(a)
+        showSuccess('Monthly financial report generated successfully!')
+      }
+    } catch (error) {
+      console.error('Error generating monthly report:', error)
+      showError('Failed to generate monthly financial report')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleYearlyReport = async () => {
+    try {
+      setLoading(true)
+      const reportDate = new Date()
+      const selectedYearNum = parseInt(selectedYearlyYear)
+      
+      const dateFrom = new Date(selectedYearNum, 0, 1).toISOString().split('T')[0]
+      
+      const isCurrentYear = selectedYearNum === reportDate.getFullYear()
+      let dateTo: string
+      if (isCurrentYear) {
+        dateTo = reportDate.toISOString().split('T')[0]
+      } else {
+        const lastDay = new Date(selectedYearNum, 11, 31)
+        dateTo = lastDay.toISOString().split('T')[0]
+      }
+
+      const { data, error } = await supabase.functions.invoke('generate-financial-transaction-pdf', {
+        body: {
+          report_type: 'yearly',
+          date_from: dateFrom,
+          date_to: dateTo
+        }
+      })
+
+      if (error || !data?.success) {
+        showError(data?.message || 'Failed to generate yearly financial report')
+        return
+      }
+
+      if (data.data?.pdf_url) {
+        const response = await fetch(data.data.pdf_url)
+        const blob = await response.blob()
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `yearly-financial-report-${selectedYearNum}.pdf`
+        document.body.appendChild(a)
+        a.click()
+        window.URL.revokeObjectURL(url)
+        document.body.removeChild(a)
+        showSuccess('Yearly financial report generated successfully!')
+      }
+    } catch (error) {
+      console.error('Error generating yearly report:', error)
+      showError('Failed to generate yearly financial report')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const filteredTransactions = transactions.filter(transaction => {
@@ -2218,21 +2284,12 @@ function FinancialTransactionsView({
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Financial Transactions</h1>
-          <p className="text-sm text-gray-600">Track money coming in and going out</p>
-        </div>
-        <div className="flex gap-2">
-          <button
-            onClick={handleDownloadReport}
-            className="w-full sm:w-auto bg-green-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
-          >
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            Download Report PDF
-          </button>
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Financial Transactions</h1>
+            <p className="text-sm text-gray-600">Track money coming in and going out</p>
+          </div>
           <button
             onClick={openAddModal}
             className="w-full sm:w-auto bg-indigo-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2"
@@ -2242,6 +2299,101 @@ function FinancialTransactionsView({
             </svg>
             Add Transaction
           </button>
+        </div>
+        
+        {/* Report Generation Section */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Generate Financial Reports</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Monthly Report */}
+            <div className="space-y-3">
+              <h3 className="text-sm font-medium text-gray-700">Monthly Report</h3>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <div className="flex-1">
+                  <ValidationSelect
+                    label="Month"
+                    value={selectedMonth}
+                    onValueChange={setSelectedMonth}
+                    placeholder="Select Month"
+                  >
+                    <SelectItem value="1">January</SelectItem>
+                    <SelectItem value="2">February</SelectItem>
+                    <SelectItem value="3">March</SelectItem>
+                    <SelectItem value="4">April</SelectItem>
+                    <SelectItem value="5">May</SelectItem>
+                    <SelectItem value="6">June</SelectItem>
+                    <SelectItem value="7">July</SelectItem>
+                    <SelectItem value="8">August</SelectItem>
+                    <SelectItem value="9">September</SelectItem>
+                    <SelectItem value="10">October</SelectItem>
+                    <SelectItem value="11">November</SelectItem>
+                    <SelectItem value="12">December</SelectItem>
+                  </ValidationSelect>
+                </div>
+                <div className="flex-1">
+                  <ValidationSelect
+                    label="Year"
+                    value={selectedYear}
+                    onValueChange={setSelectedYear}
+                    placeholder="Select Year"
+                  >
+                    {Array.from({ length: 10 }, (_, i) => {
+                      const year = currentDate.getFullYear() - 5 + i
+                      return (
+                        <SelectItem key={year} value={String(year)}>
+                          {year}
+                        </SelectItem>
+                      )
+                    })}
+                  </ValidationSelect>
+                </div>
+              </div>
+              <button
+                onClick={handleMonthlyReport}
+                disabled={loading}
+                className="w-full bg-green-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Generate Monthly Report
+              </button>
+            </div>
+
+            {/* Yearly Report */}
+            <div className="space-y-3">
+              <h3 className="text-sm font-medium text-gray-700">Yearly Report</h3>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <div className="flex-1">
+                  <ValidationSelect
+                    label="Year"
+                    value={selectedYearlyYear}
+                    onValueChange={setSelectedYearlyYear}
+                    placeholder="Select Year"
+                  >
+                    {Array.from({ length: 10 }, (_, i) => {
+                      const year = currentDate.getFullYear() - 5 + i
+                      return (
+                        <SelectItem key={year} value={String(year)}>
+                          {year}
+                        </SelectItem>
+                      )
+                    })}
+                  </ValidationSelect>
+                </div>
+              </div>
+              <button
+                onClick={handleYearlyReport}
+                disabled={loading}
+                className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Generate Yearly Report
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -2525,6 +2677,7 @@ function FinancialTransactionsView({
                         onDateChange={(date) => updateFormField('transaction_date', date ? date.toISOString().split('T')[0] : '')}
                         placeholder="Select transaction date"
                         allowSameDay={true}
+                        allowPastDates={true}
                         className="w-full"
                       />
                       {formErrors.transaction_date && (
@@ -2681,6 +2834,7 @@ function FinancialTransactionsView({
                         onDateChange={(date) => updateEditFormField('transaction_date', date ? date.toISOString().split('T')[0] : '')}
                         placeholder="Select transaction date"
                         allowSameDay={true}
+                        allowPastDates={true}
                         className="w-full"
                       />
                       {editFormErrors.transaction_date && (
