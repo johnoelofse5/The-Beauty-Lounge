@@ -181,9 +181,8 @@ export default function EditAppointmentModal({
                     category: 'service_revenue',
                     amount: newTotalAmount,
                     transaction_date: new Date().toISOString().split('T')[0],
-                    updated_by: userRoleData?.user?.id || ''
                 }
-                await InventoryService.updateFinancialTransaction(existingTransaction.id, updateData, userRoleData?.user?.id || '')
+                await InventoryService.updateFinancialTransaction(existingTransaction.id, updateData)
             } else {
                 const transactionData = {
                     transaction_type: 'income' as const,

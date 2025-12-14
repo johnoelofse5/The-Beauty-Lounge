@@ -1,10 +1,11 @@
-'use client'
+"use client";
 
-import { useState, useEffect } from 'react'
-import { useAuth } from '@/contexts/AuthContext'
-import { useToast } from '@/contexts/ToastContext'
-import { InventoryService } from '@/lib/inventory-service'
-import { getCategories, getServicesWithCategories } from '@/lib/services'
+import { formatDateLocal, parseDateLocal } from "@/lib/date-utils";
+import { useState, useEffect } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/contexts/ToastContext";
+import { InventoryService } from "@/lib/inventory-service";
+import { getCategories, getServicesWithCategories } from "@/lib/services";
 import {
   InventorySummary,
   FinancialSummary,
@@ -14,86 +15,103 @@ import {
   LowStockItem,
   InventoryItemForm,
   ServiceInventoryRelationship,
-  ServiceInventoryRelationshipForm
-} from '@/types/inventory'
-import { ServiceWithCategory } from '@/types/service'
-import { Category } from '@/types/service-category'
-import { lookupServiceCached } from '@/lib/lookup-service-cached'
-import { Lookup } from '@/types/lookup'
+  ServiceInventoryRelationshipForm,
+} from "@/types/inventory";
+import { ServiceWithCategory } from "@/types/service";
+import { Category } from "@/types/service-category";
+import { lookupServiceCached } from "@/lib/lookup-service-cached";
+import { Lookup } from "@/types/lookup";
 import {
   ValidationInput,
   ValidationTextarea,
   ValidationSelect,
-  useValidation
-} from '@/components/validation/ValidationComponents'
-import { SelectItem } from '@/components/ui/select'
-import { DatePicker } from '@/components/date-picker'
-import { supabase } from '@/lib/supabase'
+  useValidation,
+} from "@/components/validation/ValidationComponents";
+import { SelectItem } from "@/components/ui/select";
+import { DatePicker } from "@/components/date-picker";
+import { supabase } from "@/lib/supabase";
 
 export default function InventoryFinancePage() {
-  const { user, userRoleData } = useAuth()
-  const { showSuccess, showError } = useToast()
+  const { user, userRoleData } = useAuth();
+  const { showSuccess, showError } = useToast();
 
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'inventory' | 'service-inventory' | 'purchases' | 'finances'>('dashboard')
-  const [loading, setLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState<
+    "dashboard" | "inventory" | "service-inventory" | "purchases" | "finances"
+  >("dashboard");
+  const [loading, setLoading] = useState(true);
 
+  const [inventorySummary, setInventorySummary] =
+    useState<InventorySummary | null>(null);
+  const [financialSummary, setFinancialSummary] =
+    useState<FinancialSummary | null>(null);
+  const [lowStockItems, setLowStockItems] = useState<LowStockItem[]>([]);
 
-  const [inventorySummary, setInventorySummary] = useState<InventorySummary | null>(null)
-  const [financialSummary, setFinancialSummary] = useState<FinancialSummary | null>(null)
-  const [lowStockItems, setLowStockItems] = useState<LowStockItem[]>([])
-
-
-  const hasAccess = userRoleData?.role?.name === 'super_admin' || userRoleData?.role?.name === 'practitioner'
+  const hasAccess =
+    userRoleData?.role?.name === "super_admin" ||
+    userRoleData?.role?.name === "practitioner";
 
   useEffect(() => {
     if (user && hasAccess) {
-      loadDashboardData()
+      loadDashboardData();
     }
-  }, [user, hasAccess])
+  }, [user, hasAccess]);
 
   const loadDashboardData = async () => {
     try {
-      setLoading(true)
+      setLoading(true);
       const [inventory, financial, lowStock] = await Promise.all([
         InventoryService.getInventorySummary(),
         InventoryService.getFinancialSummary(),
-        InventoryService.getLowStockItems()
-      ])
+        InventoryService.getLowStockItems(),
+      ]);
 
-      setInventorySummary(inventory)
-      setFinancialSummary(financial)
-      setLowStockItems(lowStock)
+      setInventorySummary(inventory);
+      setFinancialSummary(financial);
+      setLowStockItems(lowStock);
     } catch (error) {
-      console.error('Error loading dashboard data:', error)
-      showError('Failed to load dashboard data')
+      console.error("Error loading dashboard data:", error);
+      showError("Failed to load dashboard data");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-ZA', {
-      style: 'currency',
-      currency: 'ZAR'
-    }).format(amount)
-  }
+    return new Intl.NumberFormat("en-ZA", {
+      style: "currency",
+      currency: "ZAR",
+    }).format(amount);
+  };
 
   if (!hasAccess) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
-            <svg className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 15.5c-.77.833.192 2.5 1.732 2.5z" />
+            <svg
+              className="h-6 w-6 text-red-600"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 15.5c-.77.833.192 2.5 1.732 2.5z"
+              />
             </svg>
           </div>
-          <h3 className="mt-2 text-sm font-medium text-gray-900">Access Denied</h3>
+          <h3 className="mt-2 text-sm font-medium text-gray-900">
+            Access Denied
+          </h3>
           <p className="mt-1 text-sm text-gray-500">
-            You don't have permission to access inventory and financial management.
+            You don't have permission to access inventory and financial
+            management.
           </p>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -102,9 +120,12 @@ export default function InventoryFinancePage() {
       <div className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="py-6">
-            <h1 className="text-2xl font-bold text-gray-900">Inventory & Financial Management</h1>
+            <h1 className="text-2xl font-bold text-gray-900">
+              Inventory & Financial Management
+            </h1>
             <p className="mt-2 text-sm text-gray-600">
-              Manage your stock, track purchases, and monitor financial performance
+              Manage your stock, track purchases, and monitor financial
+              performance
             </p>
           </div>
 
@@ -113,18 +134,27 @@ export default function InventoryFinancePage() {
             {/* Desktop Navigation */}
             <nav className="hidden sm:flex -mb-px space-x-8">
               {[
-                { key: 'dashboard', label: 'Dashboard', icon: '📊' },
-                { key: 'inventory', label: 'Inventory', icon: '📦' },
-                { key: 'service-inventory', label: 'Service Inventory', icon: '🔗' },
-                { key: 'finances', label: 'Financial Transactions', icon: '💰' }
+                { key: "dashboard", label: "Dashboard", icon: "📊" },
+                { key: "inventory", label: "Inventory", icon: "📦" },
+                {
+                  key: "service-inventory",
+                  label: "Service Inventory",
+                  icon: "🔗",
+                },
+                {
+                  key: "finances",
+                  label: "Financial Transactions",
+                  icon: "💰",
+                },
               ].map((tab) => (
                 <button
                   key={tab.key}
                   onClick={() => setActiveTab(tab.key as any)}
-                  className={`${activeTab === tab.key
-                      ? 'border-indigo-500 text-indigo-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                    } whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm flex items-center space-x-2`}
+                  className={`${
+                    activeTab === tab.key
+                      ? "border-indigo-500 text-indigo-600"
+                      : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                  } whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm flex items-center space-x-2`}
                 >
                   <span>{tab.icon}</span>
                   <span>{tab.label}</span>
@@ -136,21 +166,32 @@ export default function InventoryFinancePage() {
             <div className="sm:hidden -mb-px overflow-x-auto scrollbar-hide">
               <nav className="flex space-x-1 min-w-max px-4">
                 {[
-                  { key: 'dashboard', label: 'Dashboard', icon: '📊' },
-                  { key: 'inventory', label: 'Inventory', icon: '📦' },
-                  { key: 'service-inventory', label: 'Service Inventory', icon: '🔗' },
-                  { key: 'finances', label: 'Financial Transactions', icon: '💰' }
+                  { key: "dashboard", label: "Dashboard", icon: "📊" },
+                  { key: "inventory", label: "Inventory", icon: "📦" },
+                  {
+                    key: "service-inventory",
+                    label: "Service Inventory",
+                    icon: "🔗",
+                  },
+                  {
+                    key: "finances",
+                    label: "Financial Transactions",
+                    icon: "💰",
+                  },
                 ].map((tab) => (
                   <button
                     key={tab.key}
                     onClick={() => setActiveTab(tab.key as any)}
-                    className={`${activeTab === tab.key
-                        ? 'border-indigo-500 text-indigo-600 bg-indigo-50'
-                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-                      } flex-shrink-0 py-3 px-4 border-b-2 font-medium text-sm flex flex-col items-center space-y-1 min-w-[120px] rounded-t-lg transition-all duration-200`}
+                    className={`${
+                      activeTab === tab.key
+                        ? "border-indigo-500 text-indigo-600 bg-indigo-50"
+                        : "border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+                    } flex-shrink-0 py-3 px-4 border-b-2 font-medium text-sm flex flex-col items-center space-y-1 min-w-[120px] rounded-t-lg transition-all duration-200`}
                   >
                     <span className="text-lg">{tab.icon}</span>
-                    <span className="text-xs leading-tight text-center">{tab.label}</span>
+                    <span className="text-xs leading-tight text-center">
+                      {tab.label}
+                    </span>
                   </button>
                 ))}
               </nav>
@@ -161,7 +202,7 @@ export default function InventoryFinancePage() {
 
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {activeTab === 'dashboard' && (
+        {activeTab === "dashboard" && (
           <DashboardView
             inventorySummary={inventorySummary}
             financialSummary={financialSummary}
@@ -171,7 +212,7 @@ export default function InventoryFinancePage() {
           />
         )}
 
-        {activeTab === 'inventory' && (
+        {activeTab === "inventory" && (
           <InventoryView
             showSuccess={showSuccess}
             showError={showError}
@@ -180,7 +221,7 @@ export default function InventoryFinancePage() {
           />
         )}
 
-        {activeTab === 'service-inventory' && (
+        {activeTab === "service-inventory" && (
           <ServiceInventoryView
             user={user}
             showSuccess={showSuccess}
@@ -190,14 +231,18 @@ export default function InventoryFinancePage() {
           />
         )}
 
-        {activeTab === 'purchases' && (
+        {activeTab === "purchases" && (
           <div className="text-center py-8">
-            <h3 className="text-lg font-medium text-gray-900">Purchase Orders</h3>
-            <p className="text-gray-500">Coming soon - Create and manage purchase orders</p>
+            <h3 className="text-lg font-medium text-gray-900">
+              Purchase Orders
+            </h3>
+            <p className="text-gray-500">
+              Coming soon - Create and manage purchase orders
+            </p>
           </div>
         )}
 
-        {activeTab === 'finances' && (
+        {activeTab === "finances" && (
           <FinancialTransactionsView
             user={user}
             showSuccess={showSuccess}
@@ -206,22 +251,21 @@ export default function InventoryFinancePage() {
         )}
       </div>
     </div>
-  )
+  );
 }
-
 
 function DashboardView({
   inventorySummary,
   financialSummary,
   lowStockItems,
   loading,
-  formatCurrency
+  formatCurrency,
 }: {
-  inventorySummary: InventorySummary | null
-  financialSummary: FinancialSummary | null
-  lowStockItems: LowStockItem[]
-  loading: boolean
-  formatCurrency: (amount: number) => string
+  inventorySummary: InventorySummary | null;
+  financialSummary: FinancialSummary | null;
+  lowStockItems: LowStockItem[];
+  loading: boolean;
+  formatCurrency: (amount: number) => string;
 }) {
   if (loading) {
     return (
@@ -233,7 +277,7 @@ function DashboardView({
           </div>
         ))}
       </div>
-    )
+    );
   }
 
   return (
@@ -244,12 +288,24 @@ function DashboardView({
         <div className="bg-white p-4 sm:p-6 rounded-lg shadow">
           <div className="flex items-center">
             <div className="p-2 sm:p-3 rounded-full bg-blue-100 text-blue-600 flex-shrink-0">
-              <svg className="h-5 w-5 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+              <svg
+                className="h-5 w-5 sm:h-6 sm:w-6"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+                />
               </svg>
             </div>
             <div className="ml-3 sm:ml-4 min-w-0 flex-1">
-              <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">Inventory Value</p>
+              <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">
+                Inventory Value
+              </p>
               <p className="text-lg sm:text-2xl font-semibold text-gray-900 truncate">
                 {formatCurrency(inventorySummary?.total_value || 0)}
               </p>
@@ -266,12 +322,24 @@ function DashboardView({
         <div className="bg-white p-4 sm:p-6 rounded-lg shadow">
           <div className="flex items-center">
             <div className="p-2 sm:p-3 rounded-full bg-green-100 text-green-600 flex-shrink-0">
-              <svg className="h-5 w-5 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+              <svg
+                className="h-5 w-5 sm:h-6 sm:w-6"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"
+                />
               </svg>
             </div>
             <div className="ml-3 sm:ml-4 min-w-0 flex-1">
-              <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">Monthly Revenue</p>
+              <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">
+                Monthly Revenue
+              </p>
               <p className="text-lg sm:text-2xl font-semibold text-gray-900 truncate">
                 {formatCurrency(financialSummary?.monthly_revenue || 0)}
               </p>
@@ -288,12 +356,24 @@ function DashboardView({
         <div className="bg-white p-4 sm:p-6 rounded-lg shadow">
           <div className="flex items-center">
             <div className="p-2 sm:p-3 rounded-full bg-red-100 text-red-600 flex-shrink-0">
-              <svg className="h-5 w-5 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+              <svg
+                className="h-5 w-5 sm:h-6 sm:w-6"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"
+                />
               </svg>
             </div>
             <div className="ml-3 sm:ml-4 min-w-0 flex-1">
-              <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">Monthly Expenses</p>
+              <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">
+                Monthly Expenses
+              </p>
               <p className="text-lg sm:text-2xl font-semibold text-gray-900 truncate">
                 {formatCurrency(financialSummary?.monthly_expenses || 0)}
               </p>
@@ -305,12 +385,24 @@ function DashboardView({
         <div className="bg-white p-4 sm:p-6 rounded-lg shadow">
           <div className="flex items-center">
             <div className="p-2 sm:p-3 rounded-full bg-yellow-100 text-yellow-600 flex-shrink-0">
-              <svg className="h-5 w-5 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 15.5c-.77.833.192 2.5 1.732 2.5z" />
+              <svg
+                className="h-5 w-5 sm:h-6 sm:w-6"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 15.5c-.77.833.192 2.5 1.732 2.5z"
+                />
               </svg>
             </div>
             <div className="ml-3 sm:ml-4 min-w-0 flex-1">
-              <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">Low Stock Items</p>
+              <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">
+                Low Stock Items
+              </p>
               <p className="text-lg sm:text-2xl font-semibold text-gray-900 truncate">
                 {inventorySummary?.low_stock_items || 0}
               </p>
@@ -328,8 +420,12 @@ function DashboardView({
       {lowStockItems.length > 0 && (
         <div className="bg-white rounded-lg shadow">
           <div className="p-4 sm:p-6 border-b border-gray-200">
-            <h3 className="text-base sm:text-lg font-medium text-gray-900">Low Stock Alert</h3>
-            <p className="text-xs sm:text-sm text-gray-600">Items that need restocking</p>
+            <h3 className="text-base sm:text-lg font-medium text-gray-900">
+              Low Stock Alert
+            </h3>
+            <p className="text-xs sm:text-sm text-gray-600">
+              Items that need restocking
+            </p>
           </div>
 
           {/* Mobile View - Cards */}
@@ -341,21 +437,28 @@ function DashboardView({
                     <h4 className="text-sm font-medium text-gray-900 truncate pr-2">
                       {item.item_name}
                     </h4>
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full flex-shrink-0 ${item.current_stock === 0
-                        ? 'bg-red-100 text-red-800'
-                        : 'bg-yellow-100 text-yellow-800'
-                      }`}>
-                      {item.current_stock === 0 ? 'Out of Stock' : 'Low Stock'}
+                    <span
+                      className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full flex-shrink-0 ${
+                        item.current_stock === 0
+                          ? "bg-red-100 text-red-800"
+                          : "bg-yellow-100 text-yellow-800"
+                      }`}
+                    >
+                      {item.current_stock === 0 ? "Out of Stock" : "Low Stock"}
                     </span>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <p className="text-xs text-gray-500">Current Stock</p>
-                      <p className="text-sm font-medium text-gray-900">{item.current_stock}</p>
+                      <p className="text-sm font-medium text-gray-900">
+                        {item.current_stock}
+                      </p>
                     </div>
                     <div>
                       <p className="text-xs text-gray-500">Minimum Stock</p>
-                      <p className="text-sm font-medium text-gray-900">{item.minimum_stock}</p>
+                      <p className="text-sm font-medium text-gray-900">
+                        {item.minimum_stock}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -396,11 +499,16 @@ function DashboardView({
                         {item.minimum_stock}
                       </td>
                       <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${item.current_stock === 0
-                            ? 'bg-red-100 text-red-800'
-                            : 'bg-yellow-100 text-yellow-800'
-                          }`}>
-                          {item.current_stock === 0 ? 'Out of Stock' : 'Low Stock'}
+                        <span
+                          className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                            item.current_stock === 0
+                              ? "bg-red-100 text-red-800"
+                              : "bg-yellow-100 text-yellow-800"
+                          }`}
+                        >
+                          {item.current_stock === 0
+                            ? "Out of Stock"
+                            : "Low Stock"}
                         </span>
                       </td>
                     </tr>
@@ -416,27 +524,40 @@ function DashboardView({
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         <div className="bg-white rounded-lg shadow">
           <div className="p-4 sm:p-6 border-b border-gray-200">
-            <h3 className="text-base sm:text-lg font-medium text-gray-900">Monthly Financial Overview</h3>
+            <h3 className="text-base sm:text-lg font-medium text-gray-900">
+              Monthly Financial Overview
+            </h3>
           </div>
           <div className="p-4 sm:p-6">
             <div className="space-y-3 sm:space-y-4">
               <div className="flex justify-between items-center">
-                <span className="text-xs sm:text-sm text-gray-600">Revenue</span>
+                <span className="text-xs sm:text-sm text-gray-600">
+                  Revenue
+                </span>
                 <span className="text-xs sm:text-sm font-medium text-green-600 truncate ml-2">
                   {formatCurrency(financialSummary?.monthly_revenue || 0)}
                 </span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-xs sm:text-sm text-gray-600">Expenses</span>
+                <span className="text-xs sm:text-sm text-gray-600">
+                  Expenses
+                </span>
                 <span className="text-xs sm:text-sm font-medium text-red-600 truncate ml-2">
                   {formatCurrency(financialSummary?.monthly_expenses || 0)}
                 </span>
               </div>
               <div className="border-t pt-3 sm:pt-4">
                 <div className="flex justify-between items-center">
-                  <span className="text-sm sm:text-base font-medium text-gray-900">Net Profit</span>
-                  <span className={`text-sm sm:text-base font-medium truncate ml-2 ${(financialSummary?.monthly_profit || 0) >= 0 ? 'text-green-600' : 'text-red-600'
-                    }`}>
+                  <span className="text-sm sm:text-base font-medium text-gray-900">
+                    Net Profit
+                  </span>
+                  <span
+                    className={`text-sm sm:text-base font-medium truncate ml-2 ${
+                      (financialSummary?.monthly_profit || 0) >= 0
+                        ? "text-green-600"
+                        : "text-red-600"
+                    }`}
+                  >
                     {formatCurrency(financialSummary?.monthly_profit || 0)}
                   </span>
                 </div>
@@ -447,27 +568,40 @@ function DashboardView({
 
         <div className="bg-white rounded-lg shadow">
           <div className="p-4 sm:p-6 border-b border-gray-200">
-            <h3 className="text-base sm:text-lg font-medium text-gray-900">Yearly Financial Overview</h3>
+            <h3 className="text-base sm:text-lg font-medium text-gray-900">
+              Yearly Financial Overview
+            </h3>
           </div>
           <div className="p-4 sm:p-6">
             <div className="space-y-3 sm:space-y-4">
               <div className="flex justify-between items-center">
-                <span className="text-xs sm:text-sm text-gray-600">Revenue</span>
+                <span className="text-xs sm:text-sm text-gray-600">
+                  Revenue
+                </span>
                 <span className="text-xs sm:text-sm font-medium text-green-600 truncate ml-2">
                   {formatCurrency(financialSummary?.yearly_revenue || 0)}
                 </span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-xs sm:text-sm text-gray-600">Expenses</span>
+                <span className="text-xs sm:text-sm text-gray-600">
+                  Expenses
+                </span>
                 <span className="text-xs sm:text-sm font-medium text-red-600 truncate ml-2">
                   {formatCurrency(financialSummary?.yearly_expenses || 0)}
                 </span>
               </div>
               <div className="border-t pt-3 sm:pt-4">
                 <div className="flex justify-between items-center">
-                  <span className="text-sm sm:text-base font-medium text-gray-900">Net Profit</span>
-                  <span className={`text-sm sm:text-base font-medium truncate ml-2 ${(financialSummary?.yearly_profit || 0) >= 0 ? 'text-green-600' : 'text-red-600'
-                    }`}>
+                  <span className="text-sm sm:text-base font-medium text-gray-900">
+                    Net Profit
+                  </span>
+                  <span
+                    className={`text-sm sm:text-base font-medium truncate ml-2 ${
+                      (financialSummary?.yearly_profit || 0) >= 0
+                        ? "text-green-600"
+                        : "text-red-600"
+                    }`}
+                  >
                     {formatCurrency(financialSummary?.yearly_profit || 0)}
                   </span>
                 </div>
@@ -477,279 +611,281 @@ function DashboardView({
         </div>
       </div>
     </div>
-  )
+  );
 }
-
 
 function InventoryView({
   showSuccess,
   showError,
   formatCurrency,
-  userRoleData
+  userRoleData,
 }: {
-  showSuccess: (message: string) => void
-  showError: (message: string) => void
-  formatCurrency: (amount: number) => string
-  userRoleData: any
+  showSuccess: (message: string) => void;
+  showError: (message: string) => void;
+  formatCurrency: (amount: number) => string;
+  userRoleData: any;
 }) {
-  const [loading, setLoading] = useState(true)
-  const [categories, setCategories] = useState<Category[]>([])
-  const [services, setServices] = useState<ServiceWithCategory[]>([])
-  const [filteredServices, setFilteredServices] = useState<ServiceWithCategory[]>([])
-  const [items, setItems] = useState<InventoryItem[]>([])
-  const [measurements, setMeasurements] = useState<Lookup[]>([])
-  const [showAddModal, setShowAddModal] = useState(false)
-  const [isAddModalClosing, setIsAddModalClosing] = useState(false)
-  const [showEditModal, setShowEditModal] = useState(false)
-  const [isEditModalClosing, setIsEditModalClosing] = useState(false)
-  const [editingItem, setEditingItem] = useState<InventoryItem | null>(null)
-  const [searchTerm, setSearchTerm] = useState('')
-  const [selectedCategory, setSelectedCategory] = useState<string>('all')
-  const [sortBy, setSortBy] = useState<'name' | 'stock' | 'value'>('name')
+  const [loading, setLoading] = useState(true);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [services, setServices] = useState<ServiceWithCategory[]>([]);
+  const [filteredServices, setFilteredServices] = useState<
+    ServiceWithCategory[]
+  >([]);
+  const [items, setItems] = useState<InventoryItem[]>([]);
+  const [measurements, setMeasurements] = useState<Lookup[]>([]);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [isAddModalClosing, setIsAddModalClosing] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [isEditModalClosing, setIsEditModalClosing] = useState(false);
+  const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [sortBy, setSortBy] = useState<"name" | "stock" | "value">("name");
 
-
-  const [formData, setFormData] = useState<InventoryItemForm & { service_id?: string }>({
-    category_id: '',
-    service_id: '',
-    name: '',
-    description: '',
-    unit_of_measure: 'unit',
+  const [formData, setFormData] = useState<
+    InventoryItemForm & { service_id?: string }
+  >({
+    category_id: "",
+    service_id: "",
+    name: "",
+    description: "",
+    unit_of_measure: "unit",
     current_stock: 0,
     maximum_stock: undefined,
     unit_cost: 0,
-  })
+  });
 
-
-  const [editFormData, setEditFormData] = useState<InventoryItemForm & { service_id?: string }>({
-    category_id: '',
-    service_id: '',
-    name: '',
-    description: '',
-    unit_of_measure: 'unit',
+  const [editFormData, setEditFormData] = useState<
+    InventoryItemForm & { service_id?: string }
+  >({
+    category_id: "",
+    service_id: "",
+    name: "",
+    description: "",
+    unit_of_measure: "unit",
     current_stock: 0,
     maximum_stock: undefined,
     unit_cost: 0,
-  })
+  });
 
-
-  const [formErrors, setFormErrors] = useState<Record<string, string>>({})
-  const [editFormErrors, setEditFormErrors] = useState<Record<string, string>>({})
-
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [editFormErrors, setEditFormErrors] = useState<Record<string, string>>(
+    {}
+  );
 
   const updateFormField = (field: string, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }))
+    setFormData((prev) => ({ ...prev, [field]: value }));
     if (formErrors[field]) {
-      setFormErrors(prev => ({ ...prev, [field]: '' }))
+      setFormErrors((prev) => ({ ...prev, [field]: "" }));
     }
-  }
-
+  };
 
   const updateEditFormField = (field: string, value: any) => {
-    setEditFormData(prev => ({ ...prev, [field]: value }))
+    setEditFormData((prev) => ({ ...prev, [field]: value }));
     if (editFormErrors[field]) {
-      setEditFormErrors(prev => ({ ...prev, [field]: '' }))
+      setEditFormErrors((prev) => ({ ...prev, [field]: "" }));
     }
-  }
-
+  };
 
   const openAddModal = () => {
-    setShowAddModal(true)
-    setIsAddModalClosing(false)
-  }
+    setShowAddModal(true);
+    setIsAddModalClosing(false);
+  };
 
   const closeAddModal = () => {
-    setIsAddModalClosing(true)
+    setIsAddModalClosing(true);
     setTimeout(() => {
-      setShowAddModal(false)
-      setIsAddModalClosing(false)
-      setFormErrors({})
-    }, 300)
-  }
-
+      setShowAddModal(false);
+      setIsAddModalClosing(false);
+      setFormErrors({});
+    }, 300);
+  };
 
   const openEditModal = (item: InventoryItem) => {
-    setEditingItem(item)
+    setEditingItem(item);
     setEditFormData({
       category_id: item.category_id,
-      service_id: item.service_id || '',
+      service_id: item.service_id || "",
       name: item.name,
-      description: item.description || '',
+      description: item.description || "",
       unit_of_measure: item.unit_of_measure,
       current_stock: item.current_stock,
       maximum_stock: item.maximum_stock,
       unit_cost: item.unit_cost,
-    })
-    setShowEditModal(true)
-    setIsEditModalClosing(false)
-  }
+    });
+    setShowEditModal(true);
+    setIsEditModalClosing(false);
+  };
 
   const closeEditModal = () => {
-    setIsEditModalClosing(true)
+    setIsEditModalClosing(true);
     setTimeout(() => {
-      setShowEditModal(false)
-      setIsEditModalClosing(false)
-      setEditingItem(null)
-      setEditFormErrors({})
-    }, 300)
-  }
+      setShowEditModal(false);
+      setIsEditModalClosing(false);
+      setEditingItem(null);
+      setEditFormErrors({});
+    }, 300);
+  };
 
   useEffect(() => {
-    loadData()
-  }, [])
+    loadData();
+  }, []);
 
   const loadData = async () => {
     try {
-      setLoading(true)
-      const [categoriesData, servicesData, itemsData, measurementsData] = await Promise.all([
-        getCategories(),
-        getServicesWithCategories(),
-        InventoryService.getItems(),
-        lookupServiceCached.getMeasurements()
-      ])
-      setCategories(categoriesData)
-      setServices(servicesData)
-      setItems(itemsData)
-      setMeasurements(measurementsData || [])
+      setLoading(true);
+      const [categoriesData, servicesData, itemsData, measurementsData] =
+        await Promise.all([
+          getCategories(),
+          getServicesWithCategories(),
+          InventoryService.getItems(),
+          lookupServiceCached.getMeasurements(),
+        ]);
+      setCategories(categoriesData);
+      setServices(servicesData);
+      setItems(itemsData);
+      setMeasurements(measurementsData || []);
     } catch (error) {
-      console.error('Error loading inventory data:', error)
-      showError('Failed to load inventory data')
+      console.error("Error loading inventory data:", error);
+      showError("Failed to load inventory data");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
-
+  };
 
   useEffect(() => {
     if (formData.category_id) {
-      const categoryName = categories.find(cat => cat.id === formData.category_id)?.name
+      const categoryName = categories.find(
+        (cat) => cat.id === formData.category_id
+      )?.name;
       if (categoryName) {
-
-        const categoryServices = services.filter(service =>
-          service.category_name === categoryName
-        )
-        setFilteredServices(categoryServices)
+        const categoryServices = services.filter(
+          (service) => service.category_name === categoryName
+        );
+        setFilteredServices(categoryServices);
       } else {
-        setFilteredServices([])
+        setFilteredServices([]);
       }
     } else {
-      setFilteredServices([])
+      setFilteredServices([]);
     }
 
-    setFormData(prev => ({ ...prev, service_id: '' }))
-  }, [formData.category_id, categories, services])
-
+    setFormData((prev) => ({ ...prev, service_id: "" }));
+  }, [formData.category_id, categories, services]);
 
   const validateForm = () => {
-    const errors: Record<string, string> = {}
+    const errors: Record<string, string> = {};
 
     if (!formData.name.trim()) {
-      errors.name = 'Item name is required'
+      errors.name = "Item name is required";
     }
     if (!formData.category_id) {
-      errors.category_id = 'Category is required'
+      errors.category_id = "Category is required";
     }
     if (formData.current_stock < 0) {
-      errors.current_stock = 'Current stock cannot be negative'
+      errors.current_stock = "Current stock cannot be negative";
     }
     if (formData.unit_cost < 0) {
-      errors.unit_cost = 'Unit cost cannot be negative'
+      errors.unit_cost = "Unit cost cannot be negative";
     }
 
-    setFormErrors(errors)
-    return Object.keys(errors).length === 0
-  }
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
 
   const handleAddItem = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
 
     if (!validateForm()) {
-      showError('Please fix the errors in the form')
-      return
+      showError("Please fix the errors in the form");
+      return;
     }
 
     try {
-      setLoading(true)
-      await InventoryService.createItem(formData)
-      showSuccess('Inventory item added successfully!')
-      closeAddModal()
+      setLoading(true);
+      await InventoryService.createItem(formData);
+      showSuccess("Inventory item added successfully!");
+      closeAddModal();
       setFormData({
-        category_id: '',
-        service_id: '',
-        name: '',
-        description: '',
-        unit_of_measure: 'unit',
+        category_id: "",
+        service_id: "",
+        name: "",
+        description: "",
+        unit_of_measure: "unit",
         current_stock: 0,
         maximum_stock: undefined,
         unit_cost: 0,
-      })
-      setFormErrors({})
-      await loadData()
+      });
+      setFormErrors({});
+      await loadData();
     } catch (error) {
-      console.error('Error adding item:', error)
-      showError('Failed to add inventory item')
+      console.error("Error adding item:", error);
+      showError("Failed to add inventory item");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
-
+  };
 
   const handleUpdateItem = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
 
-    if (!editingItem) return
+    if (!editingItem) return;
 
     try {
-      setLoading(true)
-      await InventoryService.updateItem(editingItem.id, editFormData)
-      showSuccess('Inventory item updated successfully!')
-      closeEditModal()
-      await loadData()
+      setLoading(true);
+      await InventoryService.updateItem(editingItem.id, editFormData);
+      showSuccess("Inventory item updated successfully!");
+      closeEditModal();
+      await loadData();
     } catch (error) {
-      console.error('Error updating item:', error)
-      showError('Failed to update inventory item')
+      console.error("Error updating item:", error);
+      showError("Failed to update inventory item");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
-
+  };
 
   const handleDeleteItem = async (itemId: string) => {
-    if (!confirm('Are you sure you want to delete this inventory item?')) {
-      return
+    if (!confirm("Are you sure you want to delete this inventory item?")) {
+      return;
     }
 
     try {
-      setLoading(true)
-      await InventoryService.deleteItem(itemId)
-      showSuccess('Inventory item deleted successfully!')
-      await loadData()
+      setLoading(true);
+      await InventoryService.deleteItem(itemId);
+      showSuccess("Inventory item deleted successfully!");
+      await loadData();
     } catch (error) {
-      console.error('Error deleting item:', error)
-      showError('Failed to delete inventory item')
+      console.error("Error deleting item:", error);
+      showError("Failed to delete inventory item");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
-  const filteredItems = items.filter(item => {
-    const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (item.sku && item.sku.toLowerCase().includes(searchTerm.toLowerCase()))
-    const matchesCategory = !selectedCategory || selectedCategory === 'all' || item.category_id === selectedCategory
-    return matchesSearch && matchesCategory
-  })
+  const filteredItems = items.filter((item) => {
+    const matchesSearch =
+      item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (item.sku && item.sku.toLowerCase().includes(searchTerm.toLowerCase()));
+    const matchesCategory =
+      !selectedCategory ||
+      selectedCategory === "all" ||
+      item.category_id === selectedCategory;
+    return matchesSearch && matchesCategory;
+  });
 
   const sortedItems = [...filteredItems].sort((a, b) => {
     switch (sortBy) {
-      case 'name':
-        return a.name.localeCompare(b.name)
-      case 'stock':
-        return b.current_stock - a.current_stock
-      case 'value':
-        return (b.current_stock * b.unit_cost) - (a.current_stock * a.unit_cost)
+      case "name":
+        return a.name.localeCompare(b.name);
+      case "stock":
+        return b.current_stock - a.current_stock;
+      case "value":
+        return b.current_stock * b.unit_cost - a.current_stock * a.unit_cost;
       default:
-        return 0
+        return 0;
     }
-  })
+  });
 
   if (loading) {
     return (
@@ -760,14 +896,17 @@ function InventoryView({
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {[...Array(6)].map((_, i) => (
-            <div key={i} className="bg-white p-4 rounded-lg shadow animate-pulse">
+            <div
+              key={i}
+              className="bg-white p-4 rounded-lg shadow animate-pulse"
+            >
               <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
               <div className="h-3 bg-gray-200 rounded w-1/2"></div>
             </div>
           ))}
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -775,15 +914,29 @@ function InventoryView({
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Inventory Management</h2>
-          <p className="text-sm text-gray-600">Manage your stock items and levels</p>
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
+            Inventory Management
+          </h2>
+          <p className="text-sm text-gray-600">
+            Manage your stock items and levels
+          </p>
         </div>
         <button
           onClick={openAddModal}
           className="w-full sm:w-auto bg-indigo-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2"
         >
-          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+          <svg
+            className="h-5 w-5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+            />
           </svg>
           Add New Item
         </button>
@@ -806,7 +959,7 @@ function InventoryView({
             placeholder="All Categories"
           >
             <SelectItem value="all">All Categories</SelectItem>
-            {categories.map(category => (
+            {categories.map((category) => (
               <SelectItem key={category.id} value={category.id}>
                 {category.name}
               </SelectItem>
@@ -816,7 +969,9 @@ function InventoryView({
           <ValidationSelect
             label="Sort By"
             value={sortBy}
-            onValueChange={(value) => setSortBy(value as 'name' | 'stock' | 'value')}
+            onValueChange={(value) =>
+              setSortBy(value as "name" | "stock" | "value")
+            }
           >
             <SelectItem value="name">Name</SelectItem>
             <SelectItem value="stock">Stock Level</SelectItem>
@@ -828,7 +983,10 @@ function InventoryView({
       {/* Items Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
         {sortedItems.map((item) => (
-          <div key={item.id} className="bg-white rounded-lg shadow hover:shadow-md transition-shadow duration-200">
+          <div
+            key={item.id}
+            className="bg-white rounded-lg shadow hover:shadow-md transition-shadow duration-200"
+          >
             <div className="p-4 sm:p-6">
               <div className="flex items-start justify-between mb-3">
                 <div className="min-w-0 flex-1">
@@ -836,41 +994,51 @@ function InventoryView({
                     {item.name}
                   </h3>
                   {item.sku && (
-                    <p className="text-xs sm:text-sm text-gray-500">SKU: {item.sku}</p>
+                    <p className="text-xs sm:text-sm text-gray-500">
+                      SKU: {item.sku}
+                    </p>
                   )}
                 </div>
-                <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full flex-shrink-0 ml-2 ${item.current_stock === 0
-                    ? 'bg-red-100 text-red-800'
-                    : item.current_stock <= item.minimum_stock
-                      ? 'bg-yellow-100 text-yellow-800'
-                      : 'bg-green-100 text-green-800'
-                  }`}>
+                <span
+                  className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full flex-shrink-0 ml-2 ${
+                    item.current_stock === 0
+                      ? "bg-red-100 text-red-800"
+                      : item.current_stock <= item.minimum_stock
+                      ? "bg-yellow-100 text-yellow-800"
+                      : "bg-green-100 text-green-800"
+                  }`}
+                >
                   {item.current_stock === 0
-                    ? 'Out of Stock'
+                    ? "Out of Stock"
                     : item.current_stock <= item.minimum_stock
-                      ? 'Low Stock'
-                      : 'In Stock'
-                  }
+                    ? "Low Stock"
+                    : "In Stock"}
                 </span>
               </div>
 
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
-                  <span className="text-xs sm:text-sm text-gray-600">Current Stock:</span>
+                  <span className="text-xs sm:text-sm text-gray-600">
+                    Current Stock:
+                  </span>
                   <span className="text-xs sm:text-sm font-medium text-gray-900">
                     {item.current_stock} {item.unit_of_measure}
                   </span>
                 </div>
 
                 <div className="flex justify-between items-center">
-                  <span className="text-xs sm:text-sm text-gray-600">Unit Cost:</span>
+                  <span className="text-xs sm:text-sm text-gray-600">
+                    Unit Cost:
+                  </span>
                   <span className="text-xs sm:text-sm font-medium text-gray-900">
                     {formatCurrency(item.unit_cost)}
                   </span>
                 </div>
 
                 <div className="flex justify-between items-center">
-                  <span className="text-xs sm:text-sm text-gray-600">Total Value:</span>
+                  <span className="text-xs sm:text-sm text-gray-600">
+                    Total Value:
+                  </span>
                   <span className="text-xs sm:text-sm font-medium text-gray-900">
                     {formatCurrency(item.current_stock * item.unit_cost)}
                   </span>
@@ -878,7 +1046,9 @@ function InventoryView({
 
                 {item.category && (
                   <div className="flex justify-between items-center">
-                    <span className="text-xs sm:text-sm text-gray-600">Category:</span>
+                    <span className="text-xs sm:text-sm text-gray-600">
+                      Category:
+                    </span>
                     <span className="text-xs sm:text-sm text-gray-900 truncate ml-2">
                       {item.category.name}
                     </span>
@@ -887,7 +1057,9 @@ function InventoryView({
 
                 {item.supplier_name && (
                   <div className="flex justify-between items-center">
-                    <span className="text-xs sm:text-sm text-gray-600">Supplier:</span>
+                    <span className="text-xs sm:text-sm text-gray-600">
+                      Supplier:
+                    </span>
                     <span className="text-xs sm:text-sm text-gray-900 truncate ml-2">
                       {item.supplier_name}
                     </span>
@@ -904,8 +1076,18 @@ function InventoryView({
                   className="text-[#F2C7EB] hover:text-[#E8A8D8] p-2 rounded hover:bg-gray-100"
                   title="Edit item"
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                    />
                   </svg>
                 </button>
                 <button
@@ -913,8 +1095,18 @@ function InventoryView({
                   className="text-red-500 hover:text-red-700 p-2 rounded hover:bg-gray-100"
                   title="Delete item"
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                    />
                   </svg>
                 </button>
               </div>
@@ -926,15 +1118,27 @@ function InventoryView({
       {sortedItems.length === 0 && (
         <div className="text-center py-8">
           <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-gray-100">
-            <svg className="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+            <svg
+              className="h-6 w-6 text-gray-400"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+              />
             </svg>
           </div>
-          <h3 className="mt-2 text-sm font-medium text-gray-900">No inventory items found</h3>
+          <h3 className="mt-2 text-sm font-medium text-gray-900">
+            No inventory items found
+          </h3>
           <p className="mt-1 text-sm text-gray-500">
-            {searchTerm || (selectedCategory && selectedCategory !== 'all')
-              ? 'Try adjusting your search or filter criteria'
-              : 'Get started by adding your first inventory item'}
+            {searchTerm || (selectedCategory && selectedCategory !== "all")
+              ? "Try adjusting your search or filter criteria"
+              : "Get started by adding your first inventory item"}
           </p>
         </div>
       )}
@@ -949,13 +1153,14 @@ function InventoryView({
           />
 
           {/* Modal Content */}
-          <div className={`fixed bottom-0 left-0 right-0 lg:top-1/2 lg:left-1/2 lg:transform lg:-translate-x-1/2 lg:-translate-y-1/2 lg:bottom-auto lg:right-auto lg:w-full lg:max-w-2xl bg-white rounded-t-xl lg:rounded-xl shadow-2xl transform transition-transform duration-300 ease-out max-h-[95vh] lg:max-h-[90vh] flex flex-col pointer-events-auto overflow-visible ${isAddModalClosing
-              ? 'translate-y-full lg:translate-y-full lg:translate-x-[-50%]'
-              : 'translate-y-0 lg:translate-x-[-50%] lg:translate-y-[-50%] modal-enter lg:modal-enter-desktop'
+          <div
+            className={`fixed bottom-0 left-0 right-0 lg:top-1/2 lg:left-1/2 lg:transform lg:-translate-x-1/2 lg:-translate-y-1/2 lg:bottom-auto lg:right-auto lg:w-full lg:max-w-2xl bg-white rounded-t-xl lg:rounded-xl shadow-2xl transform transition-transform duration-300 ease-out max-h-[95vh] lg:max-h-[90vh] flex flex-col pointer-events-auto overflow-visible ${
+              isAddModalClosing
+                ? "translate-y-full lg:translate-y-full lg:translate-x-[-50%]"
+                : "translate-y-0 lg:translate-x-[-50%] lg:translate-y-[-50%] modal-enter lg:modal-enter-desktop"
             }`}
             onClick={(e) => e.stopPropagation()}
           >
-
             {/* Handle bar (Mobile only) */}
             <div className="flex justify-center pt-3 pb-2 lg:hidden">
               <div className="w-10 h-1 bg-gray-300 rounded-full"></div>
@@ -963,29 +1168,47 @@ function InventoryView({
 
             {/* Header */}
             <div className="flex justify-between items-center px-6 py-4 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">Add New Inventory Item</h3>
+              <h3 className="text-lg font-semibold text-gray-900">
+                Add New Inventory Item
+              </h3>
               <button
                 onClick={closeAddModal}
                 className="p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100"
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                <svg
+                  className="w-6 h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
                 </svg>
               </button>
             </div>
 
             {/* Content */}
             <div className="flex-1 overflow-y-auto overflow-x-visible px-6 py-4">
-              <form id="add-item-form" onSubmit={handleAddItem} className="space-y-4 sm:space-y-6">
+              <form
+                id="add-item-form"
+                onSubmit={handleAddItem}
+                className="space-y-4 sm:space-y-6"
+              >
                 {/* Basic Information */}
                 <div>
-                  <h4 className="text-base font-medium text-gray-900 mb-3">Basic Information</h4>
+                  <h4 className="text-base font-medium text-gray-900 mb-3">
+                    Basic Information
+                  </h4>
                   <div className="space-y-4">
                     <ValidationInput
                       label="Item Name"
                       type="text"
                       value={formData.name}
-                      onChange={(e) => updateFormField('name', e.target.value)}
+                      onChange={(e) => updateFormField("name", e.target.value)}
                       required
                       error={formErrors.name}
                     />
@@ -994,12 +1217,14 @@ function InventoryView({
                       <ValidationSelect
                         label="Category"
                         value={formData.category_id}
-                        onValueChange={(value) => updateFormField('category_id', value)}
+                        onValueChange={(value) =>
+                          updateFormField("category_id", value)
+                        }
                         placeholder="Select Category"
                         required
                         error={formErrors.category_id}
                       >
-                        {categories.map(category => (
+                        {categories.map((category) => (
                           <SelectItem key={category.id} value={category.id}>
                             {category.name}
                           </SelectItem>
@@ -1009,28 +1234,31 @@ function InventoryView({
                       <div className="relative">
                         <ValidationSelect
                           label="Related Service (Optional)"
-                          value={formData.service_id || ''}
-                          onValueChange={(value) => updateFormField('service_id', value)}
+                          value={formData.service_id || ""}
+                          onValueChange={(value) =>
+                            updateFormField("service_id", value)
+                          }
                           placeholder={
                             !formData.category_id
-                              ? 'Select a category first'
+                              ? "Select a category first"
                               : filteredServices.length === 0
-                                ? 'No services available'
-                                : 'Select Service (Optional)'
+                              ? "No services available"
+                              : "Select Service (Optional)"
                           }
                           error={formErrors.service_id}
                         >
-                          {filteredServices.map(service => (
+                          {filteredServices.map((service) => (
                             <SelectItem key={service.id} value={service.id}>
                               {service.name} - R{service.price}
                             </SelectItem>
                           ))}
                         </ValidationSelect>
-                        {formData.category_id && filteredServices.length === 0 && (
-                          <p className="text-xs text-gray-500 mt-1">
-                            No services found for the selected category
-                          </p>
-                        )}
+                        {formData.category_id &&
+                          filteredServices.length === 0 && (
+                            <p className="text-xs text-gray-500 mt-1">
+                              No services found for the selected category
+                            </p>
+                          )}
                       </div>
                     </div>
                   </div>
@@ -1038,16 +1266,23 @@ function InventoryView({
 
                 {/* Measurements & Quantity */}
                 <div>
-                  <h4 className="text-base font-medium text-gray-900 mb-3">Measurements & Quantity</h4>
+                  <h4 className="text-base font-medium text-gray-900 mb-3">
+                    Measurements & Quantity
+                  </h4>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <ValidationSelect
                       label="Unit of Measure"
                       value={formData.unit_of_measure}
-                      onValueChange={(value) => updateFormField('unit_of_measure', value)}
+                      onValueChange={(value) =>
+                        updateFormField("unit_of_measure", value)
+                      }
                       error={formErrors.unit_of_measure}
                     >
                       {measurements.map((measurement) => (
-                        <SelectItem key={measurement.id} value={measurement.value}>
+                        <SelectItem
+                          key={measurement.id}
+                          value={measurement.value}
+                        >
                           {measurement.secondary_value || measurement.value}
                         </SelectItem>
                       ))}
@@ -1058,7 +1293,12 @@ function InventoryView({
                       type="number"
                       min="0"
                       value={formData.current_stock.toString()}
-                      onChange={(e) => updateFormField('current_stock', parseInt(e.target.value) || 0)}
+                      onChange={(e) =>
+                        updateFormField(
+                          "current_stock",
+                          parseInt(e.target.value) || 0
+                        )
+                      }
                       placeholder="0"
                       error={formErrors.current_stock}
                     />
@@ -1067,7 +1307,9 @@ function InventoryView({
 
                 {/* Pricing */}
                 <div>
-                  <h4 className="text-base font-medium text-gray-900 mb-3">Pricing</h4>
+                  <h4 className="text-base font-medium text-gray-900 mb-3">
+                    Pricing
+                  </h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <ValidationInput
                       label="Unit Cost (ZAR)"
@@ -1075,7 +1317,12 @@ function InventoryView({
                       min="0"
                       step="0.01"
                       value={formData.unit_cost.toString()}
-                      onChange={(e) => updateFormField('unit_cost', parseFloat(e.target.value) || 0)}
+                      onChange={(e) =>
+                        updateFormField(
+                          "unit_cost",
+                          parseFloat(e.target.value) || 0
+                        )
+                      }
                       placeholder="0.00"
                       error={formErrors.unit_cost}
                     />
@@ -1084,19 +1331,22 @@ function InventoryView({
 
                 {/* Description & Notes */}
                 <div>
-                  <h4 className="text-base font-medium text-gray-900 mb-3">Additional Information</h4>
+                  <h4 className="text-base font-medium text-gray-900 mb-3">
+                    Additional Information
+                  </h4>
                   <div className="space-y-4">
                     <ValidationTextarea
                       label="Description"
                       value={formData.description}
-                      onChange={(e) => updateFormField('description', e.target.value)}
+                      onChange={(e) =>
+                        updateFormField("description", e.target.value)
+                      }
                       rows={3}
                       placeholder="Brief description of the item..."
                       error={formErrors.description}
                     />
                   </div>
                 </div>
-
               </form>
             </div>
 
@@ -1115,7 +1365,7 @@ function InventoryView({
                 disabled={loading}
                 className="flex-1 bg-indigo-600 text-white px-4 py-3 rounded-lg font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading ? 'Adding...' : 'Add Item'}
+                {loading ? "Adding..." : "Add Item"}
               </button>
             </div>
           </div>
@@ -1132,13 +1382,14 @@ function InventoryView({
           />
 
           {/* Modal Content */}
-          <div className={`fixed bottom-0 left-0 right-0 lg:top-1/2 lg:left-1/2 lg:transform lg:-translate-x-1/2 lg:-translate-y-1/2 lg:bottom-auto lg:right-auto lg:w-full lg:max-w-2xl bg-white rounded-t-xl lg:rounded-xl shadow-2xl transform transition-transform duration-300 ease-out max-h-[95vh] lg:max-h-[90vh] flex flex-col pointer-events-auto overflow-visible ${isEditModalClosing
-              ? 'translate-y-full lg:translate-y-full lg:translate-x-[-50%]'
-              : 'translate-y-0 lg:translate-x-[-50%] lg:translate-y-[-50%] modal-enter lg:modal-enter-desktop'
+          <div
+            className={`fixed bottom-0 left-0 right-0 lg:top-1/2 lg:left-1/2 lg:transform lg:-translate-x-1/2 lg:-translate-y-1/2 lg:bottom-auto lg:right-auto lg:w-full lg:max-w-2xl bg-white rounded-t-xl lg:rounded-xl shadow-2xl transform transition-transform duration-300 ease-out max-h-[95vh] lg:max-h-[90vh] flex flex-col pointer-events-auto overflow-visible ${
+              isEditModalClosing
+                ? "translate-y-full lg:translate-y-full lg:translate-x-[-50%]"
+                : "translate-y-0 lg:translate-x-[-50%] lg:translate-y-[-50%] modal-enter lg:modal-enter-desktop"
             }`}
             onClick={(e) => e.stopPropagation()}
           >
-
             {/* Handle bar (Mobile only) */}
             <div className="flex justify-center pt-3 pb-2 lg:hidden">
               <div className="w-10 h-1 bg-gray-300 rounded-full"></div>
@@ -1146,29 +1397,49 @@ function InventoryView({
 
             {/* Header */}
             <div className="flex justify-between items-center px-6 py-4 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">Edit Inventory Item</h3>
+              <h3 className="text-lg font-semibold text-gray-900">
+                Edit Inventory Item
+              </h3>
               <button
                 onClick={closeEditModal}
                 className="p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100"
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                <svg
+                  className="w-6 h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
                 </svg>
               </button>
             </div>
 
             {/* Content */}
             <div className="flex-1 overflow-y-auto overflow-x-visible px-6 py-4">
-              <form id="edit-item-form" onSubmit={handleUpdateItem} className="space-y-4 sm:space-y-6">
+              <form
+                id="edit-item-form"
+                onSubmit={handleUpdateItem}
+                className="space-y-4 sm:space-y-6"
+              >
                 {/* Basic Information */}
                 <div>
-                  <h4 className="text-base font-medium text-gray-900 mb-3">Basic Information</h4>
+                  <h4 className="text-base font-medium text-gray-900 mb-3">
+                    Basic Information
+                  </h4>
                   <div className="space-y-4">
                     <ValidationInput
                       label="Item Name"
                       type="text"
                       value={editFormData.name}
-                      onChange={(e) => updateEditFormField('name', e.target.value)}
+                      onChange={(e) =>
+                        updateEditFormField("name", e.target.value)
+                      }
                       required
                       error={editFormErrors.name}
                     />
@@ -1177,12 +1448,14 @@ function InventoryView({
                       <ValidationSelect
                         label="Category"
                         value={editFormData.category_id}
-                        onValueChange={(value) => updateEditFormField('category_id', value)}
+                        onValueChange={(value) =>
+                          updateEditFormField("category_id", value)
+                        }
                         placeholder="Select Category"
                         required
                         error={editFormErrors.category_id}
                       >
-                        {categories.map(category => (
+                        {categories.map((category) => (
                           <SelectItem key={category.id} value={category.id}>
                             {category.name}
                           </SelectItem>
@@ -1192,28 +1465,31 @@ function InventoryView({
                       <div className="relative">
                         <ValidationSelect
                           label="Related Service (Optional)"
-                          value={editFormData.service_id || ''}
-                          onValueChange={(value) => updateEditFormField('service_id', value)}
+                          value={editFormData.service_id || ""}
+                          onValueChange={(value) =>
+                            updateEditFormField("service_id", value)
+                          }
                           placeholder={
                             !editFormData.category_id
-                              ? 'Select a category first'
+                              ? "Select a category first"
                               : filteredServices.length === 0
-                                ? 'No services available'
-                                : 'Select Service (Optional)'
+                              ? "No services available"
+                              : "Select Service (Optional)"
                           }
                           error={editFormErrors.service_id}
                         >
-                          {filteredServices.map(service => (
+                          {filteredServices.map((service) => (
                             <SelectItem key={service.id} value={service.id}>
                               {service.name} - R{service.price}
                             </SelectItem>
                           ))}
                         </ValidationSelect>
-                        {editFormData.category_id && filteredServices.length === 0 && (
-                          <p className="text-xs text-gray-500 mt-1">
-                            No services found for the selected category
-                          </p>
-                        )}
+                        {editFormData.category_id &&
+                          filteredServices.length === 0 && (
+                            <p className="text-xs text-gray-500 mt-1">
+                              No services found for the selected category
+                            </p>
+                          )}
                       </div>
                     </div>
                   </div>
@@ -1221,16 +1497,23 @@ function InventoryView({
 
                 {/* Measurements & Quantity */}
                 <div>
-                  <h4 className="text-base font-medium text-gray-900 mb-3">Measurements & Quantity</h4>
+                  <h4 className="text-base font-medium text-gray-900 mb-3">
+                    Measurements & Quantity
+                  </h4>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <ValidationSelect
                       label="Unit of Measure"
                       value={editFormData.unit_of_measure}
-                      onValueChange={(value) => updateEditFormField('unit_of_measure', value)}
+                      onValueChange={(value) =>
+                        updateEditFormField("unit_of_measure", value)
+                      }
                       error={editFormErrors.unit_of_measure}
                     >
                       {measurements.map((measurement) => (
-                        <SelectItem key={measurement.id} value={measurement.value}>
+                        <SelectItem
+                          key={measurement.id}
+                          value={measurement.value}
+                        >
                           {measurement.secondary_value || measurement.value}
                         </SelectItem>
                       ))}
@@ -1241,7 +1524,12 @@ function InventoryView({
                       type="number"
                       min="0"
                       value={editFormData.current_stock.toString()}
-                      onChange={(e) => updateEditFormField('current_stock', parseInt(e.target.value) || 0)}
+                      onChange={(e) =>
+                        updateEditFormField(
+                          "current_stock",
+                          parseInt(e.target.value) || 0
+                        )
+                      }
                       placeholder="0"
                       error={editFormErrors.current_stock}
                     />
@@ -1250,7 +1538,9 @@ function InventoryView({
 
                 {/* Pricing */}
                 <div>
-                  <h4 className="text-base font-medium text-gray-900 mb-3">Pricing</h4>
+                  <h4 className="text-base font-medium text-gray-900 mb-3">
+                    Pricing
+                  </h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <ValidationInput
                       label="Unit Cost (ZAR)"
@@ -1258,7 +1548,12 @@ function InventoryView({
                       min="0"
                       step="0.01"
                       value={editFormData.unit_cost.toString()}
-                      onChange={(e) => updateEditFormField('unit_cost', parseFloat(e.target.value) || 0)}
+                      onChange={(e) =>
+                        updateEditFormField(
+                          "unit_cost",
+                          parseFloat(e.target.value) || 0
+                        )
+                      }
                       placeholder="0.00"
                       error={editFormErrors.unit_cost}
                     />
@@ -1267,19 +1562,22 @@ function InventoryView({
 
                 {/* Description & Notes */}
                 <div>
-                  <h4 className="text-base font-medium text-gray-900 mb-3">Additional Information</h4>
+                  <h4 className="text-base font-medium text-gray-900 mb-3">
+                    Additional Information
+                  </h4>
                   <div className="space-y-4">
                     <ValidationTextarea
                       label="Description"
                       value={editFormData.description}
-                      onChange={(e) => updateEditFormField('description', e.target.value)}
+                      onChange={(e) =>
+                        updateEditFormField("description", e.target.value)
+                      }
                       rows={3}
                       placeholder="Brief description of the item..."
                       error={editFormErrors.description}
                     />
                   </div>
                 </div>
-
               </form>
             </div>
 
@@ -1298,259 +1596,267 @@ function InventoryView({
                 disabled={loading}
                 className="flex-1 bg-indigo-600 text-white px-4 py-3 rounded-lg font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading ? 'Updating...' : 'Update Item'}
+                {loading ? "Updating..." : "Update Item"}
               </button>
             </div>
           </div>
         </div>
       )}
     </div>
-  )
+  );
 }
-
 
 function ServiceInventoryView({
   user,
   showSuccess,
   showError,
   formatCurrency,
-  userRoleData
+  userRoleData,
 }: {
-  user: any
-  showSuccess: (message: string) => void
-  showError: (message: string) => void
-  formatCurrency: (amount: number) => string
-  userRoleData: any
+  user: any;
+  showSuccess: (message: string) => void;
+  showError: (message: string) => void;
+  formatCurrency: (amount: number) => string;
+  userRoleData: any;
 }) {
-  const [loading, setLoading] = useState(true)
-  const [services, setServices] = useState<ServiceWithCategory[]>([])
-  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([])
-  const [relationships, setRelationships] = useState<ServiceInventoryRelationship[]>([])
-  const [showAddModal, setShowAddModal] = useState(false)
-  const [isAddModalClosing, setIsAddModalClosing] = useState(false)
-  const [editingRelationship, setEditingRelationship] = useState<ServiceInventoryRelationship | null>(null)
-  const [showEditModal, setShowEditModal] = useState(false)
-  const [isEditModalClosing, setIsEditModalClosing] = useState(false)
-  const [searchTerm, setSearchTerm] = useState('')
-  const [selectedService, setSelectedService] = useState<string>('all')
-
+  const [loading, setLoading] = useState(true);
+  const [services, setServices] = useState<ServiceWithCategory[]>([]);
+  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
+  const [relationships, setRelationships] = useState<
+    ServiceInventoryRelationship[]
+  >([]);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [isAddModalClosing, setIsAddModalClosing] = useState(false);
+  const [editingRelationship, setEditingRelationship] =
+    useState<ServiceInventoryRelationship | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [isEditModalClosing, setIsEditModalClosing] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedService, setSelectedService] = useState<string>("all");
 
   const [formData, setFormData] = useState<ServiceInventoryRelationshipForm>({
-    service_id: '',
-    inventory_item_id: '',
-    quantity_used: 1
-  })
+    service_id: "",
+    inventory_item_id: "",
+    quantity_used: 1,
+  });
 
+  const [editFormData, setEditFormData] =
+    useState<ServiceInventoryRelationshipForm>({
+      service_id: "",
+      inventory_item_id: "",
+      quantity_used: 1,
+    });
 
-  const [editFormData, setEditFormData] = useState<ServiceInventoryRelationshipForm>({
-    service_id: '',
-    inventory_item_id: '',
-    quantity_used: 1
-  })
-
-
-  const [formErrors, setFormErrors] = useState<Record<string, string>>({})
-  const [editFormErrors, setEditFormErrors] = useState<Record<string, string>>({})
-
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [editFormErrors, setEditFormErrors] = useState<Record<string, string>>(
+    {}
+  );
 
   const updateFormField = (field: string, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }))
+    setFormData((prev) => ({ ...prev, [field]: value }));
     if (formErrors[field]) {
-      setFormErrors(prev => ({ ...prev, [field]: '' }))
+      setFormErrors((prev) => ({ ...prev, [field]: "" }));
     }
-  }
-
+  };
 
   const updateEditFormField = (field: string, value: any) => {
-    setEditFormData(prev => ({ ...prev, [field]: value }))
+    setEditFormData((prev) => ({ ...prev, [field]: value }));
     if (editFormErrors[field]) {
-      setEditFormErrors(prev => ({ ...prev, [field]: '' }))
+      setEditFormErrors((prev) => ({ ...prev, [field]: "" }));
     }
-  }
-
+  };
 
   const openAddModal = () => {
-    setShowAddModal(true)
-    setIsAddModalClosing(false)
-  }
+    setShowAddModal(true);
+    setIsAddModalClosing(false);
+  };
 
   const closeAddModal = () => {
-    setIsAddModalClosing(true)
+    setIsAddModalClosing(true);
     setTimeout(() => {
-      setShowAddModal(false)
-      setIsAddModalClosing(false)
+      setShowAddModal(false);
+      setIsAddModalClosing(false);
       setFormData({
-        service_id: '',
-        inventory_item_id: '',
-        quantity_used: 1
-      })
-      setFormErrors({})
-    }, 300)
-  }
-
+        service_id: "",
+        inventory_item_id: "",
+        quantity_used: 1,
+      });
+      setFormErrors({});
+    }, 300);
+  };
 
   const openEditModal = (relationship: ServiceInventoryRelationship) => {
-    setEditingRelationship(relationship)
+    setEditingRelationship(relationship);
     setEditFormData({
       service_id: relationship.service_id,
       inventory_item_id: relationship.inventory_item_id,
-      quantity_used: relationship.quantity_used
-    })
-    setShowEditModal(true)
-    setIsEditModalClosing(false)
-  }
+      quantity_used: relationship.quantity_used,
+    });
+    setShowEditModal(true);
+    setIsEditModalClosing(false);
+  };
 
   const closeEditModal = () => {
-    setIsEditModalClosing(true)
+    setIsEditModalClosing(true);
     setTimeout(() => {
-      setShowEditModal(false)
-      setIsEditModalClosing(false)
-      setEditingRelationship(null)
-      setEditFormErrors({})
-    }, 300)
-  }
+      setShowEditModal(false);
+      setIsEditModalClosing(false);
+      setEditingRelationship(null);
+      setEditFormErrors({});
+    }, 300);
+  };
 
   useEffect(() => {
-    loadData()
-  }, [])
+    loadData();
+  }, []);
 
   const loadData = async () => {
     try {
-      setLoading(true)
+      setLoading(true);
       const [servicesData, itemsData, relationshipsData] = await Promise.all([
         getServicesWithCategories(),
         InventoryService.getItems(),
-        InventoryService.getServiceInventoryRelationships()
-      ])
-      setServices(servicesData)
-      setInventoryItems(itemsData)
-      setRelationships(relationshipsData)
+        InventoryService.getServiceInventoryRelationships(),
+      ]);
+      setServices(servicesData);
+      setInventoryItems(itemsData);
+      setRelationships(relationshipsData);
     } catch (error) {
-      console.error('Error loading service inventory data:', error)
-      showError('Failed to load service inventory data')
+      console.error("Error loading service inventory data:", error);
+      showError("Failed to load service inventory data");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
-
+  };
 
   const validateForm = () => {
-    const errors: Record<string, string> = {}
+    const errors: Record<string, string> = {};
     if (!formData.service_id) {
-      errors.service_id = 'Service is required'
+      errors.service_id = "Service is required";
     }
     if (!formData.inventory_item_id) {
-      errors.inventory_item_id = 'Inventory item is required'
+      errors.inventory_item_id = "Inventory item is required";
     }
     if (!formData.quantity_used || formData.quantity_used <= 0) {
-      errors.quantity_used = 'Quantity must be greater than 0'
+      errors.quantity_used = "Quantity must be greater than 0";
     }
 
-    setFormErrors(errors)
-    return Object.keys(errors).length === 0
-  }
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
 
   const validateEditForm = () => {
-    const errors: Record<string, string> = {}
+    const errors: Record<string, string> = {};
     if (!editFormData.service_id) {
-      errors.service_id = 'Service is required'
+      errors.service_id = "Service is required";
     }
     if (!editFormData.inventory_item_id) {
-      errors.inventory_item_id = 'Inventory item is required'
+      errors.inventory_item_id = "Inventory item is required";
     }
     if (!editFormData.quantity_used || editFormData.quantity_used <= 0) {
-      errors.quantity_used = 'Quantity must be greater than 0'
+      errors.quantity_used = "Quantity must be greater than 0";
     }
 
-    setEditFormErrors(errors)
-    return Object.keys(errors).length === 0
-  }
-
+    setEditFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
 
   const handleAddRelationship = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
 
     if (!validateForm()) {
-      showError('Please fix the errors in the form')
-      return
+      showError("Please fix the errors in the form");
+      return;
     }
 
     try {
-      setLoading(true)
-      await InventoryService.createServiceInventoryRelationship(formData, user?.id || '')
-      showSuccess('Service inventory relationship added successfully!')
-      closeAddModal()
+      setLoading(true);
+      await InventoryService.createServiceInventoryRelationship(
+        formData,
+        user?.id || ""
+      );
+      showSuccess("Service inventory relationship added successfully!");
+      closeAddModal();
       setFormData({
-        service_id: '',
-        inventory_item_id: '',
-        quantity_used: 1
-      })
-      setFormErrors({})
-      await loadData()
+        service_id: "",
+        inventory_item_id: "",
+        quantity_used: 1,
+      });
+      setFormErrors({});
+      await loadData();
     } catch (error) {
-      console.error('Error adding relationship:', error)
-      showError('Failed to add service inventory relationship')
+      console.error("Error adding relationship:", error);
+      showError("Failed to add service inventory relationship");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
-
+  };
 
   const handleUpdateRelationship = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
 
     if (!editingRelationship || !validateEditForm()) {
-      showError('Please fix the errors in the form')
-      return
+      showError("Please fix the errors in the form");
+      return;
     }
 
     try {
-      setLoading(true)
-      await InventoryService.updateServiceInventoryRelationship(editingRelationship.id, editFormData, user?.id || '')
-      showSuccess('Service inventory relationship updated successfully!')
-      closeEditModal()
-      await loadData()
+      setLoading(true);
+      await InventoryService.updateServiceInventoryRelationship(
+        editingRelationship.id,
+        editFormData,
+        user?.id || ""
+      );
+      showSuccess("Service inventory relationship updated successfully!");
+      closeEditModal();
+      await loadData();
     } catch (error) {
-      console.error('Error updating relationship:', error)
-      showError('Failed to update service inventory relationship')
+      console.error("Error updating relationship:", error);
+      showError("Failed to update service inventory relationship");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
-
+  };
 
   const handleDeleteRelationship = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this service inventory relationship?')) {
-      return
+    if (
+      !confirm(
+        "Are you sure you want to delete this service inventory relationship?"
+      )
+    ) {
+      return;
     }
 
     try {
-      setLoading(true)
-      await InventoryService.deleteServiceInventoryRelationship(id)
-      showSuccess('Service inventory relationship deleted successfully!')
-      await loadData()
+      setLoading(true);
+      await InventoryService.deleteServiceInventoryRelationship(id);
+      showSuccess("Service inventory relationship deleted successfully!");
+      await loadData();
     } catch (error) {
-      console.error('Error deleting relationship:', error)
-      showError('Failed to delete service inventory relationship')
+      console.error("Error deleting relationship:", error);
+      showError("Failed to delete service inventory relationship");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
-
-  const filteredRelationships = relationships.filter(rel => {
-    const matchesSearch = rel.service?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      rel.inventory_item?.name.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesService = !selectedService || selectedService === 'all' || rel.service_id === selectedService
-    return matchesSearch && matchesService
-  })
+  const filteredRelationships = relationships.filter((rel) => {
+    const matchesSearch =
+      rel.service?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      rel.inventory_item?.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesService =
+      !selectedService ||
+      selectedService === "all" ||
+      rel.service_id === selectedService;
+    return matchesSearch && matchesService;
+  });
 
   if (loading && relationships.length === 0) {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
       </div>
-    )
+    );
   }
 
   return (
@@ -1558,15 +1864,29 @@ function ServiceInventoryView({
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Service Inventory Management</h2>
-          <p className="text-sm text-gray-600">Manage which inventory items are used by which services</p>
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
+            Service Inventory Management
+          </h2>
+          <p className="text-sm text-gray-600">
+            Manage which inventory items are used by which services
+          </p>
         </div>
         <button
           onClick={openAddModal}
           className="w-full sm:w-auto bg-indigo-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2"
         >
-          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+          <svg
+            className="h-5 w-5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+            />
           </svg>
           Add Relationship
         </button>
@@ -1589,7 +1909,7 @@ function ServiceInventoryView({
             placeholder="All Services"
           >
             <SelectItem value="all">All Services</SelectItem>
-            {services.map(service => (
+            {services.map((service) => (
               <SelectItem key={service.id} value={service.id}>
                 {service.name}
               </SelectItem>
@@ -1602,9 +1922,12 @@ function ServiceInventoryView({
       <div className="bg-white rounded-lg shadow">
         <div className="px-4 sm:px-6 py-4 border-b border-gray-200">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-medium text-gray-900">Service Inventory Relationships</h3>
+            <h3 className="text-lg font-medium text-gray-900">
+              Service Inventory Relationships
+            </h3>
             <span className="text-sm text-gray-500">
-              {filteredRelationships.length} relationship{filteredRelationships.length !== 1 ? 's' : ''}
+              {filteredRelationships.length} relationship
+              {filteredRelationships.length !== 1 ? "s" : ""}
             </span>
           </div>
         </div>
@@ -1612,28 +1935,53 @@ function ServiceInventoryView({
         {filteredRelationships.length === 0 ? (
           <div className="text-center py-8">
             <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-gray-100">
-              <svg className="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+              <svg
+                className="h-6 w-6 text-gray-400"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
+                />
               </svg>
             </div>
-            <h3 className="mt-2 text-sm font-medium text-gray-900">No relationships found</h3>
+            <h3 className="mt-2 text-sm font-medium text-gray-900">
+              No relationships found
+            </h3>
             <p className="mt-1 text-sm text-gray-500">
-              {searchTerm || selectedService !== 'all'
-                ? 'Try adjusting your search or filter criteria'
-                : 'Get started by adding your first service inventory relationship'}
+              {searchTerm || selectedService !== "all"
+                ? "Try adjusting your search or filter criteria"
+                : "Get started by adding your first service inventory relationship"}
             </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4 sm:p-6">
             {filteredRelationships.map((relationship) => (
-              <div key={relationship.id} className="bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow">
+              <div
+                key={relationship.id}
+                className="bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow"
+              >
                 <div className="p-4 sm:p-6">
                   {/* Service and Item Info */}
                   <div className="flex items-start space-x-3 mb-4">
                     <div className="flex-shrink-0">
                       <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center">
-                        <svg className="h-5 w-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                        <svg
+                          className="h-5 w-5 text-indigo-600"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
+                          />
                         </svg>
                       </div>
                     </div>
@@ -1646,15 +1994,27 @@ function ServiceInventoryView({
                           <p className="text-xs text-gray-500">Service</p>
                         </div>
                         <div className="flex items-center text-gray-400">
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          <svg
+                            className="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M19 9l-7 7-7-7"
+                            />
                           </svg>
                         </div>
                         <div>
                           <h4 className="text-sm font-medium text-gray-900 truncate">
                             {relationship.inventory_item?.name}
                           </h4>
-                          <p className="text-xs text-gray-500">Inventory Item</p>
+                          <p className="text-xs text-gray-500">
+                            Inventory Item
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -1663,9 +2023,12 @@ function ServiceInventoryView({
                   {/* Details */}
                   <div className="space-y-2 mb-4">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-500">Quantity Used:</span>
+                      <span className="text-sm text-gray-500">
+                        Quantity Used:
+                      </span>
                       <span className="text-sm font-medium text-gray-900">
-                        {relationship.quantity_used} {relationship.inventory_item?.unit_of_measure}
+                        {relationship.quantity_used}{" "}
+                        {relationship.inventory_item?.unit_of_measure}
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
@@ -1683,8 +2046,18 @@ function ServiceInventoryView({
                       className="text-[#F2C7EB] hover:text-[#E8A8D8] p-2 rounded-lg hover:bg-gray-100 transition-colors"
                       title="Edit relationship"
                     >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                        />
                       </svg>
                     </button>
                     <button
@@ -1692,8 +2065,18 @@ function ServiceInventoryView({
                       className="text-red-500 hover:text-red-700 p-2 rounded-lg hover:bg-gray-100 transition-colors"
                       title="Delete relationship"
                     >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                        />
                       </svg>
                     </button>
                   </div>
@@ -1712,9 +2095,11 @@ function ServiceInventoryView({
             onClick={closeAddModal}
           />
 
-          <div className={`fixed bottom-0 left-0 right-0 lg:top-1/2 lg:left-1/2 lg:transform lg:-translate-x-1/2 lg:-translate-y-1/2 lg:bottom-auto lg:right-auto lg:w-full lg:max-w-2xl bg-white rounded-t-xl lg:rounded-xl shadow-2xl transform transition-transform duration-300 ease-out max-h-[95vh] lg:max-h-[90vh] flex flex-col pointer-events-auto overflow-visible ${isAddModalClosing
-              ? 'translate-y-full lg:translate-y-full lg:translate-x-[-50%]'
-              : 'translate-y-0 lg:translate-x-[-50%] lg:translate-y-[-50%] modal-enter lg:modal-enter-desktop'
+          <div
+            className={`fixed bottom-0 left-0 right-0 lg:top-1/2 lg:left-1/2 lg:transform lg:-translate-x-1/2 lg:-translate-y-1/2 lg:bottom-auto lg:right-auto lg:w-full lg:max-w-2xl bg-white rounded-t-xl lg:rounded-xl shadow-2xl transform transition-transform duration-300 ease-out max-h-[95vh] lg:max-h-[90vh] flex flex-col pointer-events-auto overflow-visible ${
+              isAddModalClosing
+                ? "translate-y-full lg:translate-y-full lg:translate-x-[-50%]"
+                : "translate-y-0 lg:translate-x-[-50%] lg:translate-y-[-50%] modal-enter lg:modal-enter-desktop"
             }`}
             onClick={(e) => e.stopPropagation()}
           >
@@ -1723,29 +2108,47 @@ function ServiceInventoryView({
             </div>
 
             <div className="flex justify-between items-center px-6 py-4 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">Add Service Inventory Relationship</h3>
+              <h3 className="text-lg font-semibold text-gray-900">
+                Add Service Inventory Relationship
+              </h3>
               <button
                 onClick={closeAddModal}
                 className="p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100"
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                <svg
+                  className="w-6 h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
                 </svg>
               </button>
             </div>
 
             <div className="flex-1 overflow-y-auto overflow-x-visible px-6 py-4">
-              <form id="add-relationship-form" onSubmit={handleAddRelationship} className="space-y-4 sm:space-y-6">
+              <form
+                id="add-relationship-form"
+                onSubmit={handleAddRelationship}
+                className="space-y-4 sm:space-y-6"
+              >
                 <div className="space-y-4">
                   <ValidationSelect
                     label="Service"
                     value={formData.service_id}
-                    onValueChange={(value) => updateFormField('service_id', value)}
+                    onValueChange={(value) =>
+                      updateFormField("service_id", value)
+                    }
                     placeholder="Select Service"
                     required
                     error={formErrors.service_id}
                   >
-                    {services.map(service => (
+                    {services.map((service) => (
                       <SelectItem key={service.id} value={service.id}>
                         {service.name} - R{service.price}
                       </SelectItem>
@@ -1755,12 +2158,14 @@ function ServiceInventoryView({
                   <ValidationSelect
                     label="Inventory Item"
                     value={formData.inventory_item_id}
-                    onValueChange={(value) => updateFormField('inventory_item_id', value)}
+                    onValueChange={(value) =>
+                      updateFormField("inventory_item_id", value)
+                    }
                     placeholder="Select Inventory Item"
                     required
                     error={formErrors.inventory_item_id}
                   >
-                    {inventoryItems.map(item => (
+                    {inventoryItems.map((item) => (
                       <SelectItem key={item.id} value={item.id}>
                         {item.name} ({item.unit_of_measure})
                       </SelectItem>
@@ -1772,7 +2177,12 @@ function ServiceInventoryView({
                     type="number"
                     min="1"
                     value={formData.quantity_used.toString()}
-                    onChange={(e) => updateFormField('quantity_used', parseInt(e.target.value) || 1)}
+                    onChange={(e) =>
+                      updateFormField(
+                        "quantity_used",
+                        parseInt(e.target.value) || 1
+                      )
+                    }
                     placeholder="1"
                     required
                     error={formErrors.quantity_used}
@@ -1795,7 +2205,7 @@ function ServiceInventoryView({
                 disabled={loading}
                 className="flex-1 bg-indigo-600 text-white px-4 py-3 rounded-lg font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading ? 'Adding...' : 'Add Relationship'}
+                {loading ? "Adding..." : "Add Relationship"}
               </button>
             </div>
           </div>
@@ -1810,9 +2220,11 @@ function ServiceInventoryView({
             onClick={closeEditModal}
           />
 
-          <div className={`fixed bottom-0 left-0 right-0 lg:top-1/2 lg:left-1/2 lg:transform lg:-translate-x-1/2 lg:-translate-y-1/2 lg:bottom-auto lg:right-auto lg:w-full lg:max-w-2xl bg-white rounded-t-xl lg:rounded-xl shadow-2xl transform transition-transform duration-300 ease-out max-h-[95vh] lg:max-h-[90vh] flex flex-col pointer-events-auto overflow-visible ${isEditModalClosing
-              ? 'translate-y-full lg:translate-y-full lg:translate-x-[-50%]'
-              : 'translate-y-0 lg:translate-x-[-50%] lg:translate-y-[-50%] modal-enter lg:modal-enter-desktop'
+          <div
+            className={`fixed bottom-0 left-0 right-0 lg:top-1/2 lg:left-1/2 lg:transform lg:-translate-x-1/2 lg:-translate-y-1/2 lg:bottom-auto lg:right-auto lg:w-full lg:max-w-2xl bg-white rounded-t-xl lg:rounded-xl shadow-2xl transform transition-transform duration-300 ease-out max-h-[95vh] lg:max-h-[90vh] flex flex-col pointer-events-auto overflow-visible ${
+              isEditModalClosing
+                ? "translate-y-full lg:translate-y-full lg:translate-x-[-50%]"
+                : "translate-y-0 lg:translate-x-[-50%] lg:translate-y-[-50%] modal-enter lg:modal-enter-desktop"
             }`}
             onClick={(e) => e.stopPropagation()}
           >
@@ -1821,29 +2233,47 @@ function ServiceInventoryView({
             </div>
 
             <div className="flex justify-between items-center px-6 py-4 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">Edit Service Inventory Relationship</h3>
+              <h3 className="text-lg font-semibold text-gray-900">
+                Edit Service Inventory Relationship
+              </h3>
               <button
                 onClick={closeEditModal}
                 className="p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100"
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                <svg
+                  className="w-6 h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
                 </svg>
               </button>
             </div>
 
             <div className="flex-1 overflow-y-auto overflow-x-visible px-6 py-4">
-              <form id="edit-relationship-form" onSubmit={handleUpdateRelationship} className="space-y-4 sm:space-y-6">
+              <form
+                id="edit-relationship-form"
+                onSubmit={handleUpdateRelationship}
+                className="space-y-4 sm:space-y-6"
+              >
                 <div className="space-y-4">
                   <ValidationSelect
                     label="Service"
                     value={editFormData.service_id}
-                    onValueChange={(value) => updateEditFormField('service_id', value)}
+                    onValueChange={(value) =>
+                      updateEditFormField("service_id", value)
+                    }
                     placeholder="Select Service"
                     required
                     error={editFormErrors.service_id}
                   >
-                    {services.map(service => (
+                    {services.map((service) => (
                       <SelectItem key={service.id} value={service.id}>
                         {service.name} - R{service.price}
                       </SelectItem>
@@ -1853,12 +2283,14 @@ function ServiceInventoryView({
                   <ValidationSelect
                     label="Inventory Item"
                     value={editFormData.inventory_item_id}
-                    onValueChange={(value) => updateEditFormField('inventory_item_id', value)}
+                    onValueChange={(value) =>
+                      updateEditFormField("inventory_item_id", value)
+                    }
                     placeholder="Select Inventory Item"
                     required
                     error={editFormErrors.inventory_item_id}
                   >
-                    {inventoryItems.map(item => (
+                    {inventoryItems.map((item) => (
                       <SelectItem key={item.id} value={item.id}>
                         {item.name} ({item.unit_of_measure})
                       </SelectItem>
@@ -1870,7 +2302,12 @@ function ServiceInventoryView({
                     type="number"
                     min="1"
                     value={editFormData.quantity_used.toString()}
-                    onChange={(e) => updateEditFormField('quantity_used', parseInt(e.target.value) || 1)}
+                    onChange={(e) =>
+                      updateEditFormField(
+                        "quantity_used",
+                        parseInt(e.target.value) || 1
+                      )
+                    }
                     placeholder="1"
                     required
                     error={editFormErrors.quantity_used}
@@ -1893,392 +2330,428 @@ function ServiceInventoryView({
                 disabled={loading}
                 className="flex-1 bg-indigo-600 text-white px-4 py-3 rounded-lg font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading ? 'Updating...' : 'Update Relationship'}
+                {loading ? "Updating..." : "Update Relationship"}
               </button>
             </div>
           </div>
         </div>
       )}
     </div>
-  )
+  );
 }
-
 
 function FinancialTransactionsView({
   user,
   showSuccess,
-  showError
+  showError,
 }: {
-  user: any
-  showSuccess: (message: string) => void
-  showError: (message: string) => void
+  user: any;
+  showSuccess: (message: string) => void;
+  showError: (message: string) => void;
 }) {
-  const [loading, setLoading] = useState(true)
-  const [transactions, setTransactions] = useState<FinancialTransaction[]>([])
-  const [summary, setSummary] = useState<FinancialSummary | null>(null)
-  const [paymentMethods, setPaymentMethods] = useState<Lookup[]>([])
-  const [revenueTypes, setRevenueTypes] = useState<Lookup[]>([])
-  const [transactionTypes, setTransactionTypes] = useState<Lookup[]>([])
-  const [showAddModal, setShowAddModal] = useState(false)
-  const [isAddModalClosing, setIsAddModalClosing] = useState(false)
-  const [editingTransaction, setEditingTransaction] = useState<FinancialTransaction | null>(null)
-  const [showEditModal, setShowEditModal] = useState(false)
-  const [isEditModalClosing, setIsEditModalClosing] = useState(false)
-  const [searchTerm, setSearchTerm] = useState('')
-  const [filterType, setFilterType] = useState<string>('all')
-  const [filterCategory, setFilterCategory] = useState<string>('all')
-  const [sortBy, setSortBy] = useState<'date' | 'amount' | 'type'>('date')
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
-  
-  // Report selection state
-  const currentDate = new Date()
-  const [selectedMonth, setSelectedMonth] = useState<string>(String(currentDate.getMonth() + 1))
-  const [selectedYear, setSelectedYear] = useState<string>(String(currentDate.getFullYear()))
-  const [selectedYearlyYear, setSelectedYearlyYear] = useState<string>(String(currentDate.getFullYear()))
+  const [loading, setLoading] = useState(true);
+  const [transactions, setTransactions] = useState<FinancialTransaction[]>([]);
+  const [summary, setSummary] = useState<FinancialSummary | null>(null);
+  const [paymentMethods, setPaymentMethods] = useState<Lookup[]>([]);
+  const [revenueTypes, setRevenueTypes] = useState<Lookup[]>([]);
+  const [transactionTypes, setTransactionTypes] = useState<Lookup[]>([]);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [isAddModalClosing, setIsAddModalClosing] = useState(false);
+  const [editingTransaction, setEditingTransaction] =
+    useState<FinancialTransaction | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [isEditModalClosing, setIsEditModalClosing] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterType, setFilterType] = useState<string>("all");
+  const [filterCategory, setFilterCategory] = useState<string>("all");
+  const [sortBy, setSortBy] = useState<"date" | "amount" | "type">("date");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
+  // Report selection state
+  const currentDate = new Date();
+  const [selectedMonth, setSelectedMonth] = useState<string>(
+    String(currentDate.getMonth() + 1)
+  );
+  const [selectedYear, setSelectedYear] = useState<string>(
+    String(currentDate.getFullYear())
+  );
+  const [selectedYearlyYear, setSelectedYearlyYear] = useState<string>(
+    String(currentDate.getFullYear())
+  );
 
   const [formData, setFormData] = useState<FinancialTransactionForm>({
-    transaction_type: 'income',
-    category: '',
+    transaction_type: "income",
+    category: "",
     amount: 0,
-    transaction_date: new Date().toISOString().split('T')[0],
-    payment_method: '',
-    receipt_number: ''
-  })
-
+    transaction_date: new Date().toISOString().split("T")[0],
+    payment_method: "",
+    receipt_number: "",
+  });
 
   const [editFormData, setEditFormData] = useState<FinancialTransactionForm>({
-    transaction_type: 'income',
-    category: '',
+    transaction_type: "income",
+    category: "",
     amount: 0,
-    transaction_date: new Date().toISOString().split('T')[0],
-    payment_method: '',
-    receipt_number: ''
-  })
+    transaction_date: new Date().toISOString().split("T")[0],
+    payment_method: "",
+    receipt_number: "",
+  });
 
-
-  const [formErrors, setFormErrors] = useState<Record<string, string>>({})
-  const [editFormErrors, setEditFormErrors] = useState<Record<string, string>>({})
-
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [editFormErrors, setEditFormErrors] = useState<Record<string, string>>(
+    {}
+  );
 
   const updateFormField = (field: string, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }))
+    setFormData((prev) => ({ ...prev, [field]: value }));
     if (formErrors[field]) {
-      setFormErrors(prev => ({ ...prev, [field]: '' }))
+      setFormErrors((prev) => ({ ...prev, [field]: "" }));
     }
-  }
-
+  };
 
   const updateEditFormField = (field: string, value: any) => {
-    setEditFormData(prev => ({ ...prev, [field]: value }))
+    setEditFormData((prev) => ({ ...prev, [field]: value }));
     if (editFormErrors[field]) {
-      setEditFormErrors(prev => ({ ...prev, [field]: '' }))
+      setEditFormErrors((prev) => ({ ...prev, [field]: "" }));
     }
-  }
-
+  };
 
   const openAddModal = () => {
-    setShowAddModal(true)
-    setIsAddModalClosing(false)
-  }
+    setShowAddModal(true);
+    setIsAddModalClosing(false);
+  };
 
   const closeAddModal = () => {
-    setIsAddModalClosing(true)
+    setIsAddModalClosing(true);
     setTimeout(() => {
-      setShowAddModal(false)
-      setIsAddModalClosing(false)
-      setFormErrors({})
-    }, 300)
-  }
-
+      setShowAddModal(false);
+      setIsAddModalClosing(false);
+      setFormErrors({});
+    }, 300);
+  };
 
   const openEditModal = (transaction: FinancialTransaction) => {
-    setEditingTransaction(transaction)
+    setEditingTransaction(transaction);
     setEditFormData({
       transaction_type: transaction.transaction_type,
       category: transaction.category,
       amount: transaction.amount,
       transaction_date: transaction.transaction_date,
       payment_method: transaction.payment_method,
-      receipt_number: transaction.receipt_number || ''
-    })
-    setShowEditModal(true)
-    setIsEditModalClosing(false)
-  }
+      receipt_number: transaction.receipt_number || "",
+    });
+    setShowEditModal(true);
+    setIsEditModalClosing(false);
+  };
 
   const closeEditModal = () => {
-    setIsEditModalClosing(true)
+    setIsEditModalClosing(true);
     setTimeout(() => {
-      setShowEditModal(false)
-      setIsEditModalClosing(false)
-      setEditingTransaction(null)
-      setEditFormErrors({})
-    }, 300)
-  }
+      setShowEditModal(false);
+      setIsEditModalClosing(false);
+      setEditingTransaction(null);
+      setEditFormErrors({});
+    }, 300);
+  };
 
   useEffect(() => {
-    loadData()
-  }, [])
+    loadData();
+  }, []);
 
   const loadData = async () => {
     try {
-      setLoading(true)
-      const [transactionsData, summaryData, paymentMethodsData, revenueTypesData, transactionTypesData] = await Promise.all([
+      setLoading(true);
+      const [
+        transactionsData,
+        summaryData,
+        paymentMethodsData,
+        revenueTypesData,
+        transactionTypesData,
+      ] = await Promise.all([
         InventoryService.getFinancialTransactions(),
         InventoryService.getFinancialSummary(),
         lookupServiceCached.getPaymentMethods(),
         lookupServiceCached.getRevenueTypes(),
-        lookupServiceCached.getTransactionTypes()
-      ])
-      setTransactions(transactionsData)
-      setSummary(summaryData)
-      setPaymentMethods(paymentMethodsData || [])
-      setRevenueTypes(revenueTypesData || [])
-      setTransactionTypes(transactionTypesData || [])
+        lookupServiceCached.getTransactionTypes(),
+      ]);
+      setTransactions(transactionsData);
+      setSummary(summaryData);
+      setPaymentMethods(paymentMethodsData || []);
+      setRevenueTypes(revenueTypesData || []);
+      setTransactionTypes(transactionTypesData || []);
     } catch (error) {
-      console.error('Error loading financial data:', error)
-      showError('Failed to load financial data')
+      console.error("Error loading financial data:", error);
+      showError("Failed to load financial data");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
-
-
+  };
 
   const validateForm = () => {
-    const errors: Record<string, string> = {}
+    const errors: Record<string, string> = {};
     if (!formData.category.trim()) {
-      errors.category = 'Category is required'
+      errors.category = "Category is required";
     }
     if (formData.amount <= 0) {
-      errors.amount = 'Amount must be greater than 0'
+      errors.amount = "Amount must be greater than 0";
     }
     if (!formData.transaction_date) {
-      errors.transaction_date = 'Transaction date is required'
+      errors.transaction_date = "Transaction date is required";
     }
 
-    setFormErrors(errors)
-    return Object.keys(errors).length === 0
-  }
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
 
   const validateEditForm = () => {
-    const errors: Record<string, string> = {}
+    const errors: Record<string, string> = {};
     if (!editFormData.category.trim()) {
-      errors.category = 'Category is required'
+      errors.category = "Category is required";
     }
     if (editFormData.amount <= 0) {
-      errors.amount = 'Amount must be greater than 0'
+      errors.amount = "Amount must be greater than 0";
     }
     if (!editFormData.transaction_date) {
-      errors.transaction_date = 'Transaction date is required'
+      errors.transaction_date = "Transaction date is required";
     }
 
-    setEditFormErrors(errors)
-    return Object.keys(errors).length === 0
-  }
+    setEditFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
 
   const handleAddTransaction = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
 
     if (!validateForm()) {
-      showError('Please fix the errors in the form')
-      return
+      showError("Please fix the errors in the form");
+      return;
     }
 
     try {
-      setLoading(true)
-      await InventoryService.createFinancialTransaction(formData, user?.id || '')
-      showSuccess('Financial transaction added successfully!')
-      closeAddModal()
+      setLoading(true);
+      await InventoryService.createFinancialTransaction(
+        formData,
+        user?.id || ""
+      );
+      showSuccess("Financial transaction added successfully!");
+      closeAddModal();
       setFormData({
-        transaction_type: 'income',
-        category: '',
+        transaction_type: "income",
+        category: "",
         amount: 0,
-        transaction_date: new Date().toISOString().split('T')[0],
-        payment_method: '',
-        receipt_number: ''
-      })
-      setFormErrors({})
-      await loadData()
+        transaction_date: new Date().toISOString().split("T")[0],
+        payment_method: "",
+        receipt_number: "",
+      });
+      setFormErrors({});
+      await loadData();
     } catch (error) {
-      console.error('Error adding transaction:', error)
-      showError('Failed to add financial transaction')
+      console.error("Error adding transaction:", error);
+      showError("Failed to add financial transaction");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleUpdateTransaction = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
 
     if (!editingTransaction || !validateEditForm()) {
-      showError('Please fix the errors in the form')
-      return
+      showError("Please fix the errors in the form");
+      return;
     }
 
     try {
-      setLoading(true)
-      await InventoryService.updateFinancialTransaction(editingTransaction.id, editFormData, user?.id || '')
-      showSuccess('Financial transaction updated successfully!')
-      closeEditModal()
-      setEditFormErrors({})
-      await loadData()
+      setLoading(true);
+      await InventoryService.updateFinancialTransaction(
+        editingTransaction.id,
+        editFormData
+      );
+      showSuccess("Financial transaction updated successfully!");
+      closeEditModal();
+      setEditFormErrors({});
+      await loadData();
     } catch (error) {
-      console.error('Error updating transaction:', error)
-      showError('Failed to update financial transaction')
+      console.error("Error updating transaction:", error);
+      showError("Failed to update financial transaction");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-ZA', {
-      style: 'currency',
-      currency: 'ZAR'
-    }).format(amount)
-  }
+    return new Intl.NumberFormat("en-ZA", {
+      style: "currency",
+      currency: "ZAR",
+    }).format(amount);
+  };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-ZA', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    })
-  }
+    return new Date(dateString).toLocaleDateString("en-ZA", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  };
 
   const handleMonthlyReport = async () => {
     try {
-      setLoading(true)
-      const reportDate = new Date()
-      const selectedYearNum = parseInt(selectedYear)
-      const selectedMonthNum = parseInt(selectedMonth) - 1 // 0-indexed
-      
-      const dateFrom = new Date(selectedYearNum, selectedMonthNum, 1).toISOString().split('T')[0]
-      
-      const isCurrentMonth = selectedYearNum === reportDate.getFullYear() && selectedMonthNum === reportDate.getMonth()
-      let dateTo: string
+      setLoading(true);
+      const reportDate = new Date();
+      const selectedYearNum = parseInt(selectedYear);
+      const selectedMonthNum = parseInt(selectedMonth) - 1; // 0-indexed
+
+      const dateFrom = new Date(selectedYearNum, selectedMonthNum, 1)
+        .toISOString()
+        .split("T")[0];
+
+      const isCurrentMonth =
+        selectedYearNum === reportDate.getFullYear() &&
+        selectedMonthNum === reportDate.getMonth();
+      let dateTo: string;
       if (isCurrentMonth) {
-        dateTo = reportDate.toISOString().split('T')[0]
+        dateTo = reportDate.toISOString().split("T")[0];
       } else {
-        const lastDay = new Date(selectedYearNum, selectedMonthNum + 1, 0)
-        dateTo = lastDay.toISOString().split('T')[0]
+        const lastDay = new Date(selectedYearNum, selectedMonthNum + 1, 0);
+        dateTo = lastDay.toISOString().split("T")[0];
       }
 
-      const { data, error } = await supabase.functions.invoke('generate-financial-transaction-pdf', {
-        body: {
-          report_type: 'monthly',
-          date_from: dateFrom,
-          date_to: dateTo
+      const { data, error } = await supabase.functions.invoke(
+        "generate-financial-transaction-pdf",
+        {
+          body: {
+            report_type: "monthly",
+            date_from: dateFrom,
+            date_to: dateTo,
+          },
         }
-      })
+      );
 
       if (error || !data?.success) {
-        showError(data?.message || 'Failed to generate monthly financial report')
-        return
+        showError(
+          data?.message || "Failed to generate monthly financial report"
+        );
+        return;
       }
 
       if (data.data?.pdf_url) {
-        const response = await fetch(data.data.pdf_url)
-        const blob = await response.blob()
-        const url = window.URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = `monthly-financial-report-${selectedYearNum}-${String(selectedMonthNum + 1).padStart(2, '0')}.pdf`
-        document.body.appendChild(a)
-        a.click()
-        window.URL.revokeObjectURL(url)
-        document.body.removeChild(a)
-        showSuccess('Monthly financial report generated successfully!')
+        const response = await fetch(data.data.pdf_url);
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `monthly-financial-report-${selectedYearNum}-${String(
+          selectedMonthNum + 1
+        ).padStart(2, "0")}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        showSuccess("Monthly financial report generated successfully!");
       }
     } catch (error) {
-      console.error('Error generating monthly report:', error)
-      showError('Failed to generate monthly financial report')
+      console.error("Error generating monthly report:", error);
+      showError("Failed to generate monthly financial report");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleYearlyReport = async () => {
     try {
-      setLoading(true)
-      const reportDate = new Date()
-      const selectedYearNum = parseInt(selectedYearlyYear)
-      
-      const dateFrom = new Date(selectedYearNum, 0, 1).toISOString().split('T')[0]
-      
-      const isCurrentYear = selectedYearNum === reportDate.getFullYear()
-      let dateTo: string
+      setLoading(true);
+      const reportDate = new Date();
+      const selectedYearNum = parseInt(selectedYearlyYear);
+
+      const dateFrom = new Date(selectedYearNum, 0, 1)
+        .toISOString()
+        .split("T")[0];
+
+      const isCurrentYear = selectedYearNum === reportDate.getFullYear();
+      let dateTo: string;
       if (isCurrentYear) {
-        dateTo = reportDate.toISOString().split('T')[0]
+        dateTo = reportDate.toISOString().split("T")[0];
       } else {
-        const lastDay = new Date(selectedYearNum, 11, 31)
-        dateTo = lastDay.toISOString().split('T')[0]
+        const lastDay = new Date(selectedYearNum, 11, 31);
+        dateTo = lastDay.toISOString().split("T")[0];
       }
 
-      const { data, error } = await supabase.functions.invoke('generate-financial-transaction-pdf', {
-        body: {
-          report_type: 'yearly',
-          date_from: dateFrom,
-          date_to: dateTo
+      const { data, error } = await supabase.functions.invoke(
+        "generate-financial-transaction-pdf",
+        {
+          body: {
+            report_type: "yearly",
+            date_from: dateFrom,
+            date_to: dateTo,
+          },
         }
-      })
+      );
 
       if (error || !data?.success) {
-        showError(data?.message || 'Failed to generate yearly financial report')
-        return
+        showError(
+          data?.message || "Failed to generate yearly financial report"
+        );
+        return;
       }
 
       if (data.data?.pdf_url) {
-        const response = await fetch(data.data.pdf_url)
-        const blob = await response.blob()
-        const url = window.URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = `yearly-financial-report-${selectedYearNum}.pdf`
-        document.body.appendChild(a)
-        a.click()
-        window.URL.revokeObjectURL(url)
-        document.body.removeChild(a)
-        showSuccess('Yearly financial report generated successfully!')
+        const response = await fetch(data.data.pdf_url);
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `yearly-financial-report-${selectedYearNum}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        showSuccess("Yearly financial report generated successfully!");
       }
     } catch (error) {
-      console.error('Error generating yearly report:', error)
-      showError('Failed to generate yearly financial report')
+      console.error("Error generating yearly report:", error);
+      showError("Failed to generate yearly financial report");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
-  const filteredTransactions = transactions.filter(transaction => {
-    const matchesSearch = transaction.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      transaction.receipt_number?.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesType = filterType === 'all' || transaction.transaction_type === filterType
-    const matchesCategory = filterCategory === 'all' || transaction.category === filterCategory
-    return matchesSearch && matchesType && matchesCategory
-  })
+  const filteredTransactions = transactions.filter((transaction) => {
+    const matchesSearch =
+      transaction.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      transaction.receipt_number
+        ?.toLowerCase()
+        .includes(searchTerm.toLowerCase());
+    const matchesType =
+      filterType === "all" || transaction.transaction_type === filterType;
+    const matchesCategory =
+      filterCategory === "all" || transaction.category === filterCategory;
+    return matchesSearch && matchesType && matchesCategory;
+  });
 
   const sortedTransactions = [...filteredTransactions].sort((a, b) => {
-    let comparison = 0
+    let comparison = 0;
     switch (sortBy) {
-      case 'date':
-        comparison = new Date(a.transaction_date).getTime() - new Date(b.transaction_date).getTime()
-        break
-      case 'amount':
-        comparison = a.amount - b.amount
-        break
-      case 'type':
-        comparison = a.transaction_type.localeCompare(b.transaction_type)
-        break
+      case "date":
+        comparison =
+          new Date(a.transaction_date).getTime() -
+          new Date(b.transaction_date).getTime();
+        break;
+      case "amount":
+        comparison = a.amount - b.amount;
+        break;
+      case "type":
+        comparison = a.transaction_type.localeCompare(b.transaction_type);
+        break;
     }
-    return sortOrder === 'asc' ? comparison : -comparison
-  })
+    return sortOrder === "asc" ? comparison : -comparison;
+  });
 
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
       </div>
-    )
+    );
   }
 
   return (
@@ -2287,27 +2760,45 @@ function FinancialTransactionsView({
       <div className="flex flex-col gap-4">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Financial Transactions</h1>
-            <p className="text-sm text-gray-600">Track money coming in and going out</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
+              Financial Transactions
+            </h1>
+            <p className="text-sm text-gray-600">
+              Track money coming in and going out
+            </p>
           </div>
           <button
             onClick={openAddModal}
             className="w-full sm:w-auto bg-indigo-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2"
           >
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            <svg
+              className="h-5 w-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+              />
             </svg>
             Add Transaction
           </button>
         </div>
-        
+
         {/* Report Generation Section */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Generate Financial Reports</h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">
+            Generate Financial Reports
+          </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Monthly Report */}
             <div className="space-y-3">
-              <h3 className="text-sm font-medium text-gray-700">Monthly Report</h3>
+              <h3 className="text-sm font-medium text-gray-700">
+                Monthly Report
+              </h3>
               <div className="flex flex-col sm:flex-row gap-2">
                 <div className="flex-1">
                   <ValidationSelect
@@ -2338,12 +2829,12 @@ function FinancialTransactionsView({
                     placeholder="Select Year"
                   >
                     {Array.from({ length: 10 }, (_, i) => {
-                      const year = currentDate.getFullYear() - 5 + i
+                      const year = currentDate.getFullYear() - 5 + i;
                       return (
                         <SelectItem key={year} value={String(year)}>
                           {year}
                         </SelectItem>
-                      )
+                      );
                     })}
                   </ValidationSelect>
                 </div>
@@ -2353,8 +2844,18 @@ function FinancialTransactionsView({
                 disabled={loading}
                 className="w-full bg-green-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                <svg
+                  className="h-5 w-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  />
                 </svg>
                 Generate Monthly Report
               </button>
@@ -2362,7 +2863,9 @@ function FinancialTransactionsView({
 
             {/* Yearly Report */}
             <div className="space-y-3">
-              <h3 className="text-sm font-medium text-gray-700">Yearly Report</h3>
+              <h3 className="text-sm font-medium text-gray-700">
+                Yearly Report
+              </h3>
               <div className="flex flex-col sm:flex-row gap-2">
                 <div className="flex-1">
                   <ValidationSelect
@@ -2372,12 +2875,12 @@ function FinancialTransactionsView({
                     placeholder="Select Year"
                   >
                     {Array.from({ length: 10 }, (_, i) => {
-                      const year = currentDate.getFullYear() - 5 + i
+                      const year = currentDate.getFullYear() - 5 + i;
                       return (
                         <SelectItem key={year} value={String(year)}>
                           {year}
                         </SelectItem>
-                      )
+                      );
                     })}
                   </ValidationSelect>
                 </div>
@@ -2387,8 +2890,18 @@ function FinancialTransactionsView({
                 disabled={loading}
                 className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                <svg
+                  className="h-5 w-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  />
                 </svg>
                 Generate Yearly Report
               </button>
@@ -2404,13 +2917,25 @@ function FinancialTransactionsView({
             <div className="flex items-center">
               <div className="flex-shrink-0">
                 <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-                  <svg className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                  <svg
+                    className="w-5 h-5 text-green-600"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"
+                    />
                   </svg>
                 </div>
               </div>
               <div className="ml-3 sm:ml-4">
-                <p className="text-xs sm:text-sm font-medium text-gray-500">Total Income</p>
+                <p className="text-xs sm:text-sm font-medium text-gray-500">
+                  Total Income
+                </p>
                 <p className="text-lg sm:text-xl font-semibold text-green-600">
                   {formatCurrency(summary.total_income)}
                 </p>
@@ -2422,13 +2947,25 @@ function FinancialTransactionsView({
             <div className="flex items-center">
               <div className="flex-shrink-0">
                 <div className="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center">
-                  <svg className="w-5 h-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                  <svg
+                    className="w-5 h-5 text-red-600"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"
+                    />
                   </svg>
                 </div>
               </div>
               <div className="ml-3 sm:ml-4">
-                <p className="text-xs sm:text-sm font-medium text-gray-500">Total Expenses</p>
+                <p className="text-xs sm:text-sm font-medium text-gray-500">
+                  Total Expenses
+                </p>
                 <p className="text-lg sm:text-xl font-semibold text-red-600">
                   {formatCurrency(summary.total_expenses)}
                 </p>
@@ -2440,15 +2977,30 @@ function FinancialTransactionsView({
             <div className="flex items-center">
               <div className="flex-shrink-0">
                 <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  <svg
+                    className="w-5 h-5 text-blue-600"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                    />
                   </svg>
                 </div>
               </div>
               <div className="ml-3 sm:ml-4">
-                <p className="text-xs sm:text-sm font-medium text-gray-500">Net Profit</p>
-                <p className={`text-lg sm:text-xl font-semibold ${summary.net_profit >= 0 ? 'text-green-600' : 'text-red-600'
-                  }`}>
+                <p className="text-xs sm:text-sm font-medium text-gray-500">
+                  Net Profit
+                </p>
+                <p
+                  className={`text-lg sm:text-xl font-semibold ${
+                    summary.net_profit >= 0 ? "text-green-600" : "text-red-600"
+                  }`}
+                >
                   {formatCurrency(summary.net_profit)}
                 </p>
               </div>
@@ -2474,8 +3026,11 @@ function FinancialTransactionsView({
             onValueChange={setFilterType}
           >
             <SelectItem value="all">All Types</SelectItem>
-            {transactionTypes.map(type => (
-              <SelectItem key={type.id} value={type.secondary_value || type.value}>
+            {transactionTypes.map((type) => (
+              <SelectItem
+                key={type.id}
+                value={type.secondary_value || type.value}
+              >
                 {type.value}
               </SelectItem>
             ))}
@@ -2487,8 +3042,11 @@ function FinancialTransactionsView({
             onValueChange={setFilterCategory}
           >
             <SelectItem value="all">All Categories</SelectItem>
-            {revenueTypes.map(type => (
-              <SelectItem key={type.id} value={type.secondary_value || type.value}>
+            {revenueTypes.map((type) => (
+              <SelectItem
+                key={type.id}
+                value={type.secondary_value || type.value}
+              >
                 {type.value}
               </SelectItem>
             ))}
@@ -2498,9 +3056,9 @@ function FinancialTransactionsView({
             label="Sort By"
             value={`${sortBy}-${sortOrder}`}
             onValueChange={(value) => {
-              const [field, order] = value.split('-')
-              setSortBy(field as 'date' | 'amount' | 'type')
-              setSortOrder(order as 'asc' | 'desc')
+              const [field, order] = value.split("-");
+              setSortBy(field as "date" | "amount" | "type");
+              setSortOrder(order as "asc" | "desc");
             }}
           >
             <SelectItem value="date-desc">Date (Newest)</SelectItem>
@@ -2523,41 +3081,68 @@ function FinancialTransactionsView({
 
         {sortedTransactions.length === 0 ? (
           <div className="text-center py-12">
-            <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            <svg
+              className="mx-auto h-12 w-12 text-gray-400"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+              />
             </svg>
-            <h3 className="mt-2 text-sm font-medium text-gray-900">No transactions found</h3>
+            <h3 className="mt-2 text-sm font-medium text-gray-900">
+              No transactions found
+            </h3>
             <p className="mt-1 text-sm text-gray-500">
-              {searchTerm || filterType !== 'all' || filterCategory !== 'all'
-                ? 'Try adjusting your search or filter criteria'
-                : 'Get started by adding your first financial transaction'}
+              {searchTerm || filterType !== "all" || filterCategory !== "all"
+                ? "Try adjusting your search or filter criteria"
+                : "Get started by adding your first financial transaction"}
             </p>
           </div>
         ) : (
           <div className="divide-y divide-gray-200">
             {sortedTransactions.map((transaction) => (
-              <div key={transaction.id} className="px-4 sm:px-6 py-4 hover:bg-gray-50">
+              <div
+                key={transaction.id}
+                className="px-4 sm:px-6 py-4 hover:bg-gray-50"
+              >
                 <div className="flex items-center justify-between">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3">
-                      <div className={`w-2 h-2 rounded-full ${transaction.transaction_type === 'income' ? 'bg-green-500' : 'bg-red-500'
-                        }`} />
+                      <div
+                        className={`w-2 h-2 rounded-full ${
+                          transaction.transaction_type === "income"
+                            ? "bg-green-500"
+                            : "bg-red-500"
+                        }`}
+                      />
                       <div>
                         <p className="text-sm font-medium text-gray-900 truncate">
                           {transaction.category}
                         </p>
                         <p className="text-sm text-gray-500">
                           {formatDate(transaction.transaction_date)}
-                          {transaction.receipt_number && ` • ${transaction.receipt_number}`}
+                          {transaction.receipt_number &&
+                            ` • ${transaction.receipt_number}`}
                         </p>
                       </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-4">
                     <div className="text-right">
-                      <p className={`text-sm font-medium ${transaction.transaction_type === 'income' ? 'text-green-600' : 'text-red-600'
-                        }`}>
-                        {transaction.transaction_type === 'income' ? '+' : '-'}{formatCurrency(transaction.amount)}
+                      <p
+                        className={`text-sm font-medium ${
+                          transaction.transaction_type === "income"
+                            ? "text-green-600"
+                            : "text-red-600"
+                        }`}
+                      >
+                        {transaction.transaction_type === "income" ? "+" : "-"}
+                        {formatCurrency(transaction.amount)}
                       </p>
                       <p className="text-xs text-gray-500">
                         {transaction.payment_method}
@@ -2568,8 +3153,18 @@ function FinancialTransactionsView({
                       className="text-[#F2C7EB] hover:text-[#E8A8D8] p-2 rounded hover:bg-gray-100"
                       title="Edit transaction"
                     >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                        />
                       </svg>
                     </button>
                   </div>
@@ -2584,19 +3179,17 @@ function FinancialTransactionsView({
       {showAddModal && (
         <div className="fixed inset-0 z-[60] pointer-events-auto">
           {/* Backdrop - invisible but blocks clicks */}
-          <div
-            className="absolute inset-0"
-            onClick={closeAddModal}
-          />
+          <div className="absolute inset-0" onClick={closeAddModal} />
 
           {/* Modal Content */}
-          <div className={`fixed bottom-0 left-0 right-0 lg:top-1/2 lg:left-1/2 lg:transform lg:-translate-x-1/2 lg:-translate-y-1/2 lg:bottom-auto lg:right-auto lg:w-full lg:max-w-2xl bg-white rounded-t-xl lg:rounded-xl shadow-2xl transform transition-transform duration-300 ease-out max-h-[95vh] lg:max-h-[90vh] flex flex-col pointer-events-auto overflow-visible ${isAddModalClosing
-              ? 'translate-y-full lg:translate-y-full lg:translate-x-[-50%]'
-              : 'translate-y-0 lg:translate-x-[-50%] lg:translate-y-[-50%] modal-enter lg:modal-enter-desktop'
+          <div
+            className={`fixed bottom-0 left-0 right-0 lg:top-1/2 lg:left-1/2 lg:transform lg:-translate-x-1/2 lg:-translate-y-1/2 lg:bottom-auto lg:right-auto lg:w-full lg:max-w-2xl bg-white rounded-t-xl lg:rounded-xl shadow-2xl transform transition-transform duration-300 ease-out max-h-[95vh] lg:max-h-[90vh] flex flex-col pointer-events-auto overflow-visible ${
+              isAddModalClosing
+                ? "translate-y-full lg:translate-y-full lg:translate-x-[-50%]"
+                : "translate-y-0 lg:translate-x-[-50%] lg:translate-y-[-50%] modal-enter lg:modal-enter-desktop"
             }`}
             onClick={(e) => e.stopPropagation()}
           >
-
             {/* Handle bar (Mobile only) */}
             <div className="flex justify-center pt-3 pb-2 lg:hidden">
               <div className="w-10 h-1 bg-gray-300 rounded-full"></div>
@@ -2604,34 +3197,57 @@ function FinancialTransactionsView({
 
             {/* Header */}
             <div className="flex justify-between items-center px-6 py-4 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">Add Financial Transaction</h3>
+              <h3 className="text-lg font-semibold text-gray-900">
+                Add Financial Transaction
+              </h3>
               <button
                 onClick={closeAddModal}
                 className="p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100"
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                <svg
+                  className="w-6 h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
                 </svg>
               </button>
             </div>
 
             {/* Content */}
             <div className="flex-1 overflow-y-auto px-6 py-4">
-              <form id="add-transaction-form" onSubmit={handleAddTransaction} className="space-y-4 sm:space-y-6">
+              <form
+                id="add-transaction-form"
+                onSubmit={handleAddTransaction}
+                className="space-y-4 sm:space-y-6"
+              >
                 {/* Transaction Type */}
                 <div>
-                  <h4 className="text-base font-medium text-gray-900 mb-3">Transaction Details</h4>
+                  <h4 className="text-base font-medium text-gray-900 mb-3">
+                    Transaction Details
+                  </h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <ValidationSelect
                       label="Transaction Type"
                       value={formData.transaction_type}
-                      onValueChange={(value) => updateFormField('transaction_type', value)}
+                      onValueChange={(value) =>
+                        updateFormField("transaction_type", value)
+                      }
                       required
                       error={formErrors.transaction_type}
                       placeholder="Select transaction type"
                     >
-                      {transactionTypes.map(type => (
-                        <SelectItem key={type.id} value={type.secondary_value || type.value}>
+                      {transactionTypes.map((type) => (
+                        <SelectItem
+                          key={type.id}
+                          value={type.secondary_value || type.value}
+                        >
                           {type.value}
                         </SelectItem>
                       ))}
@@ -2640,13 +3256,18 @@ function FinancialTransactionsView({
                     <ValidationSelect
                       label="Category"
                       value={formData.category}
-                      onValueChange={(value) => updateFormField('category', value)}
+                      onValueChange={(value) =>
+                        updateFormField("category", value)
+                      }
                       required
                       error={formErrors.category}
                       placeholder="Select category"
                     >
-                      {revenueTypes.map(type => (
-                        <SelectItem key={type.id} value={type.secondary_value || type.value}>
+                      {revenueTypes.map((type) => (
+                        <SelectItem
+                          key={type.id}
+                          value={type.secondary_value || type.value}
+                        >
                           {type.value}
                         </SelectItem>
                       ))}
@@ -2663,7 +3284,12 @@ function FinancialTransactionsView({
                       step="0.01"
                       min="0"
                       value={formData.amount}
-                      onChange={(e) => updateFormField('amount', parseFloat(e.target.value) || 0)}
+                      onChange={(e) =>
+                        updateFormField(
+                          "amount",
+                          parseFloat(e.target.value) || 0
+                        )
+                      }
                       required
                       error={formErrors.amount}
                     />
@@ -2673,15 +3299,26 @@ function FinancialTransactionsView({
                         Transaction Date <span className="text-red-500">*</span>
                       </label>
                       <DatePicker
-                        date={formData.transaction_date ? new Date(formData.transaction_date) : undefined}
-                        onDateChange={(date) => updateFormField('transaction_date', date ? date.toISOString().split('T')[0] : '')}
+                        date={
+                          formData.transaction_date
+                            ? parseDateLocal(formData.transaction_date)
+                            : undefined
+                        }
+                        onDateChange={(date) =>
+                          updateEditFormField(
+                            "transaction_date",
+                            date ? formatDateLocal(date) : ""
+                          )
+                        }
                         placeholder="Select transaction date"
                         allowSameDay={true}
                         allowPastDates={true}
                         className="w-full"
                       />
                       {formErrors.transaction_date && (
-                        <p className="text-sm text-red-600">{formErrors.transaction_date}</p>
+                        <p className="text-sm text-red-600">
+                          {formErrors.transaction_date}
+                        </p>
                       )}
                     </div>
                   </div>
@@ -2692,11 +3329,13 @@ function FinancialTransactionsView({
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <ValidationSelect
                       label="Payment Method"
-                      value={formData.payment_method || ''}
-                      onValueChange={(value) => updateFormField('payment_method', value)}
+                      value={formData.payment_method || ""}
+                      onValueChange={(value) =>
+                        updateFormField("payment_method", value)
+                      }
                       placeholder="Select payment method"
                     >
-                      {paymentMethods.map(method => (
+                      {paymentMethods.map((method) => (
                         <SelectItem key={method.id} value={method.value}>
                           {method.secondary_value}
                         </SelectItem>
@@ -2707,7 +3346,9 @@ function FinancialTransactionsView({
                       label="Receipt Number (Optional)"
                       type="text"
                       value={formData.receipt_number}
-                      onChange={(e) => updateFormField('receipt_number', e.target.value)}
+                      onChange={(e) =>
+                        updateFormField("receipt_number", e.target.value)
+                      }
                       placeholder="e.g., RCP-001"
                     />
                   </div>
@@ -2730,7 +3371,7 @@ function FinancialTransactionsView({
                 disabled={loading}
                 className="flex-1 bg-indigo-600 text-white px-4 py-3 rounded-lg font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading ? 'Adding...' : 'Add Transaction'}
+                {loading ? "Adding..." : "Add Transaction"}
               </button>
             </div>
           </div>
@@ -2741,19 +3382,17 @@ function FinancialTransactionsView({
       {showEditModal && editingTransaction && (
         <div className="fixed inset-0 z-[60] pointer-events-auto">
           {/* Backdrop - invisible but blocks clicks */}
-          <div
-            className="absolute inset-0"
-            onClick={closeEditModal}
-          />
+          <div className="absolute inset-0" onClick={closeEditModal} />
 
           {/* Modal Content */}
-          <div className={`fixed bottom-0 left-0 right-0 lg:top-1/2 lg:left-1/2 lg:transform lg:-translate-x-1/2 lg:-translate-y-1/2 lg:bottom-auto lg:right-auto lg:w-full lg:max-w-2xl bg-white rounded-t-xl lg:rounded-xl shadow-2xl transform transition-transform duration-300 ease-out max-h-[95vh] lg:max-h-[90vh] flex flex-col pointer-events-auto overflow-visible ${isEditModalClosing
-              ? 'translate-y-full lg:translate-y-full lg:translate-x-[-50%]'
-              : 'translate-y-0 lg:translate-x-[-50%] lg:translate-y-[-50%] modal-enter lg:modal-enter-desktop'
+          <div
+            className={`fixed bottom-0 left-0 right-0 lg:top-1/2 lg:left-1/2 lg:transform lg:-translate-x-1/2 lg:-translate-y-1/2 lg:bottom-auto lg:right-auto lg:w-full lg:max-w-2xl bg-white rounded-t-xl lg:rounded-xl shadow-2xl transform transition-transform duration-300 ease-out max-h-[95vh] lg:max-h-[90vh] flex flex-col pointer-events-auto overflow-visible ${
+              isEditModalClosing
+                ? "translate-y-full lg:translate-y-full lg:translate-x-[-50%]"
+                : "translate-y-0 lg:translate-x-[-50%] lg:translate-y-[-50%] modal-enter lg:modal-enter-desktop"
             }`}
             onClick={(e) => e.stopPropagation()}
           >
-
             {/* Handle bar (Mobile only) */}
             <div className="flex justify-center pt-3 pb-2 lg:hidden">
               <div className="w-10 h-1 bg-gray-300 rounded-full"></div>
@@ -2761,34 +3400,57 @@ function FinancialTransactionsView({
 
             {/* Header */}
             <div className="flex justify-between items-center px-6 py-4 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">Edit Financial Transaction</h3>
+              <h3 className="text-lg font-semibold text-gray-900">
+                Edit Financial Transaction
+              </h3>
               <button
                 onClick={closeEditModal}
                 className="p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100"
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                <svg
+                  className="w-6 h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
                 </svg>
               </button>
             </div>
 
             {/* Content */}
             <div className="flex-1 overflow-y-auto px-6 py-4">
-              <form id="edit-transaction-form" onSubmit={handleUpdateTransaction} className="space-y-4 sm:space-y-6">
+              <form
+                id="edit-transaction-form"
+                onSubmit={handleUpdateTransaction}
+                className="space-y-4 sm:space-y-6"
+              >
                 {/* Transaction Type */}
                 <div>
-                  <h4 className="text-base font-medium text-gray-900 mb-3">Transaction Details</h4>
+                  <h4 className="text-base font-medium text-gray-900 mb-3">
+                    Transaction Details
+                  </h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <ValidationSelect
                       label="Transaction Type"
                       value={editFormData.transaction_type}
-                      onValueChange={(value) => updateEditFormField('transaction_type', value)}
+                      onValueChange={(value) =>
+                        updateEditFormField("transaction_type", value)
+                      }
                       required
                       error={editFormErrors.transaction_type}
                       placeholder="Select transaction type"
                     >
-                      {transactionTypes.map(type => (
-                        <SelectItem key={type.id} value={type.secondary_value || type.value}>
+                      {transactionTypes.map((type) => (
+                        <SelectItem
+                          key={type.id}
+                          value={type.secondary_value || type.value}
+                        >
                           {type.value}
                         </SelectItem>
                       ))}
@@ -2797,13 +3459,18 @@ function FinancialTransactionsView({
                     <ValidationSelect
                       label="Category"
                       value={editFormData.category}
-                      onValueChange={(value) => updateEditFormField('category', value)}
+                      onValueChange={(value) =>
+                        updateEditFormField("category", value)
+                      }
                       required
                       error={editFormErrors.category}
                       placeholder="Select category"
                     >
-                      {revenueTypes.map(type => (
-                        <SelectItem key={type.id} value={type.secondary_value || type.value}>
+                      {revenueTypes.map((type) => (
+                        <SelectItem
+                          key={type.id}
+                          value={type.secondary_value || type.value}
+                        >
                           {type.value}
                         </SelectItem>
                       ))}
@@ -2820,7 +3487,12 @@ function FinancialTransactionsView({
                       step="0.01"
                       min="0"
                       value={editFormData.amount}
-                      onChange={(e) => updateEditFormField('amount', parseFloat(e.target.value) || 0)}
+                      onChange={(e) =>
+                        updateEditFormField(
+                          "amount",
+                          parseFloat(e.target.value) || 0
+                        )
+                      }
                       required
                       error={editFormErrors.amount}
                     />
@@ -2830,15 +3502,26 @@ function FinancialTransactionsView({
                         Transaction Date <span className="text-red-500">*</span>
                       </label>
                       <DatePicker
-                        date={editFormData.transaction_date ? new Date(editFormData.transaction_date) : undefined}
-                        onDateChange={(date) => updateEditFormField('transaction_date', date ? date.toISOString().split('T')[0] : '')}
+                        date={
+                          editFormData.transaction_date
+                            ? parseDateLocal(editFormData.transaction_date)
+                            : undefined
+                        }
+                        onDateChange={(date) =>
+                          updateEditFormField(
+                            "transaction_date",
+                            date ? formatDateLocal(date) : ""
+                          )
+                        }
                         placeholder="Select transaction date"
                         allowSameDay={true}
                         allowPastDates={true}
                         className="w-full"
                       />
                       {editFormErrors.transaction_date && (
-                        <p className="text-sm text-red-600">{editFormErrors.transaction_date}</p>
+                        <p className="text-sm text-red-600">
+                          {editFormErrors.transaction_date}
+                        </p>
                       )}
                     </div>
                   </div>
@@ -2849,11 +3532,13 @@ function FinancialTransactionsView({
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <ValidationSelect
                       label="Payment Method"
-                      value={editFormData.payment_method || ''}
-                      onValueChange={(value) => updateEditFormField('payment_method', value)}
+                      value={editFormData.payment_method || ""}
+                      onValueChange={(value) =>
+                        updateEditFormField("payment_method", value)
+                      }
                       placeholder="Select payment method"
                     >
-                      {paymentMethods.map(method => (
+                      {paymentMethods.map((method) => (
                         <SelectItem key={method.id} value={method.value}>
                           {method.secondary_value}
                         </SelectItem>
@@ -2864,7 +3549,9 @@ function FinancialTransactionsView({
                       label="Receipt Number (Optional)"
                       type="text"
                       value={editFormData.receipt_number}
-                      onChange={(e) => updateEditFormField('receipt_number', e.target.value)}
+                      onChange={(e) =>
+                        updateEditFormField("receipt_number", e.target.value)
+                      }
                       placeholder="Enter receipt number"
                     />
                   </div>
@@ -2887,12 +3574,12 @@ function FinancialTransactionsView({
                 disabled={loading}
                 className="flex-1 bg-indigo-600 text-white px-4 py-3 rounded-lg font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading ? 'Updating...' : 'Update Transaction'}
+                {loading ? "Updating..." : "Update Transaction"}
               </button>
             </div>
           </div>
         </div>
       )}
     </div>
-  )
+  );
 }

@@ -1,9 +1,9 @@
-'use client'
+"use client";
 
-import { useState, useEffect } from 'react'
-import { TimeSlot, WorkingSchedule, TimeSlotSelectorProps } from '@/types'
-import { ScheduleService } from '@/lib/schedule-service'
-import { supabase } from '@/lib/supabase'
+import { useState, useEffect } from "react";
+import { TimeSlot, WorkingSchedule, TimeSlotSelectorProps } from "@/types";
+import { ScheduleService } from "@/lib/schedule-service";
+import { supabase } from "@/lib/supabase";
 
 export default function TimeSlotSelector({
   selectedDate,
@@ -12,175 +12,198 @@ export default function TimeSlotSelector({
   existingAppointments,
   onTimeSelect,
   selectedTime,
-  disabled = false
+  disabled = false,
+  allowOverlap = false,
 }: TimeSlotSelectorProps) {
-  const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([])
-  const [loading, setLoading] = useState(false)
-  const [workingSchedule, setWorkingSchedule] = useState<WorkingSchedule[]>([])
-  const [currentAppointments, setCurrentAppointments] = useState<any[]>([])
-  const [isDateBlocked, setIsDateBlocked] = useState(false)
+  const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [workingSchedule, setWorkingSchedule] = useState<WorkingSchedule[]>([]);
+  const [currentAppointments, setCurrentAppointments] = useState<any[]>([]);
+  const [isDateBlocked, setIsDateBlocked] = useState(false);
 
-  
   useEffect(() => {
     const loadWorkingSchedule = async () => {
-      if (!practitionerId) return
+      if (!practitionerId) return;
 
       try {
-        setLoading(true)
-        const schedule = await ScheduleService.getPractitionerSchedule(practitionerId)
-        setWorkingSchedule(schedule)
+        setLoading(true);
+        const schedule = await ScheduleService.getPractitionerSchedule(
+          practitionerId
+        );
+        setWorkingSchedule(schedule);
       } catch (error) {
-        console.error('Error loading working schedule:', error)
+        console.error("Error loading working schedule:", error);
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
 
-    loadWorkingSchedule()
-  }, [practitionerId])
+    loadWorkingSchedule();
+  }, [practitionerId]);
 
   useEffect(() => {
     const checkBlockedDate = async () => {
       if (!selectedDate || !practitionerId) {
-        setIsDateBlocked(false)
-        return
+        setIsDateBlocked(false);
+        return;
       }
 
       try {
-        const blocked = await ScheduleService.isDateBlocked(practitionerId, selectedDate)
-        setIsDateBlocked(blocked)
+        const blocked = await ScheduleService.isDateBlocked(
+          practitionerId,
+          selectedDate
+        );
+        setIsDateBlocked(blocked);
       } catch (error) {
-        console.error('Error checking blocked date:', error)
-        setIsDateBlocked(false)
+        console.error("Error checking blocked date:", error);
+        setIsDateBlocked(false);
       }
-    }
+    };
 
-    checkBlockedDate()
-  }, [selectedDate?.toLocaleDateString('en-CA'), practitionerId])
+    checkBlockedDate();
+  }, [selectedDate?.toLocaleDateString("en-CA"), practitionerId]);
 
-  
   useEffect(() => {
     const loadAppointments = async () => {
       if (!selectedDate || !practitionerId) {
-        setCurrentAppointments([])
-        return
+        setCurrentAppointments([]);
+        return;
       }
 
       try {
-        
-        const selectedDateStr = selectedDate.toLocaleDateString('en-CA') 
-        
+        const selectedDateStr = selectedDate.toLocaleDateString("en-CA");
+
         const { data, error } = await supabase
-          .from('appointments')
-          .select('start_time, end_time')
-          .gte('appointment_date', `${selectedDateStr}T00:00:00`)
-          .lt('appointment_date', `${selectedDateStr}T23:59:59`)
-          .eq('practitioner_id', practitionerId)
-          .eq('is_active', true)
-          .eq('is_deleted', false)
+          .from("appointments")
+          .select("start_time, end_time")
+          .gte("appointment_date", `${selectedDateStr}T00:00:00`)
+          .lt("appointment_date", `${selectedDateStr}T23:59:59`)
+          .eq("practitioner_id", practitionerId)
+          .eq("is_active", true)
+          .eq("is_deleted", false);
 
-        if (error) throw error
-        setCurrentAppointments(data || [])
+        if (error) throw error;
+        setCurrentAppointments(data || []);
       } catch (err) {
-        console.error('Error loading appointments in TimeSlotSelector:', err)
-        setCurrentAppointments([])
+        console.error("Error loading appointments in TimeSlotSelector:", err);
+        setCurrentAppointments([]);
       }
-    }
+    };
 
-    loadAppointments()
-  }, [selectedDate?.toLocaleDateString('en-CA'), practitionerId])
+    loadAppointments();
+  }, [selectedDate?.toLocaleDateString("en-CA"), practitionerId]);
 
-  
   useEffect(() => {
-    
     if (!selectedDate || workingSchedule.length === 0) {
-      setTimeSlots([])
-      return
+      setTimeSlots([]);
+      return;
     }
 
-    
-    setTimeSlots([])
+    setTimeSlots([]);
 
     try {
       const slots = ScheduleService.generateTimeSlots(
         workingSchedule,
         selectedDate,
         currentAppointments,
-        serviceDurationMinutes
-      )
-      setTimeSlots(slots)
+        serviceDurationMinutes,
+        allowOverlap
+      );
+      setTimeSlots(slots);
     } catch (error) {
-      console.error('Error generating time slots:', error)
-      setTimeSlots([])
+      console.error("Error generating time slots:", error);
+      setTimeSlots([]);
     }
-  }, [selectedDate?.toLocaleDateString('en-CA'), workingSchedule, currentAppointments, serviceDurationMinutes])
+  }, [
+    selectedDate?.toLocaleDateString("en-CA"),
+    workingSchedule,
+    currentAppointments,
+    serviceDurationMinutes,
+  ]);
 
   const formatTimeDisplay = (timeString: string): string => {
-    const [hours, minutes] = timeString.split(':')
-    const hour = parseInt(hours)
-    const ampm = hour >= 12 ? 'PM' : 'AM'
-    const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour
-    return `${displayHour}:${minutes} ${ampm}`
-  }
+    const [hours, minutes] = timeString.split(":");
+    const hour = parseInt(hours);
+    const ampm = hour >= 12 ? "PM" : "AM";
+    const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+    return `${displayHour}:${minutes} ${ampm}`;
+  };
 
   if (loading) {
     return (
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-gray-900">Available Time Slots</h3>
+        <h3 className="text-lg font-semibold text-gray-900">
+          Available Time Slots
+        </h3>
         <div className="flex items-center justify-center py-8">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
         </div>
       </div>
-    )
+    );
   }
 
   if (!selectedDate) {
     return (
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-gray-900">Available Time Slots</h3>
-        <p className="text-gray-500 text-center py-8">Please select a date to view available time slots</p>
+        <h3 className="text-lg font-semibold text-gray-900">
+          Available Time Slots
+        </h3>
+        <p className="text-gray-500 text-center py-8">
+          Please select a date to view available time slots
+        </p>
       </div>
-    )
+    );
   }
 
   if (isDateBlocked) {
     return (
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-gray-900">Available Time Slots</h3>
+        <h3 className="text-lg font-semibold text-gray-900">
+          Available Time Slots
+        </h3>
         <div className="bg-red-50 border border-red-200 rounded-md p-4">
           <p className="text-red-800 font-medium">This date is blocked</p>
           <p className="text-sm text-red-600 mt-1">
-            This practitioner has blocked this date from bookings. Please select a different date.
+            This practitioner has blocked this date from bookings. Please select
+            a different date.
           </p>
         </div>
       </div>
-    )
+    );
   }
 
   if (timeSlots.length === 0) {
     return (
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-gray-900">Available Time Slots</h3>
+        <h3 className="text-lg font-semibold text-gray-900">
+          Available Time Slots
+        </h3>
         <div className="text-center py-8">
-          <p className="text-gray-500 mb-2">No working hours scheduled for this day</p>
+          <p className="text-gray-500 mb-2">
+            No working hours scheduled for this day
+          </p>
           <p className="text-sm text-gray-400">
-            {workingSchedule.length === 0 
-              ? 'This practitioner needs to set up their working schedule first'
-              : `No availability set for ${selectedDate.toLocaleDateString('en-US', { weekday: 'long' })}`
-            }
+            {workingSchedule.length === 0
+              ? "This practitioner needs to set up their working schedule first"
+              : `No availability set for ${selectedDate.toLocaleDateString(
+                  "en-US",
+                  { weekday: "long" }
+                )}`}
           </p>
         </div>
       </div>
-    )
+    );
   }
 
-  const availableSlots = timeSlots.filter(slot => slot.available)
-  const unavailableSlots = timeSlots.filter(slot => !slot.available)
+  const availableSlots = timeSlots.filter((slot) => slot.available);
+  const unavailableSlots = timeSlots.filter((slot) => !slot.available);
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-gray-900">Available Time Slots</h3>
+        <h3 className="text-lg font-semibold text-gray-900">
+          Available Time Slots
+        </h3>
         <div className="text-sm text-gray-500">
           {availableSlots.length} of {timeSlots.length} slots available
         </div>
@@ -190,10 +213,15 @@ export default function TimeSlotSelector({
       {workingSchedule.length === 0 && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3">
           <p className="text-sm text-yellow-800">
-            <span className="font-medium">No working schedule set:</span> This practitioner hasn't configured their working hours yet.
+            <span className="font-medium">No working schedule set:</span> This
+            practitioner hasn't configured their working hours yet.
           </p>
           <p className="text-xs text-yellow-600 mt-1">
-            Please ask them to set up their working schedule in the <a href="/schedule" className="underline hover:no-underline">Working Schedule</a> page
+            Please ask them to set up their working schedule in the{" "}
+            <a href="/schedule" className="underline hover:no-underline">
+              Working Schedule
+            </a>{" "}
+            page
           </p>
         </div>
       )}
@@ -209,11 +237,16 @@ export default function TimeSlotSelector({
                 disabled={disabled}
                 className={`
                   px-3 py-2 text-sm font-medium rounded-md border transition-colors
-                  ${selectedTime === slot.time
-                    ? 'bg-blue-600 text-white border-blue-600'
-                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
+                  ${
+                    selectedTime === slot.time
+                      ? "bg-blue-600 text-white border-blue-600"
+                      : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400"
                   }
-                  ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+                  ${
+                    disabled
+                      ? "opacity-50 cursor-not-allowed"
+                      : "cursor-pointer"
+                  }
                 `}
               >
                 {formatTimeDisplay(slot.time)}
@@ -227,14 +260,37 @@ export default function TimeSlotSelector({
       {unavailableSlots.length > 0 && (
         <div className="space-y-3">
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
-            {unavailableSlots.map((slot) => (
-              <div
-                key={slot.time}
-                className="px-3 py-2 text-sm font-medium rounded-md border border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed"
-              >
-                {formatTimeDisplay(slot.time)}
-              </div>
-            ))}
+            {unavailableSlots.map((slot) =>
+              allowOverlap ? (
+                <button
+                  key={slot.time}
+                  onClick={() => onTimeSelect(slot.time)}
+                  disabled={disabled}
+                  className={`
+                    px-3 py-2 text-sm font-medium rounded-md border transition-colors
+                    ${
+                      selectedTime === slot.time
+                        ? "bg-blue-600 text-white border-blue-600"
+                        : "bg-orange-50 text-orange-700 border-orange-300 hover:bg-orange-100 hover:border-orange-400"
+                    }
+                    ${
+                      disabled
+                        ? "opacity-50 cursor-not-allowed"
+                        : "cursor-pointer"
+                    }
+                  `}
+                >
+                  {formatTimeDisplay(slot.time)}
+                </button>
+              ) : (
+                <div
+                  key={slot.time}
+                  className="px-3 py-2 text-sm font-medium rounded-md border border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed"
+                >
+                  {formatTimeDisplay(slot.time)}
+                </div>
+              )
+            )}
           </div>
         </div>
       )}
@@ -255,5 +311,5 @@ export default function TimeSlotSelector({
         </div>
       </div>
     </div>
-  )
+  );
 }

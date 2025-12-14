@@ -21,6 +21,7 @@ export interface TimeSlotSelectorProps {
   onTimeSelect: (time: string) => void
   selectedTime: string
   disabled?: boolean
+  allowOverlap?: boolean
 }
 
 export interface SidebarNavProps {

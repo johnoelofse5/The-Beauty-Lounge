@@ -120,7 +120,8 @@ export class ScheduleService {
     workingSchedules: WorkingSchedule[],
     selectedDate: Date,
     existingAppointments: any[] = [],
-    serviceDurationMinutes: number = 30
+    serviceDurationMinutes: number = 30,
+    allowOverlap: boolean = false
   ): { time: string; available: boolean; is_working_hours: boolean }[] {
     const dayOfWeek = selectedDate.getDay()
     const daySchedule = workingSchedules.find(schedule => schedule.day_of_week === dayOfWeek)
@@ -155,34 +156,37 @@ export class ScheduleService {
         const endMins = endTimeMinutes % 60
         const endTimeString = `${endHours.toString().padStart(2, '0')}:${endMins.toString().padStart(2, '0')}`
         
+        let hasConflict = false
         
-        const hasConflict = existingAppointments?.some(apt => {
-          
-          if (apt.start_time && apt.start_time.includes('T')) {
+        if (!allowOverlap) {
+          hasConflict = existingAppointments?.some(apt => {
             
-            const aptStartTimeUTC = new Date(apt.start_time)
-            const aptEndTimeUTC = new Date(apt.end_time)
+            if (apt.start_time && apt.start_time.includes('T')) {
+              
+              const aptStartTimeUTC = new Date(apt.start_time)
+              const aptEndTimeUTC = new Date(apt.end_time)
+              
+              
+              const aptStartHour = aptStartTimeUTC.getHours()
+              const aptStartMinute = aptStartTimeUTC.getMinutes()
+              const aptEndHour = aptEndTimeUTC.getHours()
+              const aptEndMinute = aptEndTimeUTC.getMinutes()
+              
+              
+              const aptStartTimeString = `${aptStartHour.toString().padStart(2, '0')}:${aptStartMinute.toString().padStart(2, '0')}:00`
+              const aptEndTimeString = `${aptEndHour.toString().padStart(2, '0')}:${aptEndMinute.toString().padStart(2, '0')}:00`
+              
+              
+              
+              const conflicts = (timeString < aptEndTimeString && endTimeString > aptStartTimeString)
+              return conflicts
+            }
             
-            
-            const aptStartHour = aptStartTimeUTC.getHours()
-            const aptStartMinute = aptStartTimeUTC.getMinutes()
-            const aptEndHour = aptEndTimeUTC.getHours()
-            const aptEndMinute = aptEndTimeUTC.getMinutes()
-            
-            
-            const aptStartTimeString = `${aptStartHour.toString().padStart(2, '0')}:${aptStartMinute.toString().padStart(2, '0')}:00`
-            const aptEndTimeString = `${aptEndHour.toString().padStart(2, '0')}:${aptEndMinute.toString().padStart(2, '0')}:00`
-            
-            
-            
-            const conflicts = (timeString < aptEndTimeString && endTimeString > aptStartTimeString)
-            return conflicts
-          }
-          
-          const aptStart = apt.start_time
-          const aptEnd = apt.end_time
-          return (timeString < aptEnd && endTimeString > aptStart)
-        })
+            const aptStart = apt.start_time
+            const aptEnd = apt.end_time
+            return (timeString < aptEnd && endTimeString > aptStart)
+          })
+        }
 
         slots.push({
           time: timeString,

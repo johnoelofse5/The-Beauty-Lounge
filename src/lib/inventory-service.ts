@@ -691,7 +691,6 @@ export class InventoryService {
   static async updateFinancialTransaction(
     transactionId: string,
     data: FinancialTransactionForm,
-    userId: string
   ): Promise<FinancialTransaction> {
     const { data: result, error } = await supabase
       .from('financial_transactions')
@@ -702,7 +701,6 @@ export class InventoryService {
         transaction_date: data.transaction_date,
         payment_method: data.payment_method,
         receipt_number: data.receipt_number,
-        updated_by: userId,
         updated_at: new Date().toISOString()
       })
       .eq('id', transactionId)

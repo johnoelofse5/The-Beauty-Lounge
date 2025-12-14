@@ -1549,6 +1549,7 @@ export default function AppointmentsPage() {
                   onTimeSelect={setSelectedTime}
                   selectedTime={selectedTime}
                   disabled={loadingSlots}
+                  allowOverlap={isPractitionerUser}
                 />
               )}
 
