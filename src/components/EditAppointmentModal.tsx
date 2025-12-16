@@ -10,6 +10,7 @@ import TimeSlotSelector from '@/components/TimeSlotSelector'
 import { AppointmentSMSService } from '@/lib/appointment-sms-service'
 import { InventoryService } from '@/lib/inventory-service'
 import { useToast } from '@/contexts/ToastContext'
+import { AppointmentCalendarService } from '@/lib/appointment-calendar-service'
 
 export default function EditAppointmentModal({
     appointment,
@@ -201,6 +202,12 @@ export default function EditAppointmentModal({
                 console.error('Error sending reschedule SMS notifications:', smsError)
             }
 
+            try {
+                await AppointmentCalendarService.updateCalendarEvent(appointment.id)
+            } catch (calendarError) {
+                console.error('Error updating Google Calendar event:', calendarError)
+            }
+
             setSuccess(true)
             setTimeout(() => {
                 onUpdate()
@@ -252,6 +259,12 @@ export default function EditAppointmentModal({
                 await AppointmentSMSService.sendCancellationSMS(appointment.id)
             } catch (smsError) {
                 console.error('Error sending cancellation SMS notifications:', smsError)
+            }
+
+            try {
+                await AppointmentCalendarService.deleteCalendarEvent(appointment.id)
+            } catch (calendarError) {
+                console.error('Error deleting Google Calendar event:', calendarError)
             }
 
             setSuccess(true)

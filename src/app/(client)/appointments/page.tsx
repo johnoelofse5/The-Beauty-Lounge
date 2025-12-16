@@ -16,6 +16,7 @@ import { ValidationService } from '@/lib/validation-service'
 import TimeSlotSelector from '@/components/TimeSlotSelector'
 import { BookingProgressService, BookingProgress } from '@/lib/booking-progress-service'
 import { AppointmentSMSService } from '@/lib/appointment-sms-service'
+import { AppointmentCalendarService } from '@/lib/appointment-calendar-service'
 import { InventoryService } from '@/lib/inventory-service'
 import { ScheduleService } from '@/lib/schedule-service'
 
@@ -699,6 +700,12 @@ export default function AppointmentsPage() {
         await AppointmentSMSService.sendAppointmentNotifications(insertedAppointment.id)
       } catch (smsError) {
         console.error('Error sending SMS notifications:', smsError)
+      }
+
+      try {
+        await AppointmentCalendarService.createCalendarEvent(insertedAppointment.id)
+      } catch (calendarError) {
+        console.error('Error creating Google Calendar event:', calendarError)
       }
 
       showSuccess('Appointment booked successfully! Redirecting...')

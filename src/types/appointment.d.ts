@@ -16,6 +16,8 @@ export interface Appointment {
     client_phone?: string;
     is_external_client?: boolean;
     
+    google_calendar_event_id?: string;
+    
     is_active: boolean;
     is_deleted: boolean;
     created_at: string;

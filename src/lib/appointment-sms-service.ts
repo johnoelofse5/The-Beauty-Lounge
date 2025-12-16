@@ -1,11 +1,6 @@
 import { supabase } from './supabase'
 
 export class AppointmentSMSService {
-  /**
-   * Send SMS notifications for an appointment
-   * @param appointmentId - The ID of the appointment
-   * @param smsType - The type of SMS to send (confirmation, reschedule, cancellation, reminder)
-   */
   static async sendAppointmentNotifications(
     appointmentId: string, 
     smsType: 'confirmation' | 'reschedule' | 'cancellation' | 'reminder' = 'confirmation',
@@ -21,8 +16,6 @@ export class AppointmentSMSService {
     }
   }> {
     try {
-      console.log('Calling send-appointment-sms with:', { appointmentId, smsType, scheduleForMidnight })
-      
       const { data, error } = await supabase.functions.invoke('send-appointment-sms', {
         body: { 
           appointment_id: appointmentId,
@@ -30,8 +23,6 @@ export class AppointmentSMSService {
           schedule_for_midnight: scheduleForMidnight
         }
       })
-
-      console.log('Edge function response:', { data, error })
 
       if (error) {
         console.error('Error calling send-appointment-sms function:', error)
@@ -55,10 +46,6 @@ export class AppointmentSMSService {
     }
   }
 
-  /**
-   * Get SMS logs for an appointment
-   * @param appointmentId - The ID of the appointment
-   */
   static async getSMSLogs(appointmentId: string) {
     try {
       const { data, error } = await supabase
@@ -79,11 +66,6 @@ export class AppointmentSMSService {
     }
   }
 
-  /**
-   * Check if SMS has been sent for a specific appointment and type
-   * @param appointmentId - The ID of the appointment
-   * @param smsType - The type of SMS to check
-   */
   static async hasSMSSent(appointmentId: string, smsType: 'confirmation' | 'reschedule' | 'cancellation' | 'reminder'): Promise<boolean> {
     try {
       const { data, error } = await supabase
@@ -105,35 +87,18 @@ export class AppointmentSMSService {
     }
   }
 
-  /**
-   * Send reschedule SMS for an appointment
-   * @param appointmentId - The ID of the appointment
-   */
   static async sendRescheduleSMS(appointmentId: string) {
     return this.sendAppointmentNotifications(appointmentId, 'reschedule')
   }
 
-  /**
-   * Send cancellation SMS for an appointment
-   * @param appointmentId - The ID of the appointment
-   */
   static async sendCancellationSMS(appointmentId: string) {
     return this.sendAppointmentNotifications(appointmentId, 'cancellation')
   }
 
-  /**
-   * Send reminder SMS for an appointment
-   * @param appointmentId - The ID of the appointment
-   */
   static async sendReminderSMS(appointmentId: string) {
     return this.sendAppointmentNotifications(appointmentId, 'reminder')
   }
 
-  /**
-   * Schedule reminder SMS for midnight UTC on the appointment date
-   * Note: This just logs the request - the actual SMS will be sent by the daily cron job
-   * @param appointmentId - The ID of the appointment
-   */
   static async scheduleReminderSMS(appointmentId: string) {
     try {
       
@@ -161,11 +126,6 @@ export class AppointmentSMSService {
     }
   }
 
-  /**
-   * Cancel scheduled SMS for an appointment
-   * @param appointmentId - The ID of the appointment
-   * @param smsType - The type of SMS to cancel
-   */
   static async cancelScheduledSMS(appointmentId: string, smsType: 'confirmation' | 'reschedule' | 'cancellation' | 'reminder' = 'reminder') {
     try {
       
@@ -195,11 +155,6 @@ export class AppointmentSMSService {
     }
   }
 
-  /**
-   * Reschedule SMS for an appointment (cancel old, schedule new)
-   * @param appointmentId - The ID of the appointment
-   * @param smsType - The type of SMS to reschedule
-   */
   static async rescheduleSMS(appointmentId: string, smsType: 'confirmation' | 'reschedule' | 'cancellation' | 'reminder' = 'reminder') {
     try {
       
