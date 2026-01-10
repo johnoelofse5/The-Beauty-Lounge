@@ -44,7 +44,11 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
     
-    const { appointment_id, sms_type = 'confirmation' } = await req.json()
+    const { 
+      appointment_id, 
+      sms_type = 'confirmation',
+      send_client_sms = true 
+    } = await req.json()
     
     const normalizedSmsType = String(sms_type || 'confirmation').toLowerCase()
 
@@ -237,7 +241,7 @@ serve(async (req) => {
     
     const batchMessages: Array<{to: string, body: string}> = []
     
-    if (smsData.client_phone) {
+    if (smsData.client_phone && send_client_sms) {
       batchMessages.push({
         to: smsData.client_phone,
         body: clientMessage
@@ -258,9 +262,9 @@ serve(async (req) => {
     }
 
     
-    const clientSMSResult = smsData.client_phone ? batchResult.success : false
+    const clientSMSResult = (smsData.client_phone && send_client_sms) ? batchResult.success : false
     const practitionerSMSResult = smsData.practitioner_phone ? batchResult.success : false
-    const clientSMSError = smsData.client_phone && !batchResult.success ? batchResult.error : null
+    const clientSMSError = (smsData.client_phone && send_client_sms && !batchResult.success) ? batchResult.error : null
     const practitionerSMSError = smsData.practitioner_phone && !batchResult.success ? batchResult.error : null
 
     

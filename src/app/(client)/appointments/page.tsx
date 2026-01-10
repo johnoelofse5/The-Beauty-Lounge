@@ -1,762 +1,830 @@
-'use client'
+"use client";
 
-import { useState, useEffect, useCallback, useRef } from 'react'
-import Link from 'next/link'
-import { useRouter, useSearchParams } from 'next/navigation'
-import { useAuth } from '@/contexts/AuthContext'
-import { useToast } from '@/contexts/ToastContext'
-import { getServicesWithCategories, formatPrice, formatDuration } from '@/lib/services'
-import { ServiceWithCategory, TimeSlot, Practitioner, Client, BookingStep } from '@/types'
-import { supabase } from '@/lib/supabase'
-import { DatePicker } from '@/components/date-picker'
-import { Textarea } from '@/components/ui/textarea'
-import { isPractitioner } from '@/lib/rbac'
-import { ValidationInput } from '@/components/validation/ValidationComponents'
-import { ValidationService } from '@/lib/validation-service'
-import TimeSlotSelector from '@/components/TimeSlotSelector'
-import { BookingProgressService, BookingProgress } from '@/lib/booking-progress-service'
-import { AppointmentSMSService } from '@/lib/appointment-sms-service'
-import { AppointmentCalendarService } from '@/lib/appointment-calendar-service'
-import { InventoryService } from '@/lib/inventory-service'
-import { ScheduleService } from '@/lib/schedule-service'
+import { useState, useEffect, useCallback, useRef } from "react";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/contexts/ToastContext";
+import {
+  getServicesWithCategories,
+  formatPrice,
+  formatDuration,
+} from "@/lib/services";
+import {
+  ServiceWithCategory,
+  TimeSlot,
+  Practitioner,
+  Client,
+  BookingStep,
+} from "@/types";
+import { supabase } from "@/lib/supabase";
+import { DatePicker } from "@/components/date-picker";
+import { Textarea } from "@/components/ui/textarea";
+import { isPractitioner } from "@/lib/rbac";
+import { ValidationInput } from "@/components/validation/ValidationComponents";
+import { ValidationService } from "@/lib/validation-service";
+import TimeSlotSelector from "@/components/TimeSlotSelector";
+import {
+  BookingProgressService,
+  BookingProgress,
+} from "@/lib/booking-progress-service";
+import { AppointmentSMSService } from "@/lib/appointment-sms-service";
+import { AppointmentCalendarService } from "@/lib/appointment-calendar-service";
+import { InventoryService } from "@/lib/inventory-service";
+import { ScheduleService } from "@/lib/schedule-service";
 
 export default function AppointmentsPage() {
-  const { user, userRoleData, loading: authLoading } = useAuth()
-  const { showSuccess, showError } = useToast()
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const [services, setServices] = useState<ServiceWithCategory[]>([])
-  const [practitioners, setPractitioners] = useState<Practitioner[]>([])
-  const [clients, setClients] = useState<Client[]>([])
-  const [loading, setLoading] = useState(true)
-  const [visibleElements, setVisibleElements] = useState<Set<string>>(new Set())
-  const observerRef = useRef<IntersectionObserver | null>(null)
+  const { user, userRoleData, loading: authLoading } = useAuth();
+  const { showSuccess, showError } = useToast();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [services, setServices] = useState<ServiceWithCategory[]>([]);
+  const [practitioners, setPractitioners] = useState<Practitioner[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [visibleElements, setVisibleElements] = useState<Set<string>>(
+    new Set()
+  );
+  const observerRef = useRef<IntersectionObserver | null>(null);
 
+  const [selectedServices, setSelectedServices] = useState<
+    ServiceWithCategory[]
+  >([]);
+  const [selectedPractitioner, setSelectedPractitioner] =
+    useState<Practitioner | null>(null);
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const [selectedTime, setSelectedTime] = useState<string>("");
+  const [notes, setNotes] = useState<string>("");
+  const [blockedDates, setBlockedDates] = useState<string[]>([]);
+  const [sendClientSMS, setSendClientSMS] = useState(true);
 
-
-  const [selectedServices, setSelectedServices] = useState<ServiceWithCategory[]>([])
-  const [selectedPractitioner, setSelectedPractitioner] = useState<Practitioner | null>(null)
-  const [selectedClient, setSelectedClient] = useState<Client | null>(null)
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined)
-  const [selectedTime, setSelectedTime] = useState<string>('')
-  const [notes, setNotes] = useState<string>('')
-  const [blockedDates, setBlockedDates] = useState<string[]>([])
-
-
-  const [isExternalClient, setIsExternalClient] = useState<boolean>(false)
+  const [isExternalClient, setIsExternalClient] = useState<boolean>(false);
   const [externalClientInfo, setExternalClientInfo] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: ''
-  })
-  const [externalClientFormErrors, setExternalClientFormErrors] = useState<Record<string, string>>({})
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+  });
+  const [externalClientFormErrors, setExternalClientFormErrors] = useState<
+    Record<string, string>
+  >({});
 
+  const [currentStep, setCurrentStep] = useState<number>(1);
+  const [hasSavedProgress, setHasSavedProgress] = useState<boolean>(false);
+  const [savingProgress, setSavingProgress] = useState<boolean>(false);
+  const [progressLoaded, setProgressLoaded] = useState<boolean>(false);
+  const [savedServiceIds, setSavedServiceIds] = useState<string[]>([]);
+  const [savedPractitionerId, setSavedPractitionerId] = useState<string | null>(
+    null
+  );
+  const [savedClientId, setSavedClientId] = useState<string | null>(null);
 
-  const [currentStep, setCurrentStep] = useState<number>(1)
-  const [hasSavedProgress, setHasSavedProgress] = useState<boolean>(false)
-  const [savingProgress, setSavingProgress] = useState<boolean>(false)
-  const [progressLoaded, setProgressLoaded] = useState<boolean>(false)
-  const [savedServiceIds, setSavedServiceIds] = useState<string[]>([])
-  const [savedPractitionerId, setSavedPractitionerId] = useState<string | null>(null)
-  const [savedClientId, setSavedClientId] = useState<string | null>(null)
+  const isPractitionerUser = isPractitioner(userRoleData?.role || null);
+  const isSuperAdmin = userRoleData?.role?.name === "super_admin";
+  const allowSameDayBooking = isPractitionerUser || isSuperAdmin;
+  const [bookingStep, setBookingStep] = useState<BookingStep>("service");
+  const canControlClientSMS = isPractitionerUser || isSuperAdmin;
 
+  const [loadingSlots, setLoadingSlots] = useState(false);
 
-  const isPractitionerUser = isPractitioner(userRoleData?.role || null)
-  const isSuperAdmin = userRoleData?.role?.name === 'super_admin'
-  const allowSameDayBooking = isPractitionerUser || isSuperAdmin
-  const [bookingStep, setBookingStep] = useState<BookingStep>('service')
-
-
-  const [loadingSlots, setLoadingSlots] = useState(false)
-
-
-  const [showFloatingPill, setShowFloatingPill] = useState(true)
-
+  const [showFloatingPill, setShowFloatingPill] = useState(true);
 
   useEffect(() => {
     if (user) {
-      loadServices()
-      loadPractitioners()
+      loadServices();
+      loadPractitioners();
       if (isPractitionerUser) {
-        loadClients()
+        loadClients();
       }
     }
-  }, [user, isPractitionerUser])
-
+  }, [user, isPractitionerUser]);
 
   useEffect(() => {
-    const serviceId = searchParams.get('serviceId')
+    const serviceId = searchParams.get("serviceId");
     if (serviceId && services.length > 0) {
-      const serviceToSelect = services.find(service => service.id === serviceId)
-      if (serviceToSelect && !selectedServices.find(s => s.id === serviceId)) {
-        setSelectedServices([serviceToSelect])
+      const serviceToSelect = services.find(
+        (service) => service.id === serviceId
+      );
+      if (
+        serviceToSelect &&
+        !selectedServices.find((s) => s.id === serviceId)
+      ) {
+        setSelectedServices([serviceToSelect]);
 
-        const newUrl = new URL(window.location.href)
-        newUrl.searchParams.delete('serviceId')
-        window.history.replaceState({}, '', newUrl.toString())
+        const newUrl = new URL(window.location.href);
+        newUrl.searchParams.delete("serviceId");
+        window.history.replaceState({}, "", newUrl.toString());
       }
     }
-  }, [services, searchParams, selectedServices])
-
+  }, [services, searchParams, selectedServices]);
 
   useEffect(() => {
     if (user) {
-      loadSavedProgress()
+      loadSavedProgress();
     }
-  }, [user])
-
+  }, [user]);
 
   useEffect(() => {
-    if (services.length > 0 && hasSavedProgress && selectedServices.length === 0) {
-      restoreSelectedServices()
+    if (
+      services.length > 0 &&
+      hasSavedProgress &&
+      selectedServices.length === 0
+    ) {
+      restoreSelectedServices();
     }
-  }, [services, hasSavedProgress, selectedServices.length])
-
+  }, [services, hasSavedProgress, selectedServices.length]);
 
   useEffect(() => {
     if (practitioners.length > 0 && hasSavedProgress && !selectedPractitioner) {
-      restoreSelectedPractitioner()
+      restoreSelectedPractitioner();
     }
-  }, [practitioners, hasSavedProgress, selectedPractitioner])
-
+  }, [practitioners, hasSavedProgress, selectedPractitioner]);
 
   useEffect(() => {
     if (clients.length > 0 && hasSavedProgress && !selectedClient) {
-      restoreSelectedClient()
+      restoreSelectedClient();
     }
-  }, [clients, hasSavedProgress, selectedClient])
-
+  }, [clients, hasSavedProgress, selectedClient]);
 
   useEffect(() => {
     if (user && currentStep > 1) {
-      saveProgress()
+      saveProgress();
     }
-  }, [selectedServices, selectedPractitioner, selectedClient, selectedDate, selectedTime, notes, isExternalClient, externalClientInfo, currentStep])
-
+  }, [
+    selectedServices,
+    selectedPractitioner,
+    selectedClient,
+    selectedDate,
+    selectedTime,
+    notes,
+    isExternalClient,
+    externalClientInfo,
+    currentStep,
+  ]);
 
   const getTomorrowDate = () => {
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    return today
-  }
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return today;
+  };
 
   const getMaxDate = () => {
-    const maxDate = new Date()
-    maxDate.setMonth(maxDate.getMonth() + 3)
-    return maxDate
-  }
+    const maxDate = new Date();
+    maxDate.setMonth(maxDate.getMonth() + 3);
+    return maxDate;
+  };
 
   const formatDateForAPI = (date: Date | undefined) => {
-    if (!date) return ''
+    if (!date) return "";
 
-    const year = date.getFullYear()
-    const month = String(date.getMonth() + 1).padStart(2, '0')
-    const day = String(date.getDate()).padStart(2, '0')
-    return `${year}-${month}-${day}`
-  }
-
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
 
   const restoreSelectedServices = () => {
     if (savedServiceIds.length > 0 && services.length > 0) {
-      const restoredServices = services.filter(service =>
+      const restoredServices = services.filter((service) =>
         savedServiceIds.includes(service.id)
-      )
-      setSelectedServices(restoredServices)
+      );
+      setSelectedServices(restoredServices);
     }
-  }
+  };
 
   const restoreSelectedPractitioner = () => {
-    if (savedPractitionerId && practitioners.length > 0 && !selectedPractitioner) {
-      const practitioner = practitioners.find(p => p.id === savedPractitionerId)
+    if (
+      savedPractitionerId &&
+      practitioners.length > 0 &&
+      !selectedPractitioner
+    ) {
+      const practitioner = practitioners.find(
+        (p) => p.id === savedPractitionerId
+      );
       if (practitioner) {
-        setSelectedPractitioner(practitioner)
+        setSelectedPractitioner(practitioner);
       }
     }
-  }
+  };
 
   const restoreSelectedClient = () => {
     if (savedClientId && clients.length > 0 && !selectedClient) {
-      const client = clients.find(c => c.id === savedClientId)
+      const client = clients.find((c) => c.id === savedClientId);
       if (client) {
-        setSelectedClient(client)
+        setSelectedClient(client);
       }
     }
-  }
+  };
 
   const loadSavedProgress = async () => {
-    if (!user || progressLoaded) return
+    if (!user || progressLoaded) return;
 
     try {
-      const progress = await BookingProgressService.loadProgress(user.id)
+      const progress = await BookingProgressService.loadProgress(user.id);
       if (progress) {
-        setCurrentStep(progress.current_step)
-        setHasSavedProgress(true)
-        setProgressLoaded(true)
-
+        setCurrentStep(progress.current_step);
+        setHasSavedProgress(true);
+        setProgressLoaded(true);
 
         if (progress.selected_services) {
-          setSavedServiceIds(progress.selected_services)
+          setSavedServiceIds(progress.selected_services);
         }
 
-
         if (progress.selected_practitioner_id) {
-          setSavedPractitionerId(progress.selected_practitioner_id)
+          setSavedPractitionerId(progress.selected_practitioner_id);
         }
 
         if (progress.selected_client_id) {
-          setSavedClientId(progress.selected_client_id)
+          setSavedClientId(progress.selected_client_id);
         }
 
         if (progress.selected_date) {
-          setSelectedDate(new Date(progress.selected_date))
+          setSelectedDate(new Date(progress.selected_date));
         }
 
         if (progress.selected_time) {
-          setSelectedTime(progress.selected_time)
+          setSelectedTime(progress.selected_time);
         }
 
         if (progress.notes) {
-          setNotes(progress.notes)
+          setNotes(progress.notes);
         }
 
         if (progress.is_external_client) {
-          setIsExternalClient(true)
+          setIsExternalClient(true);
           if (progress.external_client_info) {
-            setExternalClientInfo(progress.external_client_info)
+            setExternalClientInfo(progress.external_client_info);
           }
         }
-
 
         if (progress.current_step >= 4) {
-          updateCurrentStep('confirm')
+          updateCurrentStep("confirm");
         } else if (progress.current_step >= 3) {
-          updateCurrentStep('datetime')
+          updateCurrentStep("datetime");
         } else if (progress.current_step >= 2) {
           if (isPractitionerUser) {
-            updateCurrentStep('client')
+            updateCurrentStep("client");
           } else {
-            updateCurrentStep('practitioner')
+            updateCurrentStep("practitioner");
           }
         } else {
-          updateCurrentStep('service')
+          updateCurrentStep("service");
         }
-
       } else {
-        setProgressLoaded(true)
+        setProgressLoaded(true);
       }
     } catch (error) {
-      console.error('Error loading saved progress:', error)
-      setProgressLoaded(true)
-
+      console.error("Error loading saved progress:", error);
+      setProgressLoaded(true);
     }
-  }
+  };
 
   const saveProgress = async () => {
-    if (!user || savingProgress) return
+    if (!user || savingProgress) return;
 
     try {
-      setSavingProgress(true)
+      setSavingProgress(true);
 
       const progressData: Partial<BookingProgress> = {
         current_step: currentStep,
-        selected_services: selectedServices.map(s => s.id),
+        selected_services: selectedServices.map((s) => s.id),
         selected_practitioner_id: selectedPractitioner?.id,
         selected_client_id: selectedClient?.id,
-        selected_date: selectedDate ? formatDateForAPI(selectedDate) : undefined,
+        selected_date: selectedDate
+          ? formatDateForAPI(selectedDate)
+          : undefined,
         selected_time: selectedTime || undefined,
         notes: notes || undefined,
         is_external_client: isExternalClient,
         external_client_info: isExternalClient ? externalClientInfo : undefined,
-        practitioner_id: isPractitionerUser ? user.id : selectedPractitioner?.id
-      }
+        practitioner_id: isPractitionerUser
+          ? user.id
+          : selectedPractitioner?.id,
+      };
 
-      await BookingProgressService.saveProgress(user.id, progressData)
-      setHasSavedProgress(true)
+      await BookingProgressService.saveProgress(user.id, progressData);
+      setHasSavedProgress(true);
     } catch (error) {
-      console.error('Error saving progress:', error)
-
+      console.error("Error saving progress:", error);
     } finally {
-      setSavingProgress(false)
+      setSavingProgress(false);
     }
-  }
+  };
 
   const clearProgress = async () => {
-    if (!user) return
+    if (!user) return;
 
     try {
-      await BookingProgressService.clearProgress(user.id)
-      setHasSavedProgress(false)
-      setProgressLoaded(false)
-      setSavedServiceIds([])
-      setSavedPractitionerId(null)
-      setSavedClientId(null)
-      showSuccess('Booking progress cleared!')
+      await BookingProgressService.clearProgress(user.id);
+      setHasSavedProgress(false);
+      setProgressLoaded(false);
+      setSavedServiceIds([]);
+      setSavedPractitionerId(null);
+      setSavedClientId(null);
+      showSuccess("Booking progress cleared!");
     } catch (error) {
-
-      if (error instanceof Error && error.message.includes('No booking progress found')) {
-        setHasSavedProgress(false)
-        setProgressLoaded(false)
-        showSuccess('No booking progress to clear')
+      if (
+        error instanceof Error &&
+        error.message.includes("No booking progress found")
+      ) {
+        setHasSavedProgress(false);
+        setProgressLoaded(false);
+        showSuccess("No booking progress to clear");
       } else {
-        showError('Failed to clear booking progress. Please try again.')
+        showError("Failed to clear booking progress. Please try again.");
       }
     }
-  }
-
+  };
 
   const updateCurrentStep = (step: BookingStep) => {
-    setBookingStep(step)
-
+    setBookingStep(step);
 
     const stepMap = {
-      'service': 1,
-      'practitioner': 2,
-      'client': 2,
-      'datetime': 3,
-      'confirm': 4
-    }
+      service: 1,
+      practitioner: 2,
+      client: 2,
+      datetime: 3,
+      confirm: 4,
+    };
 
-    setCurrentStep(stepMap[step])
-  }
+    setCurrentStep(stepMap[step]);
+  };
 
-
-  const [existingAppointments, setExistingAppointments] = useState<any[]>([])
+  const [existingAppointments, setExistingAppointments] = useState<any[]>([]);
 
   const loadExistingAppointments = useCallback(async () => {
     if (!selectedDate || !selectedPractitioner) {
-      setExistingAppointments([])
-      return
+      setExistingAppointments([]);
+      return;
     }
 
     try {
-      setLoadingSlots(true)
+      setLoadingSlots(true);
 
+      setExistingAppointments([]);
 
-      setExistingAppointments([])
-
-
-      const selectedDateStr = formatDateForAPI(selectedDate)
+      const selectedDateStr = formatDateForAPI(selectedDate);
 
       const { data, error } = await supabase
-        .from('appointments')
-        .select('start_time, end_time')
-        .gte('appointment_date', `${selectedDateStr}T00:00:00`)
-        .lt('appointment_date', `${selectedDateStr}T23:59:59`)
-        .eq('practitioner_id', selectedPractitioner.id)
-        .eq('is_active', true)
-        .eq('is_deleted', false)
+        .from("appointments")
+        .select("start_time, end_time")
+        .gte("appointment_date", `${selectedDateStr}T00:00:00`)
+        .lt("appointment_date", `${selectedDateStr}T23:59:59`)
+        .eq("practitioner_id", selectedPractitioner.id)
+        .eq("is_active", true)
+        .eq("is_deleted", false);
 
-      if (error) throw error
-      setExistingAppointments(data || [])
+      if (error) throw error;
+      setExistingAppointments(data || []);
     } catch (err) {
-      console.error('Error loading existing appointments:', err)
-      setExistingAppointments([])
+      console.error("Error loading existing appointments:", err);
+      setExistingAppointments([]);
     } finally {
-      setLoadingSlots(false)
+      setLoadingSlots(false);
     }
-  }, [selectedDate, selectedPractitioner])
-
+  }, [selectedDate, selectedPractitioner]);
 
   useEffect(() => {
     if (selectedDate && selectedPractitioner) {
-      loadExistingAppointments()
+      loadExistingAppointments();
     } else {
-      setExistingAppointments([])
+      setExistingAppointments([]);
     }
-  }, [selectedDate, selectedPractitioner, loadExistingAppointments])
+  }, [selectedDate, selectedPractitioner, loadExistingAppointments]);
 
   useEffect(() => {
     const loadBlockedDates = async () => {
       if (!selectedPractitioner?.id) {
-        setBlockedDates([])
-        return
+        setBlockedDates([]);
+        return;
       }
 
       try {
-        const blocked = await ScheduleService.getBlockedDates(selectedPractitioner.id)
-        setBlockedDates(blocked)
+        const blocked = await ScheduleService.getBlockedDates(
+          selectedPractitioner.id
+        );
+        setBlockedDates(blocked);
       } catch (error) {
-        console.error('Error loading blocked dates:', error)
-        setBlockedDates([])
+        console.error("Error loading blocked dates:", error);
+        setBlockedDates([]);
       }
-    }
+    };
 
-    loadBlockedDates()
-  }, [selectedPractitioner?.id])
-
+    loadBlockedDates();
+  }, [selectedPractitioner?.id]);
 
   useEffect(() => {
-    if (bookingStep !== 'service' || selectedServices.length === 0) {
-      setShowFloatingPill(true)
-      return
+    if (bookingStep !== "service" || selectedServices.length === 0) {
+      setShowFloatingPill(true);
+      return;
     }
 
     const handleScroll = () => {
-      const selectedServicesElement = document.getElementById('selected-services-section')
+      const selectedServicesElement = document.getElementById(
+        "selected-services-section"
+      );
       if (!selectedServicesElement) {
-        setShowFloatingPill(true)
-        return
+        setShowFloatingPill(true);
+        return;
       }
 
-      const rect = selectedServicesElement.getBoundingClientRect()
-      const isVisible = rect.top <= window.innerHeight && rect.bottom >= 0
+      const rect = selectedServicesElement.getBoundingClientRect();
+      const isVisible = rect.top <= window.innerHeight && rect.bottom >= 0;
 
+      setShowFloatingPill(!isVisible);
+    };
 
-      setShowFloatingPill(!isVisible)
-    }
-
-    window.addEventListener('scroll', handleScroll)
-    handleScroll()
+    window.addEventListener("scroll", handleScroll);
+    handleScroll();
 
     return () => {
-      window.removeEventListener('scroll', handleScroll)
-    }
-  }, [bookingStep, selectedServices.length])
+      window.removeEventListener("scroll", handleScroll);
+    };
+  }, [bookingStep, selectedServices.length]);
 
   const loadServices = async () => {
     try {
-      setLoading(true)
-      const servicesData = await getServicesWithCategories()
-      setServices(servicesData)
+      setLoading(true);
+      const servicesData = await getServicesWithCategories();
+      setServices(servicesData);
     } catch (err) {
-      showError('Failed to load services')
-      console.error('Error loading services:', err)
+      showError("Failed to load services");
+      console.error("Error loading services:", err);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const loadPractitioners = async () => {
     try {
       const { data: practitionersData, error } = await supabase
-        .from('users')
-        .select('id, first_name, last_name, email, phone')
-        .eq('is_practitioner', true)
-        .eq('is_active', true)
-        .eq('is_deleted', false)
-        .order('first_name', { ascending: true })
+        .from("users")
+        .select("id, first_name, last_name, email, phone")
+        .eq("is_practitioner", true)
+        .eq("is_active", true)
+        .eq("is_deleted", false)
+        .order("first_name", { ascending: true });
 
-      if (error) throw error
+      if (error) throw error;
 
-      setPractitioners(practitionersData || [])
-
+      setPractitioners(practitionersData || []);
 
       if (practitionersData && practitionersData.length === 1) {
-        setSelectedPractitioner(practitionersData[0])
+        setSelectedPractitioner(practitionersData[0]);
       }
     } catch (err) {
-      showError('Failed to load practitioners')
-      console.error('Error loading practitioners:', err)
+      showError("Failed to load practitioners");
+      console.error("Error loading practitioners:", err);
     }
-  }
+  };
 
   const loadClients = async () => {
     try {
       const { data: clientsData, error } = await supabase
-        .from('users')
-        .select('id, first_name, last_name, email, phone')
-        .eq('is_practitioner', false)
-        .eq('is_active', true)
-        .eq('is_deleted', false)
-        .order('first_name', { ascending: true })
+        .from("users")
+        .select("id, first_name, last_name, email, phone")
+        .eq("is_practitioner", false)
+        .eq("is_active", true)
+        .eq("is_deleted", false)
+        .order("first_name", { ascending: true });
 
-      if (error) throw error
-      setClients(clientsData || [])
+      if (error) throw error;
+      setClients(clientsData || []);
     } catch (err) {
-      showError('Failed to load clients')
-      console.error('Error loading clients:', err)
+      showError("Failed to load clients");
+      console.error("Error loading clients:", err);
     }
-  }
-
+  };
 
   const handleServiceSelect = (service: ServiceWithCategory) => {
-    setSelectedServices(prev => {
-      const isSelected = prev.some(s => s.id === service.id)
+    setSelectedServices((prev) => {
+      const isSelected = prev.some((s) => s.id === service.id);
       if (isSelected) {
-
-        return prev.filter(s => s.id !== service.id)
+        return prev.filter((s) => s.id !== service.id);
       } else {
-
-        return [...prev, service]
+        return [...prev, service];
       }
-    })
-  }
+    });
+  };
 
   const handleContinueToPractitioner = () => {
     if (selectedServices.length > 0) {
       if (isPractitionerUser) {
-        updateCurrentStep('client')
+        updateCurrentStep("client");
       } else {
-        updateCurrentStep('practitioner')
+        updateCurrentStep("practitioner");
       }
     }
-  }
+  };
 
   const handleContinueToDateTime = () => {
     if (isPractitionerUser) {
       if (selectedServices.length > 0 && selectedClient) {
-        updateCurrentStep('datetime')
+        updateCurrentStep("datetime");
       } else if (isExternalClient) {
-
         const formData = {
           firstName: externalClientInfo.firstName,
           lastName: externalClientInfo.lastName,
           email: externalClientInfo.email,
-          phone: externalClientInfo.phone
-        }
+          phone: externalClientInfo.phone,
+        };
 
-        const validationResult = ValidationService.validateForm(formData, ValidationService.schemas.externalClient)
+        const validationResult = ValidationService.validateForm(
+          formData,
+          ValidationService.schemas.externalClient
+        );
 
         if (validationResult.isValid) {
-          updateCurrentStep('datetime')
+          updateCurrentStep("datetime");
         } else {
-          setExternalClientFormErrors(validationResult.errors)
+          setExternalClientFormErrors(validationResult.errors);
         }
       }
     } else {
       if (selectedServices.length > 0 && selectedPractitioner) {
-        updateCurrentStep('datetime')
+        updateCurrentStep("datetime");
       }
     }
-  }
+  };
 
   const handleDateTimeConfirm = () => {
     if (selectedDate && selectedTime) {
-      updateCurrentStep('confirm')
+      updateCurrentStep("confirm");
     }
-  }
-
+  };
 
   useEffect(() => {
     observerRef.current = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
-          const elementId = entry.target.getAttribute('data-animate-id')
+          const elementId = entry.target.getAttribute("data-animate-id");
           if (elementId) {
-            setVisibleElements(prev => {
-              const newSet = new Set(prev)
+            setVisibleElements((prev) => {
+              const newSet = new Set(prev);
               if (entry.isIntersecting) {
-                newSet.add(elementId)
+                newSet.add(elementId);
               } else {
-                newSet.delete(elementId)
+                newSet.delete(elementId);
               }
-              return newSet
-            })
+              return newSet;
+            });
           }
-        })
+        });
       },
       {
         threshold: 0.1,
-        rootMargin: '0px 0px -50px 0px'
+        rootMargin: "0px 0px -50px 0px",
       }
-    )
+    );
 
     return () => {
       if (observerRef.current) {
-        observerRef.current.disconnect()
+        observerRef.current.disconnect();
       }
-    }
-  }, [])
-
+    };
+  }, []);
 
   useEffect(() => {
     if (observerRef.current && !loading) {
-      const elementsToObserve = document.querySelectorAll('[data-animate-id]')
-      elementsToObserve.forEach(element => {
-        observerRef.current?.observe(element)
-      })
+      const elementsToObserve = document.querySelectorAll("[data-animate-id]");
+      elementsToObserve.forEach((element) => {
+        observerRef.current?.observe(element);
+      });
     }
-  }, [loading, bookingStep])
+  }, [loading, bookingStep]);
 
   const handleBookingConfirm = async () => {
-
     if (isPractitionerUser) {
       if (selectedServices.length === 0) {
-        showError('Please select at least one service')
-        return
+        showError("Please select at least one service");
+        return;
       }
       if (!selectedDate) {
-        showError('Please select an appointment date')
-        return
+        showError("Please select an appointment date");
+        return;
       }
       if (!selectedTime) {
-        showError('Please select an appointment time')
-        return
+        showError("Please select an appointment time");
+        return;
       }
       if (!user) {
-        showError('User session expired. Please refresh the page')
-        return
+        showError("User session expired. Please refresh the page");
+        return;
       }
 
       if (!selectedClient && !isExternalClient) {
-        showError('Please select a client or choose external client')
-        return
+        showError("Please select a client or choose external client");
+        return;
       }
       if (isExternalClient) {
         if (!externalClientInfo.firstName.trim()) {
-          showError('Please enter the client\'s first name')
-          return
+          showError("Please enter the client's first name");
+          return;
         }
         if (!externalClientInfo.lastName.trim()) {
-          showError('Please enter the client\'s last name')
-          return
+          showError("Please enter the client's last name");
+          return;
         }
-        if (!externalClientInfo.email.trim() && !externalClientInfo.phone.trim()) {
-          showError('Please enter either email or phone number for the client')
-          return
+        if (
+          !externalClientInfo.email.trim() &&
+          !externalClientInfo.phone.trim()
+        ) {
+          showError("Please enter either email or phone number for the client");
+          return;
         }
       }
     } else {
       if (selectedServices.length === 0) {
-        showError('Please select at least one service')
-        return
+        showError("Please select at least one service");
+        return;
       }
       if (!selectedDate) {
-        showError('Please select an appointment date')
-        return
+        showError("Please select an appointment date");
+        return;
       }
       if (!selectedTime) {
-        showError('Please select an appointment time')
-        return
+        showError("Please select an appointment time");
+        return;
       }
       if (!selectedPractitioner) {
-        showError('Please select a practitioner')
-        return
+        showError("Please select a practitioner");
+        return;
       }
       if (!user) {
-        showError('User session expired. Please refresh the page')
-        return
+        showError("User session expired. Please refresh the page");
+        return;
       }
     }
 
     try {
+      const totalDurationMinutes = selectedServices.reduce(
+        (total, service) => total + service.duration_minutes,
+        0
+      );
 
-      const totalDurationMinutes = selectedServices.reduce((total, service) => total + service.duration_minutes, 0)
-
-
-
-      const [hours, minutes] = selectedTime.split(':').map(Number)
-      const startTimeMinutes = hours * 60 + minutes
-      const endTimeMinutes = startTimeMinutes + totalDurationMinutes
-      const endHours = Math.floor(endTimeMinutes / 60)
-      const endMins = endTimeMinutes % 60
-      const endTimeString = `${endHours.toString().padStart(2, '0')}:${endMins.toString().padStart(2, '0')}`
-
+      const [hours, minutes] = selectedTime.split(":").map(Number);
+      const startTimeMinutes = hours * 60 + minutes;
+      const endTimeMinutes = startTimeMinutes + totalDurationMinutes;
+      const endHours = Math.floor(endTimeMinutes / 60);
+      const endMins = endTimeMinutes % 60;
+      const endTimeString = `${endHours.toString().padStart(2, "0")}:${endMins
+        .toString()
+        .padStart(2, "0")}`;
 
       const appointmentData = {
-        user_id: isPractitionerUser ? (isExternalClient ? null : selectedClient!.id) : user.id,
-        practitioner_id: isPractitionerUser ? user.id : selectedPractitioner!.id,
+        user_id: isPractitionerUser
+          ? isExternalClient
+            ? null
+            : selectedClient!.id
+          : user.id,
+        practitioner_id: isPractitionerUser
+          ? user.id
+          : selectedPractitioner!.id,
 
-        appointment_date: new Date(`${formatDateForAPI(selectedDate)}T${selectedTime}`).toISOString(),
-        start_time: new Date(`${formatDateForAPI(selectedDate)}T${selectedTime}`).toISOString(),
-        end_time: new Date(`${formatDateForAPI(selectedDate)}T${endTimeString}`).toISOString(),
-        status: 'scheduled',
+        appointment_date: new Date(
+          `${formatDateForAPI(selectedDate)}T${selectedTime}`
+        ).toISOString(),
+        start_time: new Date(
+          `${formatDateForAPI(selectedDate)}T${selectedTime}`
+        ).toISOString(),
+        end_time: new Date(
+          `${formatDateForAPI(selectedDate)}T${endTimeString}`
+        ).toISOString(),
+        status: "scheduled",
         notes: notes || null,
         is_active: true,
         is_deleted: false,
 
-        service_ids: selectedServices.map(s => s.id),
+        service_ids: selectedServices.map((s) => s.id),
 
         service_id: selectedServices[0]?.id || null,
 
         is_external_client: isPractitionerUser && isExternalClient,
-        client_first_name: isPractitionerUser && isExternalClient ? externalClientInfo.firstName : null,
-        client_last_name: isPractitionerUser && isExternalClient ? externalClientInfo.lastName : null,
-        client_email: isPractitionerUser && isExternalClient ? externalClientInfo.email : null,
-        client_phone: isPractitionerUser && isExternalClient ? externalClientInfo.phone : null
-      }
+        client_first_name:
+          isPractitionerUser && isExternalClient
+            ? externalClientInfo.firstName
+            : null,
+        client_last_name:
+          isPractitionerUser && isExternalClient
+            ? externalClientInfo.lastName
+            : null,
+        client_email:
+          isPractitionerUser && isExternalClient
+            ? externalClientInfo.email
+            : null,
+        client_phone:
+          isPractitionerUser && isExternalClient
+            ? externalClientInfo.phone
+            : null,
+      };
 
       const { data: insertedAppointment, error } = await supabase
-        .from('appointments')
+        .from("appointments")
         .insert([appointmentData])
         .select()
-        .single()
+        .single();
 
-      if (error) throw error
+      if (error) throw error;
 
       if (!insertedAppointment) {
-        throw new Error('Failed to create appointment')
+        throw new Error("Failed to create appointment");
       }
-      const totalAmount = selectedServices.reduce((sum, service) => sum + (service.price || 0), 0)
+      const totalAmount = selectedServices.reduce(
+        (sum, service) => sum + (service.price || 0),
+        0
+      );
 
       const transactionData = {
-        transaction_type: 'income' as const,
-        category: 'service_revenue',
+        transaction_type: "income" as const,
+        category: "service_revenue",
         amount: totalAmount,
-        transaction_date: new Date().toISOString().split('T')[0],
-        payment_method: 'Pending',
-        receipt_number: `APPT-${insertedAppointment.id}`
-      }
+        transaction_date: new Date().toISOString().split("T")[0],
+        payment_method: "Pending",
+        receipt_number: `APPT-${insertedAppointment.id}`,
+      };
 
       try {
-        await InventoryService.createFinancialTransaction(transactionData, user.id)
+        await InventoryService.createFinancialTransaction(
+          transactionData,
+          user.id
+        );
       } catch (transactionError) {
-        console.error('Error creating financial transaction:', transactionError)
-        showError('Appointment booked, but failed to record financial transaction')
+        console.error(
+          "Error creating financial transaction:",
+          transactionError
+        );
+        showError(
+          "Appointment booked, but failed to record financial transaction"
+        );
       }
 
       try {
-        await AppointmentSMSService.sendAppointmentNotifications(insertedAppointment.id)
+        await AppointmentSMSService.sendAppointmentNotifications(
+          insertedAppointment.id,
+          "confirmation",
+          false,
+          sendClientSMS
+        );
       } catch (smsError) {
-        console.error('Error sending SMS notifications:', smsError)
+        console.error("Error sending SMS notifications:", smsError);
       }
 
       try {
-        await AppointmentCalendarService.createCalendarEvent(insertedAppointment.id)
+        await AppointmentCalendarService.createCalendarEvent(
+          insertedAppointment.id
+        );
       } catch (calendarError) {
-        console.error('Error creating Google Calendar event:', calendarError)
+        console.error("Error creating Google Calendar event:", calendarError);
       }
 
-      showSuccess('Appointment booked successfully! Redirecting...')
+      showSuccess("Appointment booked successfully! Redirecting...");
 
-
-      setSelectedServices([])
-      setSelectedPractitioner(practitioners.length === 1 ? practitioners[0] : null)
-      setSelectedClient(null)
-      setSelectedDate(undefined)
-      setSelectedTime('')
-      setNotes('')
-      setIsExternalClient(false)
+      setSelectedServices([]);
+      setSelectedPractitioner(
+        practitioners.length === 1 ? practitioners[0] : null
+      );
+      setSelectedClient(null);
+      setSelectedDate(undefined);
+      setSelectedTime("");
+      setNotes("");
+      setIsExternalClient(false);
       setExternalClientInfo({
-        firstName: '',
-        lastName: '',
-        email: '',
-        phone: ''
-      })
-      setExternalClientFormErrors({})
-      setSavedServiceIds([])
-      setSavedPractitionerId(null)
-      setSavedClientId(null)
-      updateCurrentStep('service')
+        firstName: "",
+        lastName: "",
+        email: "",
+        phone: "",
+      });
+      setExternalClientFormErrors({});
+      setSavedServiceIds([]);
+      setSavedPractitionerId(null);
+      setSavedClientId(null);
+      updateCurrentStep("service");
 
-
-      await BookingProgressService.clearProgress(user.id)
-      setHasSavedProgress(false)
-      setProgressLoaded(false)
-
+      await BookingProgressService.clearProgress(user.id);
+      setHasSavedProgress(false);
+      setProgressLoaded(false);
 
       setTimeout(() => {
         if (isPractitionerUser) {
-          router.push('/appointments-management')
+          router.push("/appointments-management");
         } else {
-          router.push('/')
+          router.push("/");
         }
-      }, 2000)
-
+      }, 2000);
     } catch (err) {
-      showError('Failed to book appointment. Please try again.')
-      console.error('Error booking appointment:', err)
+      showError("Failed to book appointment. Please try again.");
+      console.error("Error booking appointment:", err);
     }
-  }
+  };
 
   const formatTimeDisplay = (time: string): string => {
-    if (!time) return ''
-    const [hours, minutes] = time.split(':').map(Number)
-    const period = hours >= 12 ? 'PM' : 'AM'
-    const displayHours = hours > 12 ? hours - 12 : hours === 0 ? 12 : hours
-    return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`
-  }
+    if (!time) return "";
+    const [hours, minutes] = time.split(":").map(Number);
+    const period = hours >= 12 ? "PM" : "AM";
+    const displayHours = hours > 12 ? hours - 12 : hours === 0 ? 12 : hours;
+    return `${displayHours}:${minutes.toString().padStart(2, "0")} ${period}`;
+  };
 
   if (authLoading || loading) {
     return (
@@ -766,50 +834,92 @@ export default function AppointmentsPage() {
           <p className="mt-2 text-gray-600">Loading...</p>
         </div>
       </div>
-    )
+    );
   }
 
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Please Sign In</h2>
-          <p className="text-gray-600 mb-4">You must be logged in to book appointments.</p>
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">
+            Please Sign In
+          </h2>
+          <p className="text-gray-600 mb-4">
+            You must be logged in to book appointments.
+          </p>
           <Link href="/login" className="text-indigo-600 hover:text-indigo-500">
             Sign In
           </Link>
         </div>
       </div>
-    )
+    );
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
-
       {/* Main Content */}
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-
         {/* Progress Steps */}
         <div
           className="mb-8 transition-all duration-700 ease-out"
           data-animate-id="progress-steps"
           style={{
-            opacity: visibleElements.has('progress-steps') ? 1 : 0,
-            transform: visibleElements.has('progress-steps') ? 'translateY(0)' : 'translateY(30px)'
+            opacity: visibleElements.has("progress-steps") ? 1 : 0,
+            transform: visibleElements.has("progress-steps")
+              ? "translateY(0)"
+              : "translateY(30px)",
           }}
         >
           {/* Desktop Progress Steps */}
           <div className="hidden md:flex items-center justify-center space-x-6">
-            <div className={`flex items-center ${bookingStep === 'service' ? 'text-indigo-600' : bookingStep === 'practitioner' || bookingStep === 'client' || bookingStep === 'datetime' || bookingStep === 'confirm' ? 'text-green-600' : 'text-gray-400'}`}>
-              <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-sm font-medium ${bookingStep === 'service' ? 'border-indigo-600 bg-indigo-600 text-white' : bookingStep === 'practitioner' || bookingStep === 'client' || bookingStep === 'datetime' || bookingStep === 'confirm' ? 'border-green-600 bg-green-600 text-white' : 'border-gray-300'}`}>
+            <div
+              className={`flex items-center ${
+                bookingStep === "service"
+                  ? "text-indigo-600"
+                  : bookingStep === "practitioner" ||
+                    bookingStep === "client" ||
+                    bookingStep === "datetime" ||
+                    bookingStep === "confirm"
+                  ? "text-green-600"
+                  : "text-gray-400"
+              }`}
+            >
+              <div
+                className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-sm font-medium ${
+                  bookingStep === "service"
+                    ? "border-indigo-600 bg-indigo-600 text-white"
+                    : bookingStep === "practitioner" ||
+                      bookingStep === "client" ||
+                      bookingStep === "datetime" ||
+                      bookingStep === "confirm"
+                    ? "border-green-600 bg-green-600 text-white"
+                    : "border-gray-300"
+                }`}
+              >
                 1
               </div>
               <span className="ml-2 text-sm font-medium">Services</span>
             </div>
 
             {!isPractitionerUser && (
-              <div className={`flex items-center ${bookingStep === 'practitioner' ? 'text-indigo-600' : bookingStep === 'datetime' || bookingStep === 'confirm' ? 'text-green-600' : 'text-gray-400'}`}>
-                <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-sm font-medium ${bookingStep === 'practitioner' ? 'border-indigo-600 bg-indigo-600 text-white' : bookingStep === 'datetime' || bookingStep === 'confirm' ? 'border-green-600 bg-green-600 text-white' : 'border-gray-300'}`}>
+              <div
+                className={`flex items-center ${
+                  bookingStep === "practitioner"
+                    ? "text-indigo-600"
+                    : bookingStep === "datetime" || bookingStep === "confirm"
+                    ? "text-green-600"
+                    : "text-gray-400"
+                }`}
+              >
+                <div
+                  className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-sm font-medium ${
+                    bookingStep === "practitioner"
+                      ? "border-indigo-600 bg-indigo-600 text-white"
+                      : bookingStep === "datetime" || bookingStep === "confirm"
+                      ? "border-green-600 bg-green-600 text-white"
+                      : "border-gray-300"
+                  }`}
+                >
                   2
                 </div>
                 <span className="ml-2 text-sm font-medium">Practitioner</span>
@@ -817,24 +927,66 @@ export default function AppointmentsPage() {
             )}
 
             {isPractitionerUser && (
-              <div className={`flex items-center ${bookingStep === 'client' ? 'text-indigo-600' : bookingStep === 'datetime' || bookingStep === 'confirm' ? 'text-green-600' : 'text-gray-400'}`}>
-                <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-sm font-medium ${bookingStep === 'client' ? 'border-indigo-600 bg-indigo-600 text-white' : bookingStep === 'datetime' || bookingStep === 'confirm' ? 'border-green-600 bg-green-600 text-white' : 'border-gray-300'}`}>
+              <div
+                className={`flex items-center ${
+                  bookingStep === "client"
+                    ? "text-indigo-600"
+                    : bookingStep === "datetime" || bookingStep === "confirm"
+                    ? "text-green-600"
+                    : "text-gray-400"
+                }`}
+              >
+                <div
+                  className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-sm font-medium ${
+                    bookingStep === "client"
+                      ? "border-indigo-600 bg-indigo-600 text-white"
+                      : bookingStep === "datetime" || bookingStep === "confirm"
+                      ? "border-green-600 bg-green-600 text-white"
+                      : "border-gray-300"
+                  }`}
+                >
                   2
                 </div>
                 <span className="ml-2 text-sm font-medium">Client</span>
               </div>
             )}
 
-            <div className={`flex items-center ${bookingStep === 'datetime' ? 'text-indigo-600' : bookingStep === 'confirm' ? 'text-green-600' : 'text-gray-400'}`}>
-              <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-sm font-medium ${bookingStep === 'datetime' ? 'border-indigo-600 bg-indigo-600 text-white' : bookingStep === 'confirm' ? 'border-green-600 bg-green-600 text-white' : 'border-gray-300'}`}>
-                {isPractitionerUser ? '3' : '3'}
+            <div
+              className={`flex items-center ${
+                bookingStep === "datetime"
+                  ? "text-indigo-600"
+                  : bookingStep === "confirm"
+                  ? "text-green-600"
+                  : "text-gray-400"
+              }`}
+            >
+              <div
+                className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-sm font-medium ${
+                  bookingStep === "datetime"
+                    ? "border-indigo-600 bg-indigo-600 text-white"
+                    : bookingStep === "confirm"
+                    ? "border-green-600 bg-green-600 text-white"
+                    : "border-gray-300"
+                }`}
+              >
+                {isPractitionerUser ? "3" : "3"}
               </div>
               <span className="ml-2 text-sm font-medium">Date & Time</span>
             </div>
 
-            <div className={`flex items-center ${bookingStep === 'confirm' ? 'text-indigo-600' : 'text-gray-400'}`}>
-              <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-sm font-medium ${bookingStep === 'confirm' ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-gray-300'}`}>
-                {isPractitionerUser ? '4' : '4'}
+            <div
+              className={`flex items-center ${
+                bookingStep === "confirm" ? "text-indigo-600" : "text-gray-400"
+              }`}
+            >
+              <div
+                className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-sm font-medium ${
+                  bookingStep === "confirm"
+                    ? "border-indigo-600 bg-indigo-600 text-white"
+                    : "border-gray-300"
+                }`}
+              >
+                {isPractitionerUser ? "4" : "4"}
               </div>
               <span className="ml-2 text-sm font-medium">Confirm</span>
             </div>
@@ -847,31 +999,84 @@ export default function AppointmentsPage() {
               <div
                 className="bg-indigo-600 h-3 rounded-full transition-all duration-300"
                 style={{
-                  width: bookingStep === 'service' ? '25%' :
-                    bookingStep === 'datetime' ? '50%' :
-                      bookingStep === 'confirm' ? '75%' : '100%'
+                  width:
+                    bookingStep === "service"
+                      ? "25%"
+                      : bookingStep === "datetime"
+                      ? "50%"
+                      : bookingStep === "confirm"
+                      ? "75%"
+                      : "100%",
                 }}
               ></div>
             </div>
 
             {/* Mobile Step Indicators */}
             <div className="flex items-center justify-between">
-              <div className={`flex flex-col items-center ${bookingStep === 'service' ? 'text-indigo-600' : bookingStep === 'datetime' || bookingStep === 'confirm' ? 'text-green-600' : 'text-gray-400'}`}>
-                <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-sm font-medium mb-1 ${bookingStep === 'service' ? 'border-indigo-600 bg-indigo-600 text-white' : bookingStep === 'datetime' || bookingStep === 'confirm' ? 'border-green-600 bg-green-600 text-white' : 'border-gray-300'}`}>
+              <div
+                className={`flex flex-col items-center ${
+                  bookingStep === "service"
+                    ? "text-indigo-600"
+                    : bookingStep === "datetime" || bookingStep === "confirm"
+                    ? "text-green-600"
+                    : "text-gray-400"
+                }`}
+              >
+                <div
+                  className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-sm font-medium mb-1 ${
+                    bookingStep === "service"
+                      ? "border-indigo-600 bg-indigo-600 text-white"
+                      : bookingStep === "datetime" || bookingStep === "confirm"
+                      ? "border-green-600 bg-green-600 text-white"
+                      : "border-gray-300"
+                  }`}
+                >
                   1
                 </div>
-                <span className="text-xs font-medium text-center">Services</span>
+                <span className="text-xs font-medium text-center">
+                  Services
+                </span>
               </div>
 
-              <div className={`flex flex-col items-center ${bookingStep === 'datetime' ? 'text-indigo-600' : bookingStep === 'confirm' ? 'text-green-600' : 'text-gray-400'}`}>
-                <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-sm font-medium mb-1 ${bookingStep === 'datetime' ? 'border-indigo-600 bg-indigo-600 text-white' : bookingStep === 'confirm' ? 'border-green-600 bg-green-600 text-white' : 'border-gray-300'}`}>
+              <div
+                className={`flex flex-col items-center ${
+                  bookingStep === "datetime"
+                    ? "text-indigo-600"
+                    : bookingStep === "confirm"
+                    ? "text-green-600"
+                    : "text-gray-400"
+                }`}
+              >
+                <div
+                  className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-sm font-medium mb-1 ${
+                    bookingStep === "datetime"
+                      ? "border-indigo-600 bg-indigo-600 text-white"
+                      : bookingStep === "confirm"
+                      ? "border-green-600 bg-green-600 text-white"
+                      : "border-gray-300"
+                  }`}
+                >
                   2
                 </div>
-                <span className="text-xs font-medium text-center">Date & Time</span>
+                <span className="text-xs font-medium text-center">
+                  Date & Time
+                </span>
               </div>
 
-              <div className={`flex flex-col items-center ${bookingStep === 'confirm' ? 'text-indigo-600' : 'text-gray-400'}`}>
-                <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-sm font-medium mb-1 ${bookingStep === 'confirm' ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-gray-300'}`}>
+              <div
+                className={`flex flex-col items-center ${
+                  bookingStep === "confirm"
+                    ? "text-indigo-600"
+                    : "text-gray-400"
+                }`}
+              >
+                <div
+                  className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-sm font-medium mb-1 ${
+                    bookingStep === "confirm"
+                      ? "border-indigo-600 bg-indigo-600 text-white"
+                      : "border-gray-300"
+                  }`}
+                >
                   3
                 </div>
                 <span className="text-xs font-medium text-center">Confirm</span>
@@ -886,23 +1091,36 @@ export default function AppointmentsPage() {
             className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg transition-all duration-700 ease-out"
             data-animate-id="progress-save"
             style={{
-              opacity: visibleElements.has('progress-save') ? 1 : 0,
-              transform: visibleElements.has('progress-save') ? 'translateY(0)' : 'translateY(20px)'
+              opacity: visibleElements.has("progress-save") ? 1 : 0,
+              transform: visibleElements.has("progress-save")
+                ? "translateY(0)"
+                : "translateY(20px)",
             }}
           >
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <svg className="h-5 w-5 text-blue-400 dark:text-blue-300" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                  <svg
+                    className="h-5 w-5 text-blue-400 dark:text-blue-300"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                      clipRule="evenodd"
+                    />
                   </svg>
                 </div>
                 <div className="ml-3">
                   <p className="text-sm font-medium text-blue-800 dark:text-blue-200">
-                    {hasSavedProgress ? 'Progress automatically saved' : 'Saving progress...'}
+                    {hasSavedProgress
+                      ? "Progress automatically saved"
+                      : "Saving progress..."}
                   </p>
                   <p className="text-sm text-blue-600 dark:text-blue-300">
-                    Your booking progress is saved and will be restored when you return.
+                    Your booking progress is saved and will be restored when you
+                    return.
                   </p>
                 </div>
               </div>
@@ -915,9 +1133,24 @@ export default function AppointmentsPage() {
                 </button>
                 {savingProgress && (
                   <div className="flex items-center px-3 py-2 text-sm text-blue-600 dark:text-blue-400">
-                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    <svg
+                      className="animate-spin -ml-1 mr-2 h-4 w-4 text-blue-600 dark:text-blue-400"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
                     </svg>
                     Saving...
                   </div>
@@ -928,20 +1161,25 @@ export default function AppointmentsPage() {
         )}
 
         {/* Step 1: Service Selection */}
-        {bookingStep === 'service' && (
+        {bookingStep === "service" && (
           <div
             data-animate-id="service-selection"
             style={{
-              opacity: visibleElements.has('service-selection') ? 1 : 0,
-              transform: visibleElements.has('service-selection') ? 'translateY(0)' : 'translateY(40px)',
-              transition: 'all 0.7s ease-out'
+              opacity: visibleElements.has("service-selection") ? 1 : 0,
+              transform: visibleElements.has("service-selection")
+                ? "translateY(0)"
+                : "translateY(40px)",
+              transition: "all 0.7s ease-out",
             }}
           >
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
-              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2 sm:mb-0">Choose Services</h2>
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2 sm:mb-0">
+                Choose Services
+              </h2>
               {selectedServices.length > 0 && (
                 <div className="text-sm text-gray-600">
-                  {selectedServices.length} service{selectedServices.length !== 1 ? 's' : ''} selected
+                  {selectedServices.length} service
+                  {selectedServices.length !== 1 ? "s" : ""} selected
                 </div>
               )}
             </div>
@@ -951,25 +1189,33 @@ export default function AppointmentsPage() {
               <div className="flex overflow-x-auto scrollbar-hide space-x-2 pb-2">
                 {Object.entries(
                   services.reduce((acc, service) => {
-                    const categoryName = service.category_name || 'Other Services'
+                    const categoryName =
+                      service.category_name || "Other Services";
                     if (!acc[categoryName]) {
-                      acc[categoryName] = []
+                      acc[categoryName] = [];
                     }
-                    acc[categoryName].push(service)
-                    return acc
+                    acc[categoryName].push(service);
+                    return acc;
                   }, {} as { [key: string]: ServiceWithCategory[] })
                 )
                   .sort(([, servicesA], [, servicesB]) => {
-                    const orderA = servicesA[0]?.category_display_order || 999
-                    const orderB = servicesB[0]?.category_display_order || 999
-                    return orderA - orderB
+                    const orderA = servicesA[0]?.category_display_order || 999;
+                    const orderB = servicesB[0]?.category_display_order || 999;
+                    return orderA - orderB;
                   })
                   .map(([categoryName]) => (
                     <button
                       key={categoryName}
                       onClick={() => {
-                        const element = document.getElementById(`category-${categoryName.replace(/\s+/g, '-').toLowerCase()}`)
-                        element?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                        const element = document.getElementById(
+                          `category-${categoryName
+                            .replace(/\s+/g, "-")
+                            .toLowerCase()}`
+                        );
+                        element?.scrollIntoView({
+                          behavior: "smooth",
+                          block: "start",
+                        });
                       }}
                       className="flex-shrink-0 px-4 py-2 bg-white border border-gray-200 rounded-full text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-colors whitespace-nowrap shadow-sm"
                     >
@@ -982,47 +1228,71 @@ export default function AppointmentsPage() {
             <div className="space-y-8">
               {Object.entries(
                 services.reduce((acc, service) => {
-                  const categoryName = service.category_name || 'Other Services'
+                  const categoryName =
+                    service.category_name || "Other Services";
                   if (!acc[categoryName]) {
-                    acc[categoryName] = []
+                    acc[categoryName] = [];
                   }
-                  acc[categoryName].push(service)
-                  return acc
+                  acc[categoryName].push(service);
+                  return acc;
                 }, {} as { [key: string]: ServiceWithCategory[] })
               )
                 .sort(([, servicesA], [, servicesB]) => {
-                  const orderA = servicesA[0]?.category_display_order || 999
-                  const orderB = servicesB[0]?.category_display_order || 999
-                  return orderA - orderB
+                  const orderA = servicesA[0]?.category_display_order || 999;
+                  const orderB = servicesB[0]?.category_display_order || 999;
+                  return orderA - orderB;
                 })
                 .map(([categoryName, categoryServices]) => (
-                  <div key={categoryName} id={`category-${categoryName.replace(/\s+/g, '-').toLowerCase()}`} className="space-y-4">
+                  <div
+                    key={categoryName}
+                    id={`category-${categoryName
+                      .replace(/\s+/g, "-")
+                      .toLowerCase()}`}
+                    className="space-y-4"
+                  >
                     {/* Category Header */}
                     <div className="border-b border-gray-200 pb-2">
-                      <h3 className="text-xl font-semibold text-gray-900">{categoryName}</h3>
+                      <h3 className="text-xl font-semibold text-gray-900">
+                        {categoryName}
+                      </h3>
                       {categoryServices[0]?.category_description && (
-                        <p className="text-sm text-gray-600 mt-1">{categoryServices[0].category_description}</p>
+                        <p className="text-sm text-gray-600 mt-1">
+                          {categoryServices[0].category_description}
+                        </p>
                       )}
                     </div>
 
                     {/* Services Grid for this category */}
                     <div className="grid grid-cols-1 gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3">
                       {categoryServices.map((service, serviceIndex) => {
-                        const isSelected = selectedServices.some(s => s.id === service.id)
+                        const isSelected = selectedServices.some(
+                          (s) => s.id === service.id
+                        );
                         return (
                           <div
                             key={service.id}
                             onClick={() => handleServiceSelect(service)}
                             data-animate-id={`service-card-${service.id}`}
                             style={{
-                              opacity: visibleElements.has(`service-card-${service.id}`) ? 1 : 0,
-                              transform: visibleElements.has(`service-card-${service.id}`) ? 'translateY(0)' : 'translateY(30px)',
-                              transition: `all 0.6s ease-out ${serviceIndex * 0.1}s`
+                              opacity: visibleElements.has(
+                                `service-card-${service.id}`
+                              )
+                                ? 1
+                                : 0,
+                              transform: visibleElements.has(
+                                `service-card-${service.id}`
+                              )
+                                ? "translateY(0)"
+                                : "translateY(30px)",
+                              transition: `all 0.6s ease-out ${
+                                serviceIndex * 0.1
+                              }s`,
                             }}
-                            className={`bg-white rounded-lg border shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer ${isSelected
-                              ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-200'
-                              : 'border-gray-200 hover:border-indigo-300'
-                              }`}
+                            className={`bg-white rounded-lg border shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer ${
+                              isSelected
+                                ? "border-indigo-500 bg-indigo-50 ring-2 ring-indigo-200"
+                                : "border-gray-200 hover:border-indigo-300"
+                            }`}
                           >
                             <div className="p-4 sm:p-6">
                               <div className="flex items-start justify-between mb-2">
@@ -1032,8 +1302,16 @@ export default function AppointmentsPage() {
                                 {isSelected && (
                                   <div className="flex-shrink-0 ml-2">
                                     <div className="w-6 h-6 bg-indigo-600 rounded-full flex items-center justify-center">
-                                      <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                      <svg
+                                        className="w-4 h-4 text-white"
+                                        fill="currentColor"
+                                        viewBox="0 0 20 20"
+                                      >
+                                        <path
+                                          fillRule="evenodd"
+                                          d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                          clipRule="evenodd"
+                                        />
                                       </svg>
                                     </div>
                                   </div>
@@ -1054,7 +1332,7 @@ export default function AppointmentsPage() {
                               </div>
                             </div>
                           </div>
-                        )
+                        );
                       })}
                     </div>
                   </div>
@@ -1062,24 +1340,46 @@ export default function AppointmentsPage() {
             </div>
 
             {selectedServices.length > 0 && (
-              <div id="selected-services-section" className="mt-6 sm:mt-8 bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Selected Services</h3>
+              <div
+                id="selected-services-section"
+                className="mt-6 sm:mt-8 bg-white rounded-lg border border-gray-200 p-4 sm:p-6"
+              >
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                  Selected Services
+                </h3>
                 <div className="space-y-3">
                   {selectedServices.map((service) => (
-                    <div key={service.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-b-0">
+                    <div
+                      key={service.id}
+                      className="flex items-center justify-between py-2 border-b border-gray-100 last:border-b-0"
+                    >
                       <div className="flex items-center space-x-3">
                         <div className="w-5 h-5 bg-indigo-600 rounded-full flex items-center justify-center flex-shrink-0">
-                          <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          <svg
+                            className="w-3 h-3 text-white"
+                            fill="currentColor"
+                            viewBox="0 0 20 20"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                              clipRule="evenodd"
+                            />
                           </svg>
                         </div>
                         <div>
-                          <p className="font-medium text-gray-900">{service.name}</p>
-                          <p className="text-sm text-gray-500">{formatDuration(service.duration_minutes)}</p>
+                          <p className="font-medium text-gray-900">
+                            {service.name}
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            {formatDuration(service.duration_minutes)}
+                          </p>
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="font-semibold text-gray-900">{formatPrice(service.price || 0)}</p>
+                        <p className="font-semibold text-gray-900">
+                          {formatPrice(service.price || 0)}
+                        </p>
                       </div>
                     </div>
                   ))}
@@ -1087,15 +1387,30 @@ export default function AppointmentsPage() {
                 <div className="mt-4 pt-4 border-t border-gray-200">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-gray-900">Total Duration:</p>
+                      <p className="text-sm font-medium text-gray-900">
+                        Total Duration:
+                      </p>
                       <p className="text-sm text-gray-500">
-                        {formatDuration(selectedServices.reduce((total, service) => total + service.duration_minutes, 0))}
+                        {formatDuration(
+                          selectedServices.reduce(
+                            (total, service) =>
+                              total + service.duration_minutes,
+                            0
+                          )
+                        )}
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-medium text-gray-900">Total Price:</p>
+                      <p className="text-sm font-medium text-gray-900">
+                        Total Price:
+                      </p>
                       <p className="text-lg font-bold text-gray-900">
-                        {formatPrice(selectedServices.reduce((total, service) => total + (service.price || 0), 0))}
+                        {formatPrice(
+                          selectedServices.reduce(
+                            (total, service) => total + (service.price || 0),
+                            0
+                          )
+                        )}
                       </p>
                     </div>
                   </div>
@@ -1105,7 +1420,7 @@ export default function AppointmentsPage() {
                     onClick={handleContinueToPractitioner}
                     className="w-full sm:w-auto bg-indigo-600 text-white px-6 py-3 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 font-medium"
                   >
-                    Continue to {isPractitionerUser ? 'Client' : 'Practitioner'}
+                    Continue to {isPractitionerUser ? "Client" : "Practitioner"}
                   </button>
                 </div>
               </div>
@@ -1114,37 +1429,59 @@ export default function AppointmentsPage() {
         )}
 
         {/* Floating Action Pill - Only show on service selection step when services are selected */}
-        {bookingStep === 'service' && selectedServices.length > 0 && (
-          <div className={`fixed bottom-6 left-1/2 transform -translate-x-1/2 z-20 transition-all duration-300 ${showFloatingPill ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'
-            }`}>
+        {bookingStep === "service" && selectedServices.length > 0 && (
+          <div
+            className={`fixed bottom-6 left-1/2 transform -translate-x-1/2 z-20 transition-all duration-300 ${
+              showFloatingPill
+                ? "opacity-100 translate-y-0"
+                : "opacity-0 translate-y-4 pointer-events-none"
+            }`}
+          >
             <button
               onClick={() => {
-                const element = document.getElementById('selected-services-section')
-                element?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                const element = document.getElementById(
+                  "selected-services-section"
+                );
+                element?.scrollIntoView({ behavior: "smooth", block: "start" });
               }}
               className="bg-indigo-600 text-white px-6 py-3 rounded-full shadow-lg border-2 border-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200 flex items-center justify-center space-x-2 font-medium min-w-[280px]"
             >
-              <span>{selectedServices.length} service{selectedServices.length !== 1 ? 's' : ''} selected</span>
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+              <span>
+                {selectedServices.length} service
+                {selectedServices.length !== 1 ? "s" : ""} selected
+              </span>
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 14l-7 7m0 0l-7-7m7 7V3"
+                />
               </svg>
             </button>
           </div>
         )}
 
         {/* Step 2: Practitioner Selection */}
-        {bookingStep === 'practitioner' && (
+        {bookingStep === "practitioner" && (
           <div
             data-animate-id="practitioner-selection"
             style={{
-              opacity: visibleElements.has('practitioner-selection') ? 1 : 0,
-              transform: visibleElements.has('practitioner-selection') ? 'translateY(0)' : 'translateY(40px)',
-              transition: 'all 0.7s ease-out'
+              opacity: visibleElements.has("practitioner-selection") ? 1 : 0,
+              transform: visibleElements.has("practitioner-selection")
+                ? "translateY(0)"
+                : "translateY(40px)",
+              transition: "all 0.7s ease-out",
             }}
           >
             <div className="mb-6">
               <button
-                onClick={() => updateCurrentStep('service')}
+                onClick={() => updateCurrentStep("service")}
                 className="text-indigo-600 hover:text-indigo-500 text-sm font-medium"
               >
                 ← Change Services
@@ -1152,13 +1489,22 @@ export default function AppointmentsPage() {
             </div>
 
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Selected Services</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                Selected Services
+              </h3>
               <div className="space-y-2">
                 {selectedServices.map((service) => (
-                  <div key={service.id} className="flex items-center justify-between">
+                  <div
+                    key={service.id}
+                    className="flex items-center justify-between"
+                  >
                     <div>
-                      <p className="font-medium text-gray-900">{service.name}</p>
-                      <p className="text-sm text-gray-700">{formatDuration(service.duration_minutes)}</p>
+                      <p className="font-medium text-gray-900">
+                        {service.name}
+                      </p>
+                      <p className="text-sm text-gray-700">
+                        {formatDuration(service.duration_minutes)}
+                      </p>
                     </div>
                     <div className="text-gray-900 font-semibold">
                       {formatPrice(service.price || 0)}
@@ -1169,32 +1515,49 @@ export default function AppointmentsPage() {
               <div className="mt-4 pt-4 border-t border-gray-200">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-900">Total Duration:</p>
+                    <p className="text-sm font-medium text-gray-900">
+                      Total Duration:
+                    </p>
                     <p className="text-sm text-gray-900">
-                      {formatDuration(selectedServices.reduce((total, service) => total + service.duration_minutes, 0))}
+                      {formatDuration(
+                        selectedServices.reduce(
+                          (total, service) => total + service.duration_minutes,
+                          0
+                        )
+                      )}
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-medium text-gray-900">Total Price:</p>
+                    <p className="text-sm font-medium text-gray-900">
+                      Total Price:
+                    </p>
                     <p className="text-lg font-bold text-gray-900">
-                      {formatPrice(selectedServices.reduce((total, service) => total + (service.price || 0), 0))}
+                      {formatPrice(
+                        selectedServices.reduce(
+                          (total, service) => total + (service.price || 0),
+                          0
+                        )
+                      )}
                     </p>
                   </div>
                 </div>
               </div>
             </div>
 
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Select Practitioner</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">
+              Select Practitioner
+            </h2>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {practitioners.map((practitioner) => (
                 <div
                   key={practitioner.id}
                   onClick={() => setSelectedPractitioner(practitioner)}
-                  className={`bg-white rounded-lg border shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer ${selectedPractitioner?.id === practitioner.id
-                    ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-200'
-                    : 'border-gray-200 hover:border-indigo-300'
-                    }`}
+                  className={`bg-white rounded-lg border shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer ${
+                    selectedPractitioner?.id === practitioner.id
+                      ? "border-indigo-500 bg-indigo-50 ring-2 ring-indigo-200"
+                      : "border-gray-200 hover:border-indigo-300"
+                  }`}
                 >
                   <div className="p-6">
                     <div className="flex items-start justify-between mb-2">
@@ -1204,16 +1567,28 @@ export default function AppointmentsPage() {
                       {selectedPractitioner?.id === practitioner.id && (
                         <div className="flex-shrink-0 ml-2">
                           <div className="w-6 h-6 bg-indigo-600 rounded-full flex items-center justify-center">
-                            <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            <svg
+                              className="w-4 h-4 text-white"
+                              fill="currentColor"
+                              viewBox="0 0 20 20"
+                            >
+                              <path
+                                fillRule="evenodd"
+                                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                clipRule="evenodd"
+                              />
                             </svg>
                           </div>
                         </div>
                       )}
                     </div>
                     <div className="space-y-1">
-                      <p className="text-sm text-gray-600">{practitioner.email}</p>
-                      <p className="text-sm text-gray-600">{practitioner.phone}</p>
+                      <p className="text-sm text-gray-600">
+                        {practitioner.email}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        {practitioner.phone}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -1234,37 +1609,42 @@ export default function AppointmentsPage() {
         )}
 
         {/* Step 2.5: Client Selection (for practitioners) */}
-        {bookingStep === 'client' && isPractitionerUser && (
+        {bookingStep === "client" && isPractitionerUser && (
           <div
             data-animate-id="client-selection"
             style={{
-              opacity: visibleElements.has('client-selection') ? 1 : 0,
-              transform: visibleElements.has('client-selection') ? 'translateY(0)' : 'translateY(40px)',
-              transition: 'all 0.7s ease-out'
+              opacity: visibleElements.has("client-selection") ? 1 : 0,
+              transform: visibleElements.has("client-selection")
+                ? "translateY(0)"
+                : "translateY(40px)",
+              transition: "all 0.7s ease-out",
             }}
           >
             <div className="mb-6">
               <button
-                onClick={() => updateCurrentStep('service')}
+                onClick={() => updateCurrentStep("service")}
                 className="text-indigo-600 hover:text-indigo-500 text-sm font-medium"
               >
                 ← Change Services
               </button>
             </div>
 
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Select Client</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">
+              Select Client
+            </h2>
 
             {/* External Client Option */}
             <div className="mb-6">
               <div
                 onClick={() => {
-                  setIsExternalClient(true)
-                  setSelectedClient(null)
+                  setIsExternalClient(true);
+                  setSelectedClient(null);
                 }}
-                className={`bg-white rounded-lg border shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer ${isExternalClient
-                  ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-200'
-                  : 'border-gray-200 hover:border-indigo-300'
-                  }`}
+                className={`bg-white rounded-lg border shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer ${
+                  isExternalClient
+                    ? "border-indigo-500 bg-indigo-50 ring-2 ring-indigo-200"
+                    : "border-gray-200 hover:border-indigo-300"
+                }`}
               >
                 <div className="p-6">
                   <div className="flex items-start justify-between mb-2">
@@ -1274,14 +1654,25 @@ export default function AppointmentsPage() {
                     {isExternalClient && (
                       <div className="flex-shrink-0 ml-2">
                         <div className="w-6 h-6 bg-indigo-600 rounded-full flex items-center justify-center">
-                          <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          <svg
+                            className="w-4 h-4 text-white"
+                            fill="currentColor"
+                            viewBox="0 0 20 20"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                              clipRule="evenodd"
+                            />
                           </svg>
                         </div>
                       </div>
                     )}
                   </div>
-                  <p className="text-sm text-gray-600">Book appointment for a client who is not registered in the system</p>
+                  <p className="text-sm text-gray-600">
+                    Book appointment for a client who is not registered in the
+                    system
+                  </p>
                 </div>
               </div>
             </div>
@@ -1289,7 +1680,9 @@ export default function AppointmentsPage() {
             {/* External Client Form */}
             {isExternalClient && (
               <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Client Information</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                  Client Information
+                </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <ValidationInput
                     label="First Name"
@@ -1299,9 +1692,15 @@ export default function AppointmentsPage() {
                     type="text"
                     value={externalClientInfo.firstName}
                     onChange={(e) => {
-                      setExternalClientInfo({ ...externalClientInfo, firstName: e.target.value })
+                      setExternalClientInfo({
+                        ...externalClientInfo,
+                        firstName: e.target.value,
+                      });
                       if (externalClientFormErrors.firstName) {
-                        setExternalClientFormErrors({ ...externalClientFormErrors, firstName: '' })
+                        setExternalClientFormErrors({
+                          ...externalClientFormErrors,
+                          firstName: "",
+                        });
                       }
                     }}
                     placeholder="Enter first name"
@@ -1314,9 +1713,15 @@ export default function AppointmentsPage() {
                     type="text"
                     value={externalClientInfo.lastName}
                     onChange={(e) => {
-                      setExternalClientInfo({ ...externalClientInfo, lastName: e.target.value })
+                      setExternalClientInfo({
+                        ...externalClientInfo,
+                        lastName: e.target.value,
+                      });
                       if (externalClientFormErrors.lastName) {
-                        setExternalClientFormErrors({ ...externalClientFormErrors, lastName: '' })
+                        setExternalClientFormErrors({
+                          ...externalClientFormErrors,
+                          lastName: "",
+                        });
                       }
                     }}
                     placeholder="Enter last name"
@@ -1328,12 +1733,21 @@ export default function AppointmentsPage() {
                     type="email"
                     value={externalClientInfo.email}
                     onChange={(e) => {
-                      setExternalClientInfo({ ...externalClientInfo, email: e.target.value })
+                      setExternalClientInfo({
+                        ...externalClientInfo,
+                        email: e.target.value,
+                      });
                       if (externalClientFormErrors.email) {
-                        setExternalClientFormErrors({ ...externalClientFormErrors, email: '' })
+                        setExternalClientFormErrors({
+                          ...externalClientFormErrors,
+                          email: "",
+                        });
                       }
                       if (externalClientFormErrors.contactMethod) {
-                        setExternalClientFormErrors({ ...externalClientFormErrors, contactMethod: '' })
+                        setExternalClientFormErrors({
+                          ...externalClientFormErrors,
+                          contactMethod: "",
+                        });
                       }
                     }}
                     placeholder="Enter email address"
@@ -1345,12 +1759,21 @@ export default function AppointmentsPage() {
                     type="tel"
                     value={externalClientInfo.phone}
                     onChange={(e) => {
-                      setExternalClientInfo({ ...externalClientInfo, phone: e.target.value })
+                      setExternalClientInfo({
+                        ...externalClientInfo,
+                        phone: e.target.value,
+                      });
                       if (externalClientFormErrors.phone) {
-                        setExternalClientFormErrors({ ...externalClientFormErrors, phone: '' })
+                        setExternalClientFormErrors({
+                          ...externalClientFormErrors,
+                          phone: "",
+                        });
                       }
                       if (externalClientFormErrors.contactMethod) {
-                        setExternalClientFormErrors({ ...externalClientFormErrors, contactMethod: '' })
+                        setExternalClientFormErrors({
+                          ...externalClientFormErrors,
+                          contactMethod: "",
+                        });
                       }
                     }}
                     placeholder="Enter phone number"
@@ -1360,26 +1783,31 @@ export default function AppointmentsPage() {
                   * At least one contact method (email or phone) is required
                 </p>
                 {externalClientFormErrors.contactMethod && (
-                  <p className="text-red-500 text-sm mt-2">{externalClientFormErrors.contactMethod}</p>
+                  <p className="text-red-500 text-sm mt-2">
+                    {externalClientFormErrors.contactMethod}
+                  </p>
                 )}
               </div>
             )}
 
             {/* Registered Clients */}
             <div className="mb-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Registered Clients</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                Registered Clients
+              </h3>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {clients.map((client) => (
                   <div
                     key={client.id}
                     onClick={() => {
-                      setSelectedClient(client)
-                      setIsExternalClient(false)
+                      setSelectedClient(client);
+                      setIsExternalClient(false);
                     }}
-                    className={`bg-white rounded-lg border shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer ${selectedClient?.id === client.id
-                      ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-200'
-                      : 'border-gray-200 hover:border-indigo-300'
-                      }`}
+                    className={`bg-white rounded-lg border shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer ${
+                      selectedClient?.id === client.id
+                        ? "border-indigo-500 bg-indigo-50 ring-2 ring-indigo-200"
+                        : "border-gray-200 hover:border-indigo-300"
+                    }`}
                   >
                     <div className="p-6">
                       <div className="flex items-start justify-between mb-2">
@@ -1389,8 +1817,16 @@ export default function AppointmentsPage() {
                         {selectedClient?.id === client.id && (
                           <div className="flex-shrink-0 ml-2">
                             <div className="w-6 h-6 bg-indigo-600 rounded-full flex items-center justify-center">
-                              <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                              <svg
+                                className="w-4 h-4 text-white"
+                                fill="currentColor"
+                                viewBox="0 0 20 20"
+                              >
+                                <path
+                                  fillRule="evenodd"
+                                  d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                  clipRule="evenodd"
+                                />
                               </svg>
                             </div>
                           </div>
@@ -1418,330 +1854,525 @@ export default function AppointmentsPage() {
         )}
 
         {/* Step 3: Date & Time Selection */}
-        {bookingStep === 'datetime' && selectedServices.length > 0 && ((isPractitionerUser && (selectedClient || isExternalClient)) || (!isPractitionerUser && selectedPractitioner)) && (
-          <div
-            data-animate-id="datetime-selection"
-            style={{
-              opacity: visibleElements.has('datetime-selection') ? 1 : 0,
-              transform: visibleElements.has('datetime-selection') ? 'translateY(0)' : 'translateY(40px)',
-              transition: 'all 0.7s ease-out'
-            }}
-          >
-            <div className="mb-6">
-              <button
-                onClick={() => updateCurrentStep(isPractitionerUser ? 'client' : 'practitioner')}
-                className="text-indigo-600 hover:text-indigo-500 text-sm font-medium"
-              >
-                ← Change {isPractitionerUser ? 'Client' : 'Practitioner'}
-              </button>
-            </div>
-
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Appointment Details</h3>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <h4 className="font-medium text-gray-900 mb-3">Services</h4>
-                  <div className="space-y-2">
-                    {selectedServices.map((service) => (
-                      <div key={service.id} className="flex items-center justify-between">
-                        <div>
-                          <p className="font-medium text-gray-900">{service.name}</p>
-                          <p className="text-sm text-gray-700">{formatDuration(service.duration_minutes)}</p>
-                        </div>
-                        <div className="text-gray-900 font-semibold">
-                          {formatPrice(service.price || 0)}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <h4 className="font-medium text-gray-900 mb-3">{isPractitionerUser ? 'Client' : 'Practitioner'}</h4>
-                  <div className="p-3 bg-gray-50 rounded-md">
-                    {isPractitionerUser ? (
-                      <>
-                        {isExternalClient ? (
-                          <>
-                            <p className="font-medium text-gray-900">
-                              {externalClientInfo.firstName} {externalClientInfo.lastName}
-                            </p>
-                            {externalClientInfo.email && (
-                              <p className="text-sm text-gray-600">{externalClientInfo.email}</p>
-                            )}
-                            {externalClientInfo.phone && (
-                              <p className="text-sm text-gray-600">{externalClientInfo.phone}</p>
-                            )}
-                            <p className="text-xs text-gray-500 mt-1">(External Client)</p>
-                          </>
-                        ) : (
-                          <>
-                            <p className="font-medium text-gray-900">
-                              {selectedClient?.first_name} {selectedClient?.last_name}
-                            </p>
-                            <p className="text-sm text-gray-600">{selectedClient?.email}</p>
-                            <p className="text-sm text-gray-600">{selectedClient?.phone}</p>
-                          </>
-                        )}
-                      </>
-                    ) : (
-                      <>
-                        <p className="font-medium text-gray-900">
-                          {selectedPractitioner?.first_name} {selectedPractitioner?.last_name}
-                        </p>
-                        <p className="text-sm text-gray-600">{selectedPractitioner?.email}</p>
-                        <p className="text-sm text-gray-600">{selectedPractitioner?.phone}</p>
-                      </>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-4 pt-4 border-t border-gray-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">Total Duration:</p>
-                    <p className="text-sm text-gray-900">
-                      {formatDuration(selectedServices.reduce((total, service) => total + service.duration_minutes, 0))}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-medium text-gray-900">Total Price:</p>
-                    <p className="text-lg font-bold text-gray-900">
-                      {formatPrice(selectedServices.reduce((total, service) => total + (service.price || 0), 0))}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Select Date & Time</h2>
-
-            <div className="space-y-6">
-              {/* Date Selection */}
-              <div>
-                <label className="block text-sm font-medium text-gray-900 mb-3">
-                  Select Date
-                </label>
-                <DatePicker
-                  date={selectedDate}
-                  onDateChange={(date) => {
-                    setSelectedDate(date)
-                    setSelectedTime('')
-                  }}
-                  placeholder="Pick a date"
-                  minDate={allowSameDayBooking ? undefined : getTomorrowDate()}
-                  maxDate={getMaxDate()}
-                  allowSameDay={allowSameDayBooking}
-                  blockedDates={blockedDates}
-                  className="w-full max-w-sm"
-                />
-                <p className="mt-2 text-sm text-gray-500">
-                  {allowSameDayBooking
-                    ? "You can book appointments from today up to 3 months in advance"
-                    : "You can book appointments from tomorrow up to 3 months in advance"
+        {bookingStep === "datetime" &&
+          selectedServices.length > 0 &&
+          ((isPractitionerUser && (selectedClient || isExternalClient)) ||
+            (!isPractitionerUser && selectedPractitioner)) && (
+            <div
+              data-animate-id="datetime-selection"
+              style={{
+                opacity: visibleElements.has("datetime-selection") ? 1 : 0,
+                transform: visibleElements.has("datetime-selection")
+                  ? "translateY(0)"
+                  : "translateY(40px)",
+                transition: "all 0.7s ease-out",
+              }}
+            >
+              <div className="mb-6">
+                <button
+                  onClick={() =>
+                    updateCurrentStep(
+                      isPractitionerUser ? "client" : "practitioner"
+                    )
                   }
-                </p>
+                  className="text-indigo-600 hover:text-indigo-500 text-sm font-medium"
+                >
+                  ← Change {isPractitionerUser ? "Client" : "Practitioner"}
+                </button>
               </div>
 
-              {/* Time Selection */}
-              {selectedDate && selectedPractitioner && (
-                <TimeSlotSelector
-                  key={`${selectedDate?.toISOString()}-${selectedPractitioner.id}`}
-                  selectedDate={selectedDate}
-                  practitionerId={selectedPractitioner.id}
-                  serviceDurationMinutes={selectedServices.reduce((total, service) => total + (service.duration_minutes || 0), 0)}
-                  existingAppointments={existingAppointments}
-                  onTimeSelect={setSelectedTime}
-                  selectedTime={selectedTime}
-                  disabled={loadingSlots}
-                  allowOverlap={isPractitionerUser}
-                />
-              )}
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                  Appointment Details
+                </h3>
 
-              {/* Notes */}
-              <div>
-                <label className="block text-sm font-medium text-gray-900 mb-3">
-                  Notes (Optional)
-                </label>
-                <Textarea
-                  rows={3}
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Any special requests or notes for your appointment..."
-                  className="resize-none"
-                />
-              </div>
-
-              {/* Continue Button */}
-              {selectedDate && selectedTime && (
-                <div className="flex justify-end">
-                  <button
-                    onClick={handleDateTimeConfirm}
-                    className="w-full sm:w-auto bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 font-medium transition-colors duration-200 shadow-sm hover:shadow-md"
-                  >
-                    Continue to Confirmation
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Step 4: Confirmation */}
-        {bookingStep === 'confirm' && selectedServices.length > 0 && ((isPractitionerUser && (selectedClient || isExternalClient)) || (!isPractitionerUser && selectedPractitioner)) && selectedDate && selectedTime && (
-          <div
-            data-animate-id="confirmation"
-            style={{
-              opacity: visibleElements.has('confirmation') ? 1 : 0,
-              transform: visibleElements.has('confirmation') ? 'translateY(0)' : 'translateY(40px)',
-              transition: 'all 0.7s ease-out'
-            }}
-          >
-            <div className="mb-6">
-              <button
-                onClick={() => updateCurrentStep('datetime')}
-                className="text-indigo-600 hover:text-indigo-500 text-sm font-medium"
-              >
-                ← Change Date & Time
-              </button>
-            </div>
-
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Confirm Your Appointment</h2>
-
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Appointment Details</h3>
-
-              <div className="space-y-4">
-                <div>
-                  <span className="text-gray-900 font-medium">Services:</span>
-                  <div className="mt-2 space-y-2">
-                    {selectedServices.map((service) => (
-                      <div key={service.id} className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-md">
-                        <div>
-                          <p className="font-medium text-gray-900">{service.name}</p>
-                          <p className="text-sm text-gray-700">{formatDuration(service.duration_minutes)}</p>
-                        </div>
-                        <p className="font-semibold text-gray-900">{formatPrice(service.price || 0)}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <span className="text-gray-900 font-medium">{isPractitionerUser ? 'Client:' : 'Practitioner:'}</span>
-                  <div className="mt-2 p-3 bg-gray-50 rounded-md">
-                    {isPractitionerUser ? (
-                      <>
-                        {isExternalClient ? (
-                          <>
-                            <p className="font-medium text-gray-900">
-                              {externalClientInfo.firstName} {externalClientInfo.lastName}
-                            </p>
-                            {externalClientInfo.email && (
-                              <p className="text-sm text-gray-600">{externalClientInfo.email}</p>
-                            )}
-                            {externalClientInfo.phone && (
-                              <p className="text-sm text-gray-600">{externalClientInfo.phone}</p>
-                            )}
-                            <p className="text-xs text-gray-500 mt-1">(External Client)</p>
-                          </>
-                        ) : (
-                          <>
-                            <p className="font-medium text-gray-900">
-                              {selectedClient?.first_name} {selectedClient?.last_name}
-                            </p>
-                            <p className="text-sm text-gray-600">{selectedClient?.email}</p>
-                            <p className="text-sm text-gray-600">{selectedClient?.phone}</p>
-                          </>
-                        )}
-                      </>
-                    ) : (
-                      <>
-                        <p className="font-medium text-gray-900">
-                          {selectedPractitioner?.first_name} {selectedPractitioner?.last_name}
-                        </p>
-                        <p className="text-sm text-gray-600">{selectedPractitioner?.email}</p>
-                        <p className="text-sm text-gray-600">{selectedPractitioner?.phone}</p>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex justify-between">
-                  <span className="text-gray-900 font-medium">Total Duration:</span>
-                  <span className="font-medium text-gray-900">
-                    {formatDuration(selectedServices.reduce((total, service) => total + service.duration_minutes, 0))}
-                  </span>
-                </div>
-
-                <div className="flex justify-between">
-                  <span className="text-gray-900 font-medium">Date:</span>
-                  <span className="font-medium text-gray-900">
-                    {new Date(selectedDate).toLocaleDateString('en-US', {
-                      weekday: 'long',
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric'
-                    })}
-                  </span>
-                </div>
-
-                <div className="flex justify-between">
-                  <span className="text-gray-900 font-medium">Start Time:</span>
-                  <span className="font-medium text-gray-900">{formatTimeDisplay(selectedTime)}</span>
-                </div>
-
-                <div className="flex justify-between">
-                  <span className="text-gray-900 font-medium">End Time:</span>
-                  <span className="font-medium text-gray-900">
-                    {(() => {
-                      const [hours, minutes] = selectedTime.split(':').map(Number)
-                      const startTimeMinutes = hours * 60 + minutes
-                      const totalDurationMinutes = selectedServices.reduce((total, service) => total + service.duration_minutes, 0)
-                      const endTimeMinutes = startTimeMinutes + totalDurationMinutes
-                      const endHours = Math.floor(endTimeMinutes / 60)
-                      const endMins = endTimeMinutes % 60
-                      const endTimeString = `${endHours.toString().padStart(2, '0')}:${endMins.toString().padStart(2, '0')}`
-                      return formatTimeDisplay(endTimeString)
-                    })()}
-                  </span>
-                </div>
-
-                <div className="flex justify-between border-t pt-4">
-                  <span className="text-gray-900 font-medium">Total Price:</span>
-                  <span className="font-bold text-gray-900 text-xl">
-                    {formatPrice(selectedServices.reduce((total, service) => total + (service.price || 0), 0))}
-                  </span>
-                </div>
-
-                {notes && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <span className="text-gray-900 font-medium">Notes:</span>
-                    <p className="mt-1 text-sm text-gray-900">{notes}</p>
+                    <h4 className="font-medium text-gray-900 mb-3">Services</h4>
+                    <div className="space-y-2">
+                      {selectedServices.map((service) => (
+                        <div
+                          key={service.id}
+                          className="flex items-center justify-between"
+                        >
+                          <div>
+                            <p className="font-medium text-gray-900">
+                              {service.name}
+                            </p>
+                            <p className="text-sm text-gray-700">
+                              {formatDuration(service.duration_minutes)}
+                            </p>
+                          </div>
+                          <div className="text-gray-900 font-semibold">
+                            {formatPrice(service.price || 0)}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* SMS Notification Control - Only visible to practitioners and admins */}
+                  {(isPractitionerUser || isSuperAdmin) && (
+                    <div>
+                      <h4 className="font-medium text-gray-900 mb-3">
+                        Notifications
+                      </h4>
+                      <label className="flex items-center space-x-3 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={sendClientSMS}
+                          onChange={(e) => setSendClientSMS(e.target.checked)}
+                          className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                        />
+                        <span className="text-sm text-gray-700">
+                          Send SMS notification to client
+                        </span>
+                      </label>
+                      <p className="text-xs text-gray-500 mt-2">
+                        You will always receive appointment notifications
+                      </p>
+                    </div>
+                  )}
+
+                  <div>
+                    <h4 className="font-medium text-gray-900 mb-3">
+                      {isPractitionerUser ? "Client" : "Practitioner"}
+                    </h4>
+                    <div className="p-3 bg-gray-50 rounded-md">
+                      {isPractitionerUser ? (
+                        <>
+                          {isExternalClient ? (
+                            <>
+                              <p className="font-medium text-gray-900">
+                                {externalClientInfo.firstName}{" "}
+                                {externalClientInfo.lastName}
+                              </p>
+                              {externalClientInfo.email && (
+                                <p className="text-sm text-gray-600">
+                                  {externalClientInfo.email}
+                                </p>
+                              )}
+                              {externalClientInfo.phone && (
+                                <p className="text-sm text-gray-600">
+                                  {externalClientInfo.phone}
+                                </p>
+                              )}
+                              <p className="text-xs text-gray-500 mt-1">
+                                (External Client)
+                              </p>
+                            </>
+                          ) : (
+                            <>
+                              <p className="font-medium text-gray-900">
+                                {selectedClient?.first_name}{" "}
+                                {selectedClient?.last_name}
+                              </p>
+                              <p className="text-sm text-gray-600">
+                                {selectedClient?.email}
+                              </p>
+                              <p className="text-sm text-gray-600">
+                                {selectedClient?.phone}
+                              </p>
+                            </>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          <p className="font-medium text-gray-900">
+                            {selectedPractitioner?.first_name}{" "}
+                            {selectedPractitioner?.last_name}
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            {selectedPractitioner?.email}
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            {selectedPractitioner?.phone}
+                          </p>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4 pt-4 border-t border-gray-200">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">
+                        Total Duration:
+                      </p>
+                      <p className="text-sm text-gray-900">
+                        {formatDuration(
+                          selectedServices.reduce(
+                            (total, service) =>
+                              total + service.duration_minutes,
+                            0
+                          )
+                        )}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-medium text-gray-900">
+                        Total Price:
+                      </p>
+                      <p className="text-lg font-bold text-gray-900">
+                        {formatPrice(
+                          selectedServices.reduce(
+                            (total, service) => total + (service.price || 0),
+                            0
+                          )
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <h2 className="text-2xl font-bold text-gray-900 mb-6">
+                Select Date & Time
+              </h2>
+
+              <div className="space-y-6">
+                {/* Date Selection */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-900 mb-3">
+                    Select Date
+                  </label>
+                  <DatePicker
+                    date={selectedDate}
+                    onDateChange={(date) => {
+                      setSelectedDate(date);
+                      setSelectedTime("");
+                    }}
+                    placeholder="Pick a date"
+                    minDate={
+                      allowSameDayBooking ? undefined : getTomorrowDate()
+                    }
+                    maxDate={getMaxDate()}
+                    allowSameDay={allowSameDayBooking}
+                    blockedDates={blockedDates}
+                    className="w-full max-w-sm"
+                  />
+                  <p className="mt-2 text-sm text-gray-500">
+                    {allowSameDayBooking
+                      ? "You can book appointments from today up to 3 months in advance"
+                      : "You can book appointments from tomorrow up to 3 months in advance"}
+                  </p>
+                </div>
+
+                {/* Time Selection */}
+                {selectedDate && selectedPractitioner && (
+                  <TimeSlotSelector
+                    key={`${selectedDate?.toISOString()}-${
+                      selectedPractitioner.id
+                    }`}
+                    selectedDate={selectedDate}
+                    practitionerId={selectedPractitioner.id}
+                    serviceDurationMinutes={selectedServices.reduce(
+                      (total, service) =>
+                        total + (service.duration_minutes || 0),
+                      0
+                    )}
+                    existingAppointments={existingAppointments}
+                    onTimeSelect={setSelectedTime}
+                    selectedTime={selectedTime}
+                    disabled={loadingSlots}
+                    allowOverlap={isPractitionerUser}
+                  />
+                )}
+
+                {/* Notes */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-900 mb-3">
+                    Notes (Optional)
+                  </label>
+                  <Textarea
+                    rows={3}
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Any special requests or notes for your appointment..."
+                    className="resize-none"
+                  />
+                </div>
+
+                {/* Continue Button */}
+                {selectedDate && selectedTime && (
+                  <div className="flex justify-end">
+                    <button
+                      onClick={handleDateTimeConfirm}
+                      className="w-full sm:w-auto bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 font-medium transition-colors duration-200 shadow-sm hover:shadow-md"
+                    >
+                      Continue to Confirmation
+                    </button>
                   </div>
                 )}
               </div>
             </div>
+          )}
 
-            <div className="flex space-x-3">
-              <button
-                onClick={() => updateCurrentStep('service')}
-                className="flex-1 bg-gray-200 text-gray-700 px-3 py-2 lg:px-6 lg:py-2 rounded-lg hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 font-medium text-sm lg:text-base transition-colors"
-              >
-                Start Over
-              </button>
-              <button
-                onClick={handleBookingConfirm}
-                className="flex-1 bg-green-600 text-white px-3 py-2 lg:px-8 lg:py-2 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 font-medium text-sm lg:text-base transition-colors"
-              >
-                Confirm Appointment
-              </button>
+        {/* Step 4: Confirmation */}
+        {bookingStep === "confirm" &&
+          selectedServices.length > 0 &&
+          ((isPractitionerUser && (selectedClient || isExternalClient)) ||
+            (!isPractitionerUser && selectedPractitioner)) &&
+          selectedDate &&
+          selectedTime && (
+            <div
+              data-animate-id="confirmation"
+              style={{
+                opacity: visibleElements.has("confirmation") ? 1 : 0,
+                transform: visibleElements.has("confirmation")
+                  ? "translateY(0)"
+                  : "translateY(40px)",
+                transition: "all 0.7s ease-out",
+              }}
+            >
+              <div className="mb-6">
+                <button
+                  onClick={() => updateCurrentStep("datetime")}
+                  className="text-indigo-600 hover:text-indigo-500 text-sm font-medium"
+                >
+                  ← Change Date & Time
+                </button>
+              </div>
+
+              <h2 className="text-2xl font-bold text-gray-900 mb-6">
+                Confirm Your Appointment
+              </h2>
+
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                  Appointment Details
+                </h3>
+
+                <div className="space-y-4">
+                  <div>
+                    <span className="text-gray-900 font-medium">Services:</span>
+                    <div className="mt-2 space-y-2">
+                      {selectedServices.map((service) => (
+                        <div
+                          key={service.id}
+                          className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-md"
+                        >
+                          <div>
+                            <p className="font-medium text-gray-900">
+                              {service.name}
+                            </p>
+                            <p className="text-sm text-gray-700">
+                              {formatDuration(service.duration_minutes)}
+                            </p>
+                          </div>
+                          <p className="font-semibold text-gray-900">
+                            {formatPrice(service.price || 0)}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <span className="text-gray-900 font-medium">
+                      {isPractitionerUser ? "Client:" : "Practitioner:"}
+                    </span>
+                    <div className="mt-2 p-3 bg-gray-50 rounded-md">
+                      {isPractitionerUser ? (
+                        <>
+                          {isExternalClient ? (
+                            <>
+                              <p className="font-medium text-gray-900">
+                                {externalClientInfo.firstName}{" "}
+                                {externalClientInfo.lastName}
+                              </p>
+                              {externalClientInfo.email && (
+                                <p className="text-sm text-gray-600">
+                                  {externalClientInfo.email}
+                                </p>
+                              )}
+                              {externalClientInfo.phone && (
+                                <p className="text-sm text-gray-600">
+                                  {externalClientInfo.phone}
+                                </p>
+                              )}
+                              <p className="text-xs text-gray-500 mt-1">
+                                (External Client)
+                              </p>
+                            </>
+                          ) : (
+                            <>
+                              <p className="font-medium text-gray-900">
+                                {selectedClient?.first_name}{" "}
+                                {selectedClient?.last_name}
+                              </p>
+                              <p className="text-sm text-gray-600">
+                                {selectedClient?.email}
+                              </p>
+                              <p className="text-sm text-gray-600">
+                                {selectedClient?.phone}
+                              </p>
+                            </>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          <p className="font-medium text-gray-900">
+                            {selectedPractitioner?.first_name}{" "}
+                            {selectedPractitioner?.last_name}
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            {selectedPractitioner?.email}
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            {selectedPractitioner?.phone}
+                          </p>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex justify-between">
+                    <span className="text-gray-900 font-medium">
+                      Total Duration:
+                    </span>
+                    <span className="font-medium text-gray-900">
+                      {formatDuration(
+                        selectedServices.reduce(
+                          (total, service) => total + service.duration_minutes,
+                          0
+                        )
+                      )}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between">
+                    <span className="text-gray-900 font-medium">Date:</span>
+                    <span className="font-medium text-gray-900">
+                      {new Date(selectedDate).toLocaleDateString("en-US", {
+                        weekday: "long",
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                      })}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between">
+                    <span className="text-gray-900 font-medium">
+                      Start Time:
+                    </span>
+                    <span className="font-medium text-gray-900">
+                      {formatTimeDisplay(selectedTime)}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between">
+                    <span className="text-gray-900 font-medium">End Time:</span>
+                    <span className="font-medium text-gray-900">
+                      {(() => {
+                        const [hours, minutes] = selectedTime
+                          .split(":")
+                          .map(Number);
+                        const startTimeMinutes = hours * 60 + minutes;
+                        const totalDurationMinutes = selectedServices.reduce(
+                          (total, service) => total + service.duration_minutes,
+                          0
+                        );
+                        const endTimeMinutes =
+                          startTimeMinutes + totalDurationMinutes;
+                        const endHours = Math.floor(endTimeMinutes / 60);
+                        const endMins = endTimeMinutes % 60;
+                        const endTimeString = `${endHours
+                          .toString()
+                          .padStart(2, "0")}:${endMins
+                          .toString()
+                          .padStart(2, "0")}`;
+                        return formatTimeDisplay(endTimeString);
+                      })()}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between border-t pt-4">
+                    <span className="text-gray-900 font-medium">
+                      Total Price:
+                    </span>
+                    <span className="font-bold text-gray-900 text-xl">
+                      {formatPrice(
+                        selectedServices.reduce(
+                          (total, service) => total + (service.price || 0),
+                          0
+                        )
+                      )}
+                    </span>
+                  </div>
+
+                  {notes && (
+                    <div>
+                      <span className="text-gray-900 font-medium">Notes:</span>
+                      <p className="mt-1 text-sm text-gray-900">{notes}</p>
+                    </div>
+                  )}
+
+                  {canControlClientSMS && (
+                    <div>
+                      <span className="text-gray-900 font-medium">
+                        Client Notification:
+                      </span>
+                      <p className="mt-1 text-sm text-gray-900">
+                        {sendClientSMS ? (
+                          <span className="inline-flex items-center text-green-600">
+                            <svg
+                              className="w-4 h-4 mr-1"
+                              fill="currentColor"
+                              viewBox="0 0 20 20"
+                            >
+                              <path
+                                fillRule="evenodd"
+                                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                clipRule="evenodd"
+                              />
+                            </svg>
+                            Client will receive SMS notification
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center text-amber-600">
+                            <svg
+                              className="w-4 h-4 mr-1"
+                              fill="currentColor"
+                              viewBox="0 0 20 20"
+                            >
+                              <path
+                                fillRule="evenodd"
+                                d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                                clipRule="evenodd"
+                              />
+                            </svg>
+                            Client will NOT receive SMS notification
+                          </span>
+                        )}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Practitioner will always receive notification
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex space-x-3">
+                <button
+                  onClick={() => updateCurrentStep("service")}
+                  className="flex-1 bg-gray-200 text-gray-700 px-3 py-2 lg:px-6 lg:py-2 rounded-lg hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 font-medium text-sm lg:text-base transition-colors"
+                >
+                  Start Over
+                </button>
+                <button
+                  onClick={handleBookingConfirm}
+                  className="flex-1 bg-green-600 text-white px-3 py-2 lg:px-8 lg:py-2 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 font-medium text-sm lg:text-base transition-colors"
+                >
+                  Confirm Appointment
+                </button>
+              </div>
             </div>
-          </div>
-        )}
+          )}
       </main>
     </div>
-  )
-} 
+  );
+}

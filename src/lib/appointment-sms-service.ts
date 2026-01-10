@@ -4,7 +4,8 @@ export class AppointmentSMSService {
   static async sendAppointmentNotifications(
     appointmentId: string, 
     smsType: 'confirmation' | 'reschedule' | 'cancellation' | 'reminder' = 'confirmation',
-    scheduleForMidnight: boolean = false
+    scheduleForMidnight: boolean = false,
+    sendClientSMS: boolean = true
   ): Promise<{
     success: boolean
     message: string
@@ -20,10 +21,11 @@ export class AppointmentSMSService {
         body: { 
           appointment_id: appointmentId,
           sms_type: smsType,
-          schedule_for_midnight: scheduleForMidnight
+          schedule_for_midnight: scheduleForMidnight,
+          send_client_sms: sendClientSMS
         }
       })
-
+  
       if (error) {
         console.error('Error calling send-appointment-sms function:', error)
         return {
@@ -31,7 +33,7 @@ export class AppointmentSMSService {
           message: 'Failed to send SMS notifications'
         }
       }
-
+  
       return {
         success: data.success,
         message: data.message,

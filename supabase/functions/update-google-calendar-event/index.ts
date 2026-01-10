@@ -193,7 +193,11 @@ serve(async (req) => {
         timeZone: timeZone
       },
       reminders: {
-        useDefault: true
+        useDefault: false,
+        overrides: [
+          { method: 'popup', minutes: 1440 },
+          { method: 'popup', minutes: 30 }
+        ]
       }
     }
 
@@ -216,7 +220,7 @@ serve(async (req) => {
     )
 
     const calendarResponse = await fetch(
-      `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(googleCalendarId)}/events/${appointment.google_calendar_event_id}?sendUpdates=all`,
+      `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(googleCalendarId)}/events/${appointment.google_calendar_event_id}?sendUpdates=none`,
       {
         method: 'PUT',
         headers: {

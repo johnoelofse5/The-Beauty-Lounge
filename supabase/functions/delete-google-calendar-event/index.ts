@@ -91,7 +91,7 @@ serve(async (req) => {
     )
 
     const calendarResponse = await fetch(
-      `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(googleCalendarId)}/events/${appointment.google_calendar_event_id}?sendUpdates=all`,
+      `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(googleCalendarId)}/events/${appointment.google_calendar_event_id}?sendUpdates=none`,
       {
         method: 'DELETE',
         headers: {
