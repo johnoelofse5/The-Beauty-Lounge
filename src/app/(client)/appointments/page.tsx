@@ -42,6 +42,7 @@ export default function AppointmentsPage() {
   const [practitioners, setPractitioners] = useState<Practitioner[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isBooking, setIsBooking] = useState(false);
   const [visibleElements, setVisibleElements] = useState<Set<string>>(
     new Set()
   );
@@ -595,6 +596,7 @@ export default function AppointmentsPage() {
   }, [loading, bookingStep]);
 
   const handleBookingConfirm = async () => {
+    setIsBooking(true);
     if (isPractitionerUser) {
       if (selectedServices.length === 0) {
         showError("Please select at least one service");
@@ -815,6 +817,9 @@ export default function AppointmentsPage() {
     } catch (err) {
       showError("Failed to book appointment. Please try again.");
       console.error("Error booking appointment:", err);
+      setIsBooking(false);
+    } finally {
+      setIsBooking(false);
     }
   };
 
@@ -2365,9 +2370,10 @@ export default function AppointmentsPage() {
                 </button>
                 <button
                   onClick={handleBookingConfirm}
+                  disabled={isBooking}
                   className="flex-1 bg-green-600 text-white px-3 py-2 lg:px-8 lg:py-2 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 font-medium text-sm lg:text-base transition-colors"
                 >
-                  Confirm Appointment
+                  {isBooking ? "Confirming..." : "Confirm Appointment"}
                 </button>
               </div>
             </div>
