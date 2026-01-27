@@ -22,6 +22,7 @@ const AuthContext = createContext<AuthContextType>({
   verifyOTP: async () => false,
   signOut: async () => { },
   resetPassword: async () => { },
+  signInWithGoogle: async () => { },
 })
 
 export const useAuth = () => {
@@ -54,11 +55,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, [user])
 
   useEffect(() => {
-
     supabase.auth.getSession().then(({ data: { session }, error }) => {
       if (error) {
         console.error('Error getting session:', error)
-
         setSession(null)
         setUser(null)
         setUserRoleData(null)
@@ -68,16 +67,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
       setLoading(false)
     })
-
-
+  
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-
+        
         if (event === 'SIGNED_OUT') {
           setSession(null)
           setUser(null)
           setUserRoleData(null)
-
           router.push('/')
         } else if (event === 'TOKEN_REFRESHED') {
           setSession(session)
@@ -85,13 +82,78 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         } else if (event === 'SIGNED_IN') {
           setSession(session)
           setUser(session?.user ?? null)
+          
+          if (session?.user && !session.user.phone) {
+            await ensureUserRecord(session.user)
+          }
         }
         setLoading(false)
       }
     )
-
+  
     return () => subscription.unsubscribe()
   }, [router])
+
+  const ensureUserRecord = async (authUser: SupabaseUser) => {
+    try {
+      
+      const { data: existingUser, error: checkError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('id', authUser.id)
+        .single()
+
+      if (checkError && checkError.code === 'PGRST116') {
+        
+        const { data: clientRole, error: roleError } = await supabase
+          .from('roles')
+          .select('id')
+          .eq('name', 'client')
+          .single()
+  
+        if (roleError) {
+          console.error('Error fetching client role:', roleError)
+        }
+
+        const fullName = authUser.user_metadata?.full_name || ''
+        const nameParts = fullName.split(' ')
+        const firstName = authUser.user_metadata?.given_name || nameParts[0] || ''
+        const lastName = authUser.user_metadata?.family_name || nameParts.slice(1).join(' ') || ''
+  
+        const { error: userError } = await supabase
+          .from('users')
+          .insert({
+            id: authUser.id,
+            email: authUser.email || '',
+            first_name: firstName,
+            last_name: lastName,
+            phone: authUser.phone || '',
+            role_id: clientRole?.id || null,
+            is_active: true,
+            is_deleted: false
+          })
+      }
+    } catch (err) {
+      console.error('Error ensuring user record:', err)
+    }
+  }
+
+  const signInWithGoogle = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}`,
+        queryParams: {
+          access_type: 'offline',
+          prompt: 'consent',
+        },
+      },
+    })
+  
+    if (error) {
+      throw new Error(error.message)
+    }
+  }
 
   const signUp = async (email: string, password: string, userData?: UserSignUpData) => {
 
@@ -433,7 +495,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       sendOTP,
       verifyOTP,
       signOut,
-      resetPassword
+      resetPassword,
+      signInWithGoogle
     }}>
       {children}
     </AuthContext.Provider>

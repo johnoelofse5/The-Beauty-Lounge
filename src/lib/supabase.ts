@@ -1,13 +1,22 @@
-import { createClient } from '@supabase/supabase-js'
+import { createBrowserClient } from '@supabase/ssr'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: true,
-    flowType: 'pkce'
+export const supabase = createBrowserClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+  {
+    cookies: {
+      get(name) {
+        return document.cookie
+          .split('; ')
+          .find(row => row.startsWith(`${name}=`))
+          ?.split('=')[1]
+      },
+      set(name, value, options) {
+        document.cookie = `${name}=${value}; path=/; ${options?.maxAge ? `max-age=${options.maxAge}` : ''}`
+      },
+      remove(name) {
+        document.cookie = `${name}=; path=/; max-age=0`
+      },
+    },
   }
-}) 
+)

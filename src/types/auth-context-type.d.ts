@@ -14,6 +14,7 @@ export interface AuthContextType {
     
     signUpWithPhone: (phone: string, email: string, firstName: string, lastName: string, otpCode: string) => Promise<void>;
     signInWithPhone: (phone: string, otpCode: string) => Promise<void>;
+    signInWithGoogle: () => Promise<void>;
     sendOTP: (phone: string, purpose: 'signup' | 'signin' | 'password_reset') => Promise<void>;
     verifyOTP: (phone: string, otpCode: string, purpose: 'signup' | 'signin' | 'password_reset') => Promise<boolean>;
     signOut: () => Promise<void>;
