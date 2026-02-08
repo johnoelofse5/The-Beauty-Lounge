@@ -298,10 +298,10 @@ export default function UserManagementPage() {
 
   const filteredUsers = users.filter(user => {
     const matchesSearch = 
-      user.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.phone.includes(searchTerm)
+      user.first_name?.toLowerCase()?.includes(searchTerm?.toLowerCase()) ||
+      user.last_name?.toLowerCase()?.includes(searchTerm?.toLowerCase()) ||
+      user.email?.toLowerCase()?.includes(searchTerm?.toLowerCase()) ||
+      user.phone?.includes(searchTerm)
 
     switch (viewMode) {
       case 'practitioners':
