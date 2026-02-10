@@ -5,7 +5,7 @@ import { Session, User as SupabaseUser } from '@supabase/supabase-js'
 import { useRouter } from 'next/navigation'
 import { AuthContextType } from '@/types/auth-context-type'
 import { UserSignUpData } from '@/types/user-signup'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/lib/supabase/client'
 import { getUserRoleAndPermissions, UserWithRoleAndPermissions } from '@/lib/rbac'
 import { trackPasswordResetEmail, markEmailAsSent, markEmailAsFailed } from '@/lib/email-tracking'
 
@@ -39,6 +39,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
   const [userRoleData, setUserRoleData] = useState<UserWithRoleAndPermissions | null>(null)
+  const supabase = createClient()
 
 
   useEffect(() => {
