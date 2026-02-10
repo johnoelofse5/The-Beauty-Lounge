@@ -95,6 +95,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return () => subscription.unsubscribe()
   }, [router])
 
+  useEffect(() => {
+  const params = new URLSearchParams(window.location.search)
+  if (params.get('refresh') === '1') {
+
+    window.history.replaceState({}, '', '/')
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        setSession(session)
+        setUser(session.user)
+      }
+    })
+  }
+}, [supabase])
+
   const ensureUserRecord = async (authUser: SupabaseUser) => {
     try {
       
