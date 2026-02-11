@@ -95,16 +95,30 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return () => subscription.unsubscribe()
   }, [router])
 
-  useEffect(() => {
+useEffect(() => {
   const params = new URLSearchParams(window.location.search)
+  console.log('Checking for refresh param:', params.get('refresh'))
+  
   if (params.get('refresh') === '1') {
-
+    console.log('Refresh param detected, fetching session...')
+    
     window.history.replaceState({}, '', '/')
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      console.log('Session fetch result:', { 
+        hasSession: !!session, 
+        email: session?.user?.email,
+        error: error?.message 
+      })
+      
       if (session) {
+        console.log('Setting session in state')
         setSession(session)
         setUser(session.user)
+        setLoading(false)
+      } else {
+        console.log('No session found after refresh')
+        setLoading(false)
       }
     })
   }
@@ -112,7 +126,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const ensureUserRecord = async (authUser: SupabaseUser) => {
     try {
-      
+
+      console.log('ensureUserRecord called for:', authUser.email)
       const { data: existingUser, error: checkError } = await supabase
         .from('users')
         .select('id')
@@ -152,6 +167,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     } catch (err) {
       console.error('Error ensuring user record:', err)
     }
+    console.log('ensureUserRecord completed')
   }
 
   const signInWithGoogle = async () => {
