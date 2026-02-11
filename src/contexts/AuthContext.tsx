@@ -41,6 +41,37 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [userRoleData, setUserRoleData] = useState<UserWithRoleAndPermissions | null>(null)
   const supabase = createClient()
 
+  useEffect(() => {
+    const checkProfileCompletion = async () => {
+      if (user && !loading) {
+        if (window.location.pathname === '/complete-profile') {
+          return
+        }
+
+        const { data: userData, error } = await supabase
+          .from('users')
+          .select('id, first_name, last_name, phone')
+          .eq('id', user.id)
+          .single()
+
+        if (error && error.code === 'PGRST116') {
+          router.push('/complete-profile')
+        } else if (userData) {
+          const isProfileIncomplete =
+            !userData.first_name ||
+            !userData.last_name ||
+            !userData.phone
+
+          if (isProfileIncomplete) {
+            router.push('/complete-profile')
+          }
+        }
+      }
+    }
+
+    checkProfileCompletion()
+  }, [user, loading, router, supabase])
+
 
   useEffect(() => {
     const loadUserRoleData = async () => {
@@ -55,43 +86,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     loadUserRoleData()
   }, [user])
 
-useEffect(() => {
-  supabase.auth.getSession().then(({ data: { session }, error }) => {
-    if (error) {
-      console.error('Error getting session:', error)
-      setSession(null)
-      setUser(null)
-      setUserRoleData(null)
-    } else {
-      console.log('Initial session check:', session?.user?.email || 'No session')
-      setSession(session)
-      setUser(session?.user ?? null)
-      
-      if (session?.user && !session.user.phone) {
-        ensureUserRecord(session.user).catch(err => {
-          console.error('Failed to ensure user record:', err)
-        })
-      }
-    }
-    setLoading(false)
-  })
-
-  const { data: { subscription } } = supabase.auth.onAuthStateChange(
-    (event, session) => {
-      console.log('Auth state changed:', event, session?.user?.email)
-      
-      if (event === 'SIGNED_OUT') {
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error) {
+        console.error('Error getting session:', error)
         setSession(null)
         setUser(null)
         setUserRoleData(null)
-        router.push('/')
-      } else if (event === 'TOKEN_REFRESHED') {
+      } else {
         setSession(session)
         setUser(session?.user ?? null)
-      } else if (event === 'SIGNED_IN') {
-        setSession(session)
-        setUser(session?.user ?? null)
-        
+
         if (session?.user && !session.user.phone) {
           ensureUserRecord(session.user).catch(err => {
             console.error('Failed to ensure user record:', err)
@@ -99,56 +104,63 @@ useEffect(() => {
         }
       }
       setLoading(false)
-    }
-  )
+    })
 
-  return () => subscription.unsubscribe()
-}, [router, supabase])
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+
+        if (event === 'SIGNED_OUT') {
+          setSession(null)
+          setUser(null)
+          setUserRoleData(null)
+          router.push('/')
+        } else if (event === 'TOKEN_REFRESHED') {
+          setSession(session)
+          setUser(session?.user ?? null)
+        } else if (event === 'SIGNED_IN') {
+          setSession(session)
+          setUser(session?.user ?? null)
+
+          if (session?.user && !session.user.phone) {
+            ensureUserRecord(session.user).catch(err => {
+              console.error('Failed to ensure user record:', err)
+            })
+          }
+        }
+        setLoading(false)
+      }
+    )
+
+    return () => subscription.unsubscribe()
+  }, [router, supabase])
 
   const ensureUserRecord = async (authUser: SupabaseUser) => {
     try {
-
-      console.log('ensureUserRecord called for:', authUser.email)
       const { data: existingUser, error: checkError } = await supabase
         .from('users')
-        .select('id')
+        .select('id, first_name, last_name, phone')
         .eq('id', authUser.id)
         .single()
 
       if (checkError && checkError.code === 'PGRST116') {
-        
-        const { data: clientRole, error: roleError } = await supabase
-          .from('roles')
-          .select('id')
-          .eq('name', 'client')
-          .single()
-  
-        if (roleError) {
-          console.error('Error fetching client role:', roleError)
-        }
+        router.push('/complete-profile')
+        return
+      }
 
-        const fullName = authUser.user_metadata?.full_name || ''
-        const nameParts = fullName.split(' ')
-        const firstName = authUser.user_metadata?.given_name || nameParts[0] || ''
-        const lastName = authUser.user_metadata?.family_name || nameParts.slice(1).join(' ') || ''
-  
-        const { error: userError } = await supabase
-          .from('users')
-          .insert({
-            id: authUser.id,
-            email: authUser.email || '',
-            first_name: firstName,
-            last_name: lastName,
-            phone: authUser.phone || '',
-            role_id: clientRole?.id || null,
-            is_active: true,
-            is_deleted: false
-          })
+      if (existingUser) {
+        const isProfileIncomplete =
+          !existingUser.first_name ||
+          !existingUser.last_name ||
+          !existingUser.phone
+
+        if (isProfileIncomplete) {
+          router.push('/complete-profile')
+          return
+        }
       }
     } catch (err) {
-      console.error('Error ensuring user record:', err)
+      console.error('Error in ensureUserRecord:', err)
     }
-    console.log('ensureUserRecord completed')
   }
 
   const signInWithGoogle = async () => {
@@ -162,7 +174,7 @@ useEffect(() => {
         },
       },
     })
-  
+
     if (error) {
       throw new Error(error.message)
     }
