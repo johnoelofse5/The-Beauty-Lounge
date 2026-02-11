@@ -55,74 +55,55 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     loadUserRoleData()
   }, [user])
 
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session }, error }) => {
-      if (error) {
-        console.error('Error getting session:', error)
+useEffect(() => {
+  supabase.auth.getSession().then(({ data: { session }, error }) => {
+    if (error) {
+      console.error('Error getting session:', error)
+      setSession(null)
+      setUser(null)
+      setUserRoleData(null)
+    } else {
+      console.log('Initial session check:', session?.user?.email || 'No session')
+      setSession(session)
+      setUser(session?.user ?? null)
+      
+      if (session?.user && !session.user.phone) {
+        ensureUserRecord(session.user).catch(err => {
+          console.error('Failed to ensure user record:', err)
+        })
+      }
+    }
+    setLoading(false)
+  })
+
+  const { data: { subscription } } = supabase.auth.onAuthStateChange(
+    (event, session) => {
+      console.log('Auth state changed:', event, session?.user?.email)
+      
+      if (event === 'SIGNED_OUT') {
         setSession(null)
         setUser(null)
         setUserRoleData(null)
-      } else {
+        router.push('/')
+      } else if (event === 'TOKEN_REFRESHED') {
         setSession(session)
         setUser(session?.user ?? null)
+      } else if (event === 'SIGNED_IN') {
+        setSession(session)
+        setUser(session?.user ?? null)
+        
+        if (session?.user && !session.user.phone) {
+          ensureUserRecord(session.user).catch(err => {
+            console.error('Failed to ensure user record:', err)
+          })
+        }
       }
       setLoading(false)
-    })
-  
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        
-        if (event === 'SIGNED_OUT') {
-          setSession(null)
-          setUser(null)
-          setUserRoleData(null)
-          router.push('/')
-        } else if (event === 'TOKEN_REFRESHED') {
-          setSession(session)
-          setUser(session?.user ?? null)
-        } else if (event === 'SIGNED_IN') {
-          setSession(session)
-          setUser(session?.user ?? null)
-          
-          if (session?.user && !session.user.phone) {
-            await ensureUserRecord(session.user)
-          }
-        }
-        setLoading(false)
-      }
-    )
-  
-    return () => subscription.unsubscribe()
-  }, [router])
+    }
+  )
 
-useEffect(() => {
-  const params = new URLSearchParams(window.location.search)
-  console.log('Checking for refresh param:', params.get('refresh'))
-  
-  if (params.get('refresh') === '1') {
-    console.log('Refresh param detected, fetching session...')
-    
-    window.history.replaceState({}, '', '/')
-
-    supabase.auth.getSession().then(({ data: { session }, error }) => {
-      console.log('Session fetch result:', { 
-        hasSession: !!session, 
-        email: session?.user?.email,
-        error: error?.message 
-      })
-      
-      if (session) {
-        console.log('Setting session in state')
-        setSession(session)
-        setUser(session.user)
-        setLoading(false)
-      } else {
-        console.log('No session found after refresh')
-        setLoading(false)
-      }
-    })
-  }
-}, [supabase])
+  return () => subscription.unsubscribe()
+}, [router, supabase])
 
   const ensureUserRecord = async (authUser: SupabaseUser) => {
     try {
