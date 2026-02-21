@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/contexts/ToastContext'
 import { supabase } from '@/lib/supabase'
-import { ServiceWithCategory, AppointmentExtended, ViewMode, Practitioner, Client } from '@/types'
+import { ServiceWithCategory, AppointmentExtended, ViewMode } from '@/types'
 import { formatDuration, getServicesWithCategories } from '@/lib/services'
 import { getFilteredAppointments, isPractitioner, canViewOwnAppointmentsOnly } from '@/lib/rbac'
 import EditAppointmentModal from '@/components/EditAppointmentModal'
@@ -14,6 +14,8 @@ import TimeSlotSelector from '@/components/TimeSlotSelector'
 import { AppointmentSMSService } from '@/lib/appointment-sms-service'
 import { AppointmentCalendarService } from '@/lib/appointment-calendar-service'
 import { sendInvoiceEmail } from '@/lib/email-service'
+import { Practitioner } from '@/types/practitioner'
+import { Client } from '@/types/client'
 
 export default function AppointmentsPage() {
   const { user, loading: authLoading, userRoleData } = useAuth()
