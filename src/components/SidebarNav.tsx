@@ -191,6 +191,12 @@ export default function SidebarNav({ title = "The Beauty Lounge" }: SidebarNavPr
       icon: Mail,
       show: canViewAdminFeatures,
     },
+    {
+      title: "Back Office",
+      url: "/back-office",
+      icon: Settings,
+      show: canViewAdminFeatures,
+    }
   ]
 
   const filteredItems = navigationItems.filter(item => item.show)
