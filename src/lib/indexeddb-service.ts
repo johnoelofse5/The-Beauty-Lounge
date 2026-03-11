@@ -1,363 +1,415 @@
-'use client'
+"use client";
 
-interface LookupData {
-  id: string
-  value: string
-  secondary_value?: string
-  description?: string
-  is_active: boolean
-  display_order: number
-  created_at: string
-  updated_at: string
+import { LOOKUP_TYPE_CODES, LookupTypeCode } from "@/constants/lookup-codes";
+import { Lookup, LookupType } from "@/types";
+
+export interface LookupData {
+  id: string;
+  value: string;
+  secondary_value?: string;
+  description?: string;
+  is_active: boolean;
+  display_order: number;
+  created_at: string;
+  updated_at: string;
 }
 
 interface StoredLookup {
-  data: LookupData[]
-  lastUpdated: number
-  expiresAt: number
+  data: LookupData[];
+  lastUpdated: number;
+  expiresAt: number;
 }
 
-class IndexedDBService {
-  private dbName = 'BeautyLoungeDB'
-  private version = 3
-  private db: IDBDatabase | null = null
+const LOOKUP_STORE_NAMES = Object.values(LOOKUP_TYPE_CODES);
+const ALL_STORES = [...LOOKUP_STORE_NAMES, "lookup_types", "cache"] as const;
 
-  
+class IndexedDBService {
+  private dbName = "BeautyLoungeDB";
+  private version = 3;
+  private db: IDBDatabase | null = null;
+
   async init(): Promise<void> {
     return new Promise((resolve, reject) => {
-      const request = indexedDB.open(this.dbName, this.version)
+      const request = indexedDB.open(this.dbName, this.version);
 
       request.onerror = () => {
-        console.error('Failed to open IndexedDB:', request.error)
-        reject(request.error)
-      }
+        console.error("Failed to open IndexedDB:", request.error);
+        reject(request.error);
+      };
 
       request.onsuccess = () => {
-        this.db = request.result
-        resolve()
-      }
+        this.db = request.result;
+        resolve();
+      };
 
       request.onupgradeneeded = (event) => {
-        const db = (event.target as IDBOpenDBRequest).result
+        const db = (event.target as IDBOpenDBRequest).result;
 
-        const lookupTypes = [
-          'lookup_hours',
-          'lookup_time_slot_intervals',
-          'lookup_service_categories',
-          'lookup_appointment_status',
-          'lookup_user_roles',
-          'lookup_measurements',
-          'lookup_payment_methods',
-          'lookup_revenue_types',
-          'lookup_transaction_types'
-        ]
-
-        lookupTypes.forEach(type => {
-          if (!db.objectStoreNames.contains(type)) {
-            const store = db.createObjectStore(type, { keyPath: 'id' })
-            store.createIndex('value', 'value', { unique: false })
-            store.createIndex('is_active', 'is_active', { unique: false })
-            store.createIndex('display_order', 'display_order', { unique: false })
+        LOOKUP_STORE_NAMES.forEach((code) => {
+          if (!db.objectStoreNames.contains(code)) {
+            const store = db.createObjectStore(code, { keyPath: "id" });
+            store.createIndex("lookup_type_id", "lookup_type_id", {
+              unique: false,
+            });
+            store.createIndex("is_active", "is_active", { unique: false });
+            store.createIndex("display_order", "display_order", {
+              unique: false,
+            });
           }
-        })
+        });
 
-        
-        if (!db.objectStoreNames.contains('cache')) {
-          const cacheStore = db.createObjectStore('cache', { keyPath: 'key' })
-          cacheStore.createIndex('expiresAt', 'expiresAt', { unique: false })
+        if (!db.objectStoreNames.contains("lookup_types")) {
+          const ltStore = db.createObjectStore("lookup_types", {
+            keyPath: "id",
+          });
+          ltStore.createIndex("lookup_type_code", "lookup_type_code", {
+            unique: true,
+          });
         }
-      }
-    })
+
+        if (!db.objectStoreNames.contains("cache")) {
+          const cacheStore = db.createObjectStore("cache", { keyPath: "key" });
+          cacheStore.createIndex("expiresAt", "expiresAt", { unique: false });
+        }
+      };
+    });
   }
 
-  
+  private async ensureReady(): Promise<void> {
+    if (!this.db) await this.init();
+  }
+
   async storeLookupData(
-    type: string, 
-    data: LookupData[], 
-    ttlMinutes: number = 60
+    type: string,
+    data: LookupData[],
+    ttlMinutes: number = 60,
   ): Promise<void> {
     if (!this.db) {
-      await this.init()
+      await this.init();
     }
 
-    
     if (!this.db || !this.db.objectStoreNames.contains(type)) {
-      console.warn(`Object store ${type} not found, recreating database...`)
-      await this.recreateDatabase()
+      console.warn(`Object store ${type} not found, recreating database...`);
+      await this.recreateDatabase();
       if (!this.db) {
-        throw new Error('Failed to recreate database')
+        throw new Error("Failed to recreate database");
       }
     }
 
     return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction([type], 'readwrite')
-      const store = transaction.objectStore(type)
-      
-      const expiresAt = Date.now() + (ttlMinutes * 60 * 1000)
+      const transaction = this.db!.transaction([type], "readwrite");
+      const store = transaction.objectStore(type);
+
+      const expiresAt = Date.now() + ttlMinutes * 60 * 1000;
       const storedData: StoredLookup = {
         data,
         lastUpdated: Date.now(),
-        expiresAt
-      }
+        expiresAt,
+      };
 
-      
       store.clear().onsuccess = () => {
-        
-        data.forEach(item => {
-          store.add(item)
-        })
+        data.forEach((item) => {
+          store.add(item);
+        });
 
         transaction.oncomplete = () => {
-          resolve()
-        }
+          resolve();
+        };
 
         transaction.onerror = () => {
-          console.error(`Failed to store ${type} data:`, transaction.error)
-          reject(transaction.error)
-        }
-      }
-    })
+          console.error(`Failed to store ${type} data:`, transaction.error);
+          reject(transaction.error);
+        };
+      };
+    });
   }
 
-  
   async getLookupData(type: string): Promise<LookupData[] | null> {
     if (!this.db) {
-      await this.init()
+      await this.init();
     }
 
     return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction([type], 'readonly')
-      const store = transaction.objectStore(type)
-      const request = store.getAll()
+      const transaction = this.db!.transaction([type], "readonly");
+      const store = transaction.objectStore(type);
+      const request = store.getAll();
 
       request.onsuccess = () => {
-        const data = request.result as LookupData[]
-        
-        if (data.length === 0) {
-          resolve(null)
-          return
-        }
+        const data = request.result as LookupData[];
 
-        
-        
-        
-        resolve(data)
-      }
+        if (data.length === 0) {
+          resolve(null);
+          return;
+        }
+        resolve(data);
+      };
 
       request.onerror = () => {
-        console.error(`Failed to retrieve ${type} data:`, request.error)
-        reject(request.error)
-      }
-    })
+        console.error(`Failed to retrieve ${type} data:`, request.error);
+        reject(request.error);
+      };
+    });
   }
 
-  
-  async hasFreshLookupData(type: string, maxAgeMinutes: number = 60): Promise<boolean> {
+  async hasFreshLookupData(
+    type: string,
+    maxAgeMinutes: number = 60,
+  ): Promise<boolean> {
     if (!this.db) {
-      await this.init()
+      await this.init();
     }
 
     return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction([type], 'readonly')
-      const store = transaction.objectStore(type)
-      const countRequest = store.count()
+      const transaction = this.db!.transaction([type], "readonly");
+      const store = transaction.objectStore(type);
+      const countRequest = store.count();
 
       countRequest.onsuccess = () => {
-        const count = countRequest.result
-        resolve(count > 0) 
-      }
+        const count = countRequest.result;
+        resolve(count > 0);
+      };
 
       countRequest.onerror = () => {
-        console.error(`Failed to check ${type} data:`, countRequest.error)
-        reject(countRequest.error)
-      }
-    })
+        console.error(`Failed to check ${type} data:`, countRequest.error);
+        reject(countRequest.error);
+      };
+    });
   }
 
-  
   async clearLookupData(type: string): Promise<void> {
     if (!this.db) {
-      await this.init()
+      await this.init();
     }
 
     return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction([type], 'readwrite')
-      const store = transaction.objectStore(type)
-      const request = store.clear()
+      const transaction = this.db!.transaction([type], "readwrite");
+      const store = transaction.objectStore(type);
+      const request = store.clear();
 
       request.onsuccess = () => {
-        resolve()
-      }
+        resolve();
+      };
 
       request.onerror = () => {
-        console.error(`Failed to clear ${type} data:`, request.error)
-        reject(request.error)
-      }
-    })
+        console.error(`Failed to clear ${type} data:`, request.error);
+        reject(request.error);
+      };
+    });
   }
 
-  
   async clearAllData(): Promise<void> {
     if (!this.db) {
-      await this.init()
+      await this.init();
     }
 
-    const objectStoreNames = Array.from(this.db!.objectStoreNames)
-    const clearPromises = objectStoreNames.map(name => this.clearLookupData(name))
-    
-    await Promise.all(clearPromises)
+    const objectStoreNames = Array.from(this.db!.objectStoreNames);
+    const clearPromises = objectStoreNames.map((name) =>
+      this.clearLookupData(name),
+    );
+
+    await Promise.all(clearPromises);
   }
 
-  
   async storeCacheData(
-    key: string, 
-    data: any, 
-    ttlMinutes: number = 60
+    key: string,
+    data: any,
+    ttlMinutes: number = 60,
   ): Promise<void> {
     if (!this.db) {
-      await this.init()
+      await this.init();
     }
 
     return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction(['cache'], 'readwrite')
-      const store = transaction.objectStore('cache')
-      
-      const expiresAt = Date.now() + (ttlMinutes * 60 * 1000)
+      const transaction = this.db!.transaction(["cache"], "readwrite");
+      const store = transaction.objectStore("cache");
+
+      const expiresAt = Date.now() + ttlMinutes * 60 * 1000;
       const cacheItem = {
         key,
         data,
         lastUpdated: Date.now(),
-        expiresAt
-      }
+        expiresAt,
+      };
 
-      const request = store.put(cacheItem)
+      const request = store.put(cacheItem);
 
       request.onsuccess = () => {
-        resolve()
-      }
+        resolve();
+      };
 
       request.onerror = () => {
-        console.error(`Failed to store cache data for key ${key}:`, request.error)
-        reject(request.error)
-      }
-    })
+        console.error(
+          `Failed to store cache data for key ${key}:`,
+          request.error,
+        );
+        reject(request.error);
+      };
+    });
   }
 
-  
   async getCacheData(key: string): Promise<any | null> {
     if (!this.db) {
-      await this.init()
+      await this.init();
     }
 
     return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction(['cache'], 'readonly')
-      const store = transaction.objectStore('cache')
-      const request = store.get(key)
+      const transaction = this.db!.transaction(["cache"], "readonly");
+      const store = transaction.objectStore("cache");
+      const request = store.get(key);
 
       request.onsuccess = () => {
-        const result = request.result
-        
+        const result = request.result;
+
         if (!result) {
-          resolve(null)
-          return
+          resolve(null);
+          return;
         }
 
-        
         if (Date.now() > result.expiresAt) {
-          
-          this.removeCacheData(key)
-          resolve(null)
-          return
+          this.removeCacheData(key);
+          resolve(null);
+          return;
         }
 
-        resolve(result.data)
-      }
+        resolve(result.data);
+      };
 
       request.onerror = () => {
-        console.error(`Failed to retrieve cache data for key ${key}:`, request.error)
-        reject(request.error)
-      }
-    })
+        console.error(
+          `Failed to retrieve cache data for key ${key}:`,
+          request.error,
+        );
+        reject(request.error);
+      };
+    });
   }
 
-  
   async removeCacheData(key: string): Promise<void> {
     if (!this.db) {
-      await this.init()
+      await this.init();
     }
 
     return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction(['cache'], 'readwrite')
-      const store = transaction.objectStore('cache')
-      const request = store.delete(key)
+      const transaction = this.db!.transaction(["cache"], "readwrite");
+      const store = transaction.objectStore("cache");
+      const request = store.delete(key);
 
       request.onsuccess = () => {
-        resolve()
-      }
+        resolve();
+      };
 
       request.onerror = () => {
-        console.error(`Failed to remove cache data for key ${key}:`, request.error)
-        reject(request.error)
-      }
-    })
+        console.error(
+          `Failed to remove cache data for key ${key}:`,
+          request.error,
+        );
+        reject(request.error);
+      };
+    });
   }
 
-  
+  async hasLookups(typeCode: LookupTypeCode): Promise<boolean> {
+    await this.ensureReady();
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction([typeCode], "readonly");
+      const store = transaction.objectStore(typeCode);
+      const request = store.count();
+
+      request.onsuccess = () => resolve(request.result > 0);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  async storeLookups(typeCode: LookupTypeCode, data: Lookup[]): Promise<void> {
+    await this.ensureReady();
+
+    if (!this.db!.objectStoreNames.contains(typeCode)) {
+      console.warn(`Store "${typeCode}" not found, recreating database...`);
+      await this.recreateDatabase();
+    }
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction([typeCode], "readwrite");
+      const store = transaction.objectStore(typeCode);
+
+      store.clear().onsuccess = () => {
+        data.forEach((item) => store.add(item));
+        transaction.oncomplete = () => resolve();
+        transaction.onerror = () => {
+          console.error(
+            `Failed to store lookups for "${typeCode}":`,
+            transaction.error,
+          );
+          reject(transaction.error);
+        };
+      };
+    });
+  }
+
+  async storeLookupTypes(types: LookupType[]): Promise<void> {
+    await this.ensureReady();
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction(["lookup_types"], "readwrite");
+      const store = transaction.objectStore("lookup_types");
+
+      store.clear().onsuccess = () => {
+        types.forEach((type) => store.add(type));
+        transaction.oncomplete = () => resolve();
+        transaction.onerror = () => reject(transaction.error);
+      };
+    });
+  }
+
   async cleanupExpiredCache(): Promise<void> {
     if (!this.db) {
-      await this.init()
+      await this.init();
     }
 
     return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction(['cache'], 'readwrite')
-      const store = transaction.objectStore('cache')
-      const index = store.index('expiresAt')
-      const request = index.openCursor(IDBKeyRange.upperBound(Date.now()))
+      const transaction = this.db!.transaction(["cache"], "readwrite");
+      const store = transaction.objectStore("cache");
+      const index = store.index("expiresAt");
+      const request = index.openCursor(IDBKeyRange.upperBound(Date.now()));
 
       request.onsuccess = (event) => {
-        const cursor = (event.target as IDBRequest).result
+        const cursor = (event.target as IDBRequest).result;
         if (cursor) {
-          cursor.delete()
-          cursor.continue()
+          cursor.delete();
+          cursor.continue();
         } else {
-          resolve()
+          resolve();
         }
-      }
+      };
 
       request.onerror = () => {
-        console.error('Failed to cleanup expired cache:', request.error)
-        reject(request.error)
-      }
-    })
+        console.error("Failed to cleanup expired cache:", request.error);
+        reject(request.error);
+      };
+    });
   }
 
-  
   async recreateDatabase(): Promise<void> {
     if (this.db) {
-      this.db.close()
-      this.db = null
+      this.db.close();
+      this.db = null;
     }
 
-    
     return new Promise((resolve, reject) => {
-      const deleteRequest = indexedDB.deleteDatabase(this.dbName)
+      const deleteRequest = indexedDB.deleteDatabase(this.dbName);
       deleteRequest.onsuccess = () => {
-        
-        this.init().then(resolve).catch(reject)
-      }
+        this.init().then(resolve).catch(reject);
+      };
       deleteRequest.onerror = () => {
-        reject(deleteRequest.error)
-      }
-    })
+        reject(deleteRequest.error);
+      };
+    });
   }
 }
 
+export const indexedDBService = new IndexedDBService();
 
-export const indexedDBService = new IndexedDBService()
-
-
-if (typeof window !== 'undefined') {
-  indexedDBService.init().catch(error => {
-    console.error('Failed to initialize IndexedDB:', error)
-  })
+if (typeof window !== "undefined") {
+  indexedDBService.init().catch((error) => {
+    console.error("Failed to initialize IndexedDB:", error);
+  });
 }

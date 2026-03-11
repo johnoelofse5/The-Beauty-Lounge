@@ -1,8 +1,10 @@
 import { supabase } from '@/lib/supabase'
 import { LookupType, Lookup, LookupWithType } from '@/types/lookup'
 import { LOOKUP_TYPE_CODES, LookupTypeCode } from '@/constants/lookup-codes'
+import { seedLookups } from './lookup-seed'
 
 export class LookupService {
+
   /**
    * Get all active lookup types
    */
