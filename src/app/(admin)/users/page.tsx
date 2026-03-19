@@ -98,7 +98,7 @@ export default function UserManagementPage() {
       if (error) throw error;
 
       const transformedUsers =
-        usersData?.map((user) => ({
+        usersData?.map((user: any) => ({
           ...user,
           role_name: user.role?.name || null,
           role_description: user.role?.description || null,
