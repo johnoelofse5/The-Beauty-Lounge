@@ -1,21 +1,14 @@
-"use client";
+'use client';
 
-import { createContext, useContext, useEffect, useState } from "react";
-import { Session, User as SupabaseUser } from "@supabase/supabase-js";
-import { useRouter } from "next/navigation";
-import { AuthContextType } from "@/types/auth-context-type";
-import { UserSignUpData } from "@/types/user-signup";
-import { createClient } from "@/lib/supabase/client";
-import {
-  getUserRoleAndPermissions,
-  UserWithRoleAndPermissions,
-} from "@/lib/rbac";
-import {
-  trackPasswordResetEmail,
-  markEmailAsSent,
-  markEmailAsFailed,
-} from "@/lib/email-tracking";
-import { seedLookups } from "@/lib/lookup-seed";
+import { createContext, useContext, useEffect, useState } from 'react';
+import { Session, User as SupabaseUser } from '@supabase/supabase-js';
+import { useRouter } from 'next/navigation';
+import { AuthContextType } from '@/types/auth-context-type';
+import { UserSignUpData } from '@/types/user-signup';
+import { createClient } from '@/lib/supabase/client';
+import { getUserRoleAndPermissions, UserWithRoleAndPermissions } from '@/lib/rbac';
+import { trackPasswordResetEmail, markEmailAsSent, markEmailAsFailed } from '@/lib/email-tracking';
+import { seedLookups } from '@/lib/lookup-seed';
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
@@ -36,7 +29,7 @@ const AuthContext = createContext<AuthContextType>({
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error("useAuth must be used within an AuthProvider");
+    throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
 };
@@ -46,31 +39,30 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const [userRoleData, setUserRoleData] =
-    useState<UserWithRoleAndPermissions | null>(null);
+  const [userRoleData, setUserRoleData] = useState<UserWithRoleAndPermissions | null>(null);
   const supabase = createClient();
 
   useEffect(() => {
     const checkProfileCompletion = async () => {
       if (user && !loading) {
-        if (window.location.pathname === "/complete-profile") {
+        if (window.location.pathname === '/complete-profile') {
           return;
         }
 
         const { data: userData, error } = await supabase
-          .from("users")
-          .select("id, first_name, last_name, phone")
-          .eq("id", user.id)
+          .from('user_profiles')
+          .select('id, first_name, last_name, phone')
+          .eq('id', user.id)
           .single();
 
-        if (error && error.code === "PGRST116") {
-          router.push("/complete-profile");
+        if (error && error.code === 'PGRST116') {
+          router.push('/complete-profile');
         } else if (userData) {
           const isProfileIncomplete =
             !userData.first_name || !userData.last_name || !userData.phone;
 
           if (isProfileIncomplete) {
-            router.push("/complete-profile");
+            router.push('/complete-profile');
           }
         }
       }
@@ -95,7 +87,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     if (user) {
       seedLookups().catch((err) => {
-        console.error("Failed to seed lookups:", err);
+        console.error('Failed to seed lookups:', err);
       });
     }
   }, [user]);
@@ -103,7 +95,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session }, error }) => {
       if (error) {
-        console.error("Error getting session:", error);
+        console.error('Error getting session:', error);
         setSession(null);
         setUser(null);
         setUserRoleData(null);
@@ -113,7 +105,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
         if (session?.user && !session.user.phone) {
           ensureUserRecord(session.user).catch((err) => {
-            console.error("Failed to ensure user record:", err);
+            console.error('Failed to ensure user record:', err);
           });
         }
       }
@@ -123,21 +115,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "SIGNED_OUT") {
+      if (event === 'SIGNED_OUT') {
         setSession(null);
         setUser(null);
         setUserRoleData(null);
-        router.push("/");
-      } else if (event === "TOKEN_REFRESHED") {
+        router.push('/');
+      } else if (event === 'TOKEN_REFRESHED') {
         setSession(session);
         setUser(session?.user ?? null);
-      } else if (event === "SIGNED_IN") {
+      } else if (event === 'SIGNED_IN') {
         setSession(session);
         setUser(session?.user ?? null);
 
         if (session?.user && !session.user.phone) {
           ensureUserRecord(session.user).catch((err) => {
-            console.error("Failed to ensure user record:", err);
+            console.error('Failed to ensure user record:', err);
           });
         }
       }
@@ -150,40 +142,38 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const ensureUserRecord = async (authUser: SupabaseUser) => {
     try {
       const { data: existingUser, error: checkError } = await supabase
-        .from("users")
-        .select("id, first_name, last_name, phone")
-        .eq("id", authUser.id)
+        .from('user_profiles')
+        .select('id, first_name, last_name, phone')
+        .eq('id', authUser.id)
         .single();
 
-      if (checkError && checkError.code === "PGRST116") {
-        router.push("/complete-profile");
+      if (checkError && checkError.code === 'PGRST116') {
+        router.push('/complete-profile');
         return;
       }
 
       if (existingUser) {
         const isProfileIncomplete =
-          !existingUser.first_name ||
-          !existingUser.last_name ||
-          !existingUser.phone;
+          !existingUser.first_name || !existingUser.last_name || !existingUser.phone;
 
         if (isProfileIncomplete) {
-          router.push("/complete-profile");
+          router.push('/complete-profile');
           return;
         }
       }
     } catch (err) {
-      console.error("Error in ensureUserRecord:", err);
+      console.error('Error in ensureUserRecord:', err);
     }
   };
 
   const signInWithGoogle = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
+      provider: 'google',
       options: {
         redirectTo: `${window.location.origin}/callback`,
         queryParams: {
-          access_type: "offline",
-          prompt: "consent",
+          access_type: 'offline',
+          prompt: 'consent',
         },
       },
     });
@@ -193,19 +183,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  const signUp = async (
-    email: string,
-    password: string,
-    userData?: UserSignUpData,
-  ) => {
+  const signUp = async (email: string, password: string, userData?: UserSignUpData) => {
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: {
-          first_name: userData?.first_name || "",
-          last_name: userData?.last_name || "",
-          phone: userData?.phone || "",
+          first_name: userData?.first_name || '',
+          last_name: userData?.last_name || '',
+          phone: userData?.phone || '',
         },
       },
     });
@@ -217,31 +203,29 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     if (authData.user) {
       try {
         const { data: clientRole, error: roleError } = await supabase
-          .from("roles")
-          .select("id")
-          .eq("name", "client")
+          .from('roles')
+          .select('id')
+          .eq('name', 'client')
           .single();
 
         if (roleError) {
-          console.error("Error fetching client role:", roleError);
+          console.error('Error fetching client role:', roleError);
         }
 
-        const { error: userError } = await supabase.from("users").insert({
-          id: authData.user.id,
-          email: email,
-          first_name: userData?.first_name || "",
-          last_name: userData?.last_name || "",
-          phone: userData?.phone || "",
-          role_id: clientRole?.id || null,
-          is_active: true,
-          is_deleted: false,
-        });
+        const { error: userError } = await supabase
+          .from('users')
+          .update({
+            first_name: userData?.first_name || '',
+            last_name: userData?.last_name || '',
+            role_id: clientRole?.id || null,
+          })
+          .eq('id', authData.user.id);
 
         if (userError) {
-          console.error("Error creating user record:", userError);
+          console.error('Error updating user record:', userError);
         }
       } catch (err) {
-        console.error("Error in user creation process:", err);
+        console.error('Error in user creation process:', err);
       }
     }
   };
@@ -262,31 +246,27 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const { error } = await supabase.auth.signOut();
       if (error) {
         if (
-          error.message.includes("session_not_found") ||
-          error.message.includes(
-            "Session from session_id claim in JWT does not exist",
-          )
+          error.message.includes('session_not_found') ||
+          error.message.includes('Session from session_id claim in JWT does not exist')
         ) {
-          console.warn(
-            "Session already expired, clearing local state and redirecting to login",
-          );
+          console.warn('Session already expired, clearing local state and redirecting to login');
 
           setSession(null);
           setUser(null);
           setUserRoleData(null);
-          router.push("/login");
+          router.push('/login');
           return;
         }
         throw new Error(error.message);
       }
 
-      router.push("/");
+      router.push('/');
     } catch (err) {
-      console.error("Error during logout:", err);
+      console.error('Error during logout:', err);
       setSession(null);
       setUser(null);
       setUserRoleData(null);
-      router.push("/login");
+      router.push('/login');
     }
   };
 
@@ -316,73 +296,63 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     } catch (err) {
       if (trackingId) {
-        await markEmailAsFailed(
-          trackingId,
-          err instanceof Error ? err.message : "Unknown error",
-        );
+        await markEmailAsFailed(trackingId, err instanceof Error ? err.message : 'Unknown error');
       }
       throw err;
     }
   };
 
-  const sendOTP = async (
-    phone: string,
-    purpose: "signup" | "signin" | "password_reset",
-  ) => {
+  const sendOTP = async (phone: string, purpose: 'signup' | 'signin' | 'password_reset') => {
     try {
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/send-otp`,
         {
-          method: "POST",
+          method: 'POST',
           headers: {
-            "Content-Type": "application/json",
+            'Content-Type': 'application/json',
             Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
           },
           body: JSON.stringify({ phoneNumber: phone, purpose }),
-        },
+        }
       );
 
       const data = await response.json();
 
       if (!data.success) {
-        throw new Error(data.message || "Failed to send OTP");
+        throw new Error(data.message || 'Failed to send OTP');
       }
     } catch (error) {
-      throw new Error(
-        error instanceof Error ? error.message : "Failed to send OTP",
-      );
+      throw new Error(error instanceof Error ? error.message : 'Failed to send OTP');
     }
   };
 
   const verifyOTP = async (
     phone: string,
     otpCode: string,
-    purpose: "signup" | "signin" | "password_reset",
+    purpose: 'signup' | 'signin' | 'password_reset'
   ): Promise<boolean> => {
     try {
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/verify-otp`,
         {
-          method: "POST",
+          method: 'POST',
           headers: {
-            "Content-Type": "application/json",
+            'Content-Type': 'application/json',
             Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
           },
           body: JSON.stringify({ phoneNumber: phone, otpCode, purpose }),
-        },
+        }
       );
 
       const data = await response.json();
 
       if (!data.success) {
-        throw new Error(data.message || "Failed to verify OTP");
+        throw new Error(data.message || 'Failed to verify OTP');
       }
 
       return true;
     } catch (error) {
-      throw new Error(
-        error instanceof Error ? error.message : "Failed to verify OTP",
-      );
+      throw new Error(error instanceof Error ? error.message : 'Failed to verify OTP');
     }
   };
 
@@ -391,9 +361,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     email: string,
     firstName: string,
     lastName: string,
-    otpCode: string,
+    otpCode: string
   ) => {
-    await verifyOTP(phone, otpCode, "signup");
+    await verifyOTP(phone, otpCode, 'signup');
+
+    const { data: existingProfile, error: checkError } = await supabase
+      .from('user_profiles')
+      .select('id, phone')
+      .eq('phone', phone)
+      .maybeSingle();
+
+    if (existingProfile && !checkError) {
+      throw new Error('User already exists with this phone number. Please try logging in instead.');
+    }
 
     const tempPassword = `temp_${phone}_${Date.now()}`;
 
@@ -414,91 +394,58 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
 
     if (authData.user) {
-      const { data: existingUser, error: checkError } = await supabase
-        .from("users")
-        .select("id, phone, first_name, last_name")
-        .eq("id", authData.user.id)
-        .single();
-
-      if (existingUser && !checkError && existingUser?.phone === phone) {
-        throw new Error(
-          "User already exists with this phone number. Please try logging in instead.",
-        );
-      }
-      if (
-        typeof existingUser?.phone === "string" &&
-        existingUser?.phone.trim() &&
-        existingUser?.phone !== phone
-      ) {
-        throw new Error(
-          "User already exists with a different phone number. Please contact support.",
-        );
-      }
-
       const { data: clientRole, error: roleError } = await supabase
-        .from("roles")
-        .select("id")
-        .eq("name", "client")
+        .from('roles')
+        .select('id')
+        .eq('name', 'client')
         .single();
 
       if (roleError) {
-        console.error("Error fetching client role:", roleError);
+        console.error('Error fetching client role:', roleError);
       }
 
-      const { error: userError } = await supabase.from("users").upsert(
-        {
-          id: authData.user.id,
-          email: email,
+      const { error: userError } = await supabase
+        .from('users')
+        .update({
           first_name: firstName,
           last_name: lastName,
-          phone: phone,
           role_id: clientRole?.id || null,
-          is_active: true,
-          is_deleted: false,
-        },
-        {
-          onConflict: "id",
-        },
-      );
+        })
+        .eq('id', authData.user.id);
 
       if (userError) {
-        if (userError.code === "23505") {
-          throw new Error(
-            "User already exists. Please try logging in instead.",
-          );
-        } else if (userError.code === "42703") {
-          throw new Error(
-            "Database error: missing required columns. Please contact support.",
-          );
+        if (userError.code === '23505') {
+          throw new Error('User already exists. Please try logging in instead.');
         } else {
-          throw new Error("Database error saving new user");
+          console.error('Error updating user record:', userError);
+          throw new Error('Database error saving new user');
         }
       }
     }
   };
 
   const signInWithPhone = async (phone: string, otpCode: string) => {
-    await verifyOTP(phone, otpCode, "signin");
+    await verifyOTP(phone, otpCode, 'signin');
 
     const { data: userData, error: userError } = await supabase
-      .from("users")
-      .select("*")
-      .eq("phone", phone)
-      .eq("is_active", true)
-      .eq("is_deleted", false)
+      .from('user_profiles')
+      .select('*')
+      .eq('phone', phone)
+      .eq('is_active', true)
+      .eq('is_deleted', false)
       .single();
 
     if (userError || !userData) {
-      throw new Error("User not found. Please sign up first.");
+      throw new Error('User not found. Please sign up first.');
     }
 
     try {
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/create-mobile-session`,
         {
-          method: "POST",
+          method: 'POST',
           headers: {
-            "Content-Type": "application/json",
+            'Content-Type': 'application/json',
             Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
           },
           body: JSON.stringify({
@@ -506,13 +453,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             email: userData.email,
             phone: phone,
           }),
-        },
+        }
       );
 
       const data = await response.json();
 
       if (!data.success) {
-        throw new Error(data.message || "Failed to create session");
+        throw new Error(data.message || 'Failed to create session');
       }
 
       const tempPassword = data.tempPassword;
@@ -523,10 +470,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       });
 
       if (signInError) {
-        throw new Error("Session creation failed. Please try again.");
+        throw new Error('Session creation failed. Please try again.');
       }
     } catch (error) {
-      throw new Error("Authentication failed. Please try again.");
+      throw new Error('Authentication failed. Please try again.');
     }
   };
 

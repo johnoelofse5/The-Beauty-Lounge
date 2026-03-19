@@ -1,106 +1,100 @@
-'use client'
+'use client';
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import Link from 'next/link'
-import { supabase } from '@/lib/supabase'
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { supabase } from '@/lib/supabase';
 
 export default function LegacyLoginPage() {
-  const router = useRouter()
+  const router = useRouter();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
-  })
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target
-    setFormData(prev => ({
+    const { name, value } = e.target;
+    setFormData((prev) => ({
       ...prev,
-      [name]: value
-    }))
-  }
+      [name]: value,
+    }));
+  };
 
   const validateForm = () => {
     if (!formData.email) {
-      setError('Email is required')
-      return false
+      setError('Email is required');
+      return false;
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      setError('Please enter a valid email address')
-      return false
+      setError('Please enter a valid email address');
+      return false;
     }
-    return true
-  }
+    return true;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError(null)
+    e.preventDefault();
+    setError(null);
 
-    if (!validateForm()) return
+    if (!validateForm()) return;
 
-    setLoading(true)
+    setLoading(true);
 
     try {
-      
       const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('*')
+        .from('user_profiles')
+        .select('id, email, phone')
         .eq('email', formData.email)
         .eq('is_active', true)
         .eq('is_deleted', false)
-        .single()
+        .single();
 
       if (userError || !userData) {
-        throw new Error('User not found. Please check your email or sign up first.')
+        throw new Error('User not found. Please check your email or sign up first.');
       }
 
-      
-      
-      
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/create-mobile-session`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
+          },
+          body: JSON.stringify({
+            userId: userData.id,
+            email: userData.email,
+            phone: userData.phone,
+          }),
+        }
+      );
 
-      
-      const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/create-mobile-session`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
-        },
-        body: JSON.stringify({ 
-          userId: userData.id,
-          email: userData.email,
-          phone: userData.phone
-        }),
-      })
-
-      const data = await response.json()
+      const data = await response.json();
 
       if (!data.success) {
-        throw new Error(data.message || 'Failed to create session')
+        throw new Error(data.message || 'Failed to create session');
       }
 
-      
-      const tempPassword = data.tempPassword
-      
+      const tempPassword = data.tempPassword;
+
       const { error: signInError } = await supabase.auth.signInWithPassword({
         email: userData.email,
-        password: tempPassword
-      })
+        password: tempPassword,
+      });
 
       if (signInError) {
-        throw new Error('Session creation failed. Please try again.')
+        throw new Error('Session creation failed. Please try again.');
       }
 
-      
-      router.push('/') 
-      
+      router.push('/');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred during login')
+      setError(err instanceof Error ? err.message : 'An error occurred during login');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4 py-6 sm:px-6 lg:px-8">
@@ -165,15 +159,12 @@ export default function LegacyLoginPage() {
           </div>
 
           <div className="text-center">
-            <Link
-              href="/login"
-              className="text-sm text-indigo-600 hover:text-indigo-500"
-            >
+            <Link href="/login" className="text-sm text-indigo-600 hover:text-indigo-500">
               Back to phone login
             </Link>
           </div>
         </form>
       </div>
     </div>
-  )
+  );
 }

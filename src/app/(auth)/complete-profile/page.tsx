@@ -1,83 +1,99 @@
-'use client'
+'use client';
 
-import { useState } from 'react'
-import { useAuth } from '@/contexts/AuthContext'
-import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
+import { useState } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { useRouter } from 'next/navigation';
+import { createClient } from '@/lib/supabase/client';
 
 export default function CompleteProfilePage() {
-  const { user } = useAuth()
-  const router = useRouter()
-  const supabase = createClient()
-  
+  const { user } = useAuth();
+  const router = useRouter();
+  const supabase = createClient();
+
   const [formData, setFormData] = useState({
     firstName: user?.user_metadata?.given_name || '',
     lastName: user?.user_metadata?.family_name || '',
     phone: '',
-  })
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault()
-  setLoading(true)
-  setError('')
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
 
-  try {
-    const { data: clientRole, error: roleError } = await supabase
-      .from('roles')
-      .select('id')
-      .eq('name', 'client')
-      .single()
+    try {
+      const { data: clientRole, error: roleError } = await supabase
+        .from('roles')
+        .select('id')
+        .eq('name', 'client')
+        .single();
 
-    if (roleError) {
-      throw new Error('Failed to fetch role')
+      if (roleError) {
+        throw new Error('Failed to fetch role');
+      }
+
+      if (formData.phone) {
+        const { error: authUpdateError } = await supabase.auth.updateUser({
+          phone: formatToE164(formData.phone),
+        });
+        if (authUpdateError) {
+          throw new Error('Failed to save phone number');
+        }
+      }
+
+      const { error: userError } = await supabase
+        .from('users')
+        .update({
+          first_name: formData.firstName,
+          last_name: formData.lastName,
+          role_id: clientRole?.id || null,
+        })
+        .eq('id', user!.id);
+
+      if (userError) {
+        throw new Error('Failed to save profile');
+      }
+
+      router.push('/');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatToE164 = (phone: string): string => {
+    const cleaned = phone.replace(/\s/g, '').replace(/-/g, '');
+
+    if (cleaned.startsWith('0')) {
+      return `+27${cleaned.slice(1)}`;
     }
 
-    const { error: userError } = await supabase
-      .from('users')
-      .upsert({
-        id: user!.id,
-        email: user!.email || '',
-        first_name: formData.firstName,
-        last_name: formData.lastName,
-        phone: formData.phone,
-        role_id: clientRole?.id || null,
-        is_active: true,
-        is_deleted: false
-      }, {
-        onConflict: 'id'
-      })
-
-    if (userError) {
-      throw new Error('Failed to save profile')
+    if (cleaned.startsWith('+')) {
+      return cleaned;
     }
 
-    router.push('/')
-  } catch (err) {
-    setError(err instanceof Error ? err.message : 'An error occurred')
-  } finally {
-    setLoading(false)
-  }
-}
+    if (cleaned.startsWith('27')) {
+      return `+${cleaned}`;
+    }
+    return cleaned;
+  };
 
   if (!user) {
-    return <div>Loading...</div>
+    return <div>Loading...</div>;
   }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="max-w-md w-full bg-white rounded-lg shadow-md p-8">
         <h1 className="text-2xl font-bold mb-2">Complete Your Profile</h1>
-        <p className="text-gray-600 mb-6">
-          We need a bit more information to set up your account.
-        </p>
+        <p className="text-gray-600 mb-6">We need a bit more information to set up your account.</p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              First Name
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
             <input
               type="text"
               required
@@ -88,9 +104,7 @@ const handleSubmit = async (e: React.FormEvent) => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Last Name
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
             <input
               type="text"
               required
@@ -101,9 +115,7 @@ const handleSubmit = async (e: React.FormEvent) => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Phone Number
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
             <input
               type="tel"
               required
@@ -114,11 +126,7 @@ const handleSubmit = async (e: React.FormEvent) => {
             />
           </div>
 
-          {error && (
-            <div className="bg-red-50 text-red-600 p-3 rounded-md text-sm">
-              {error}
-            </div>
-          )}
+          {error && <div className="bg-red-50 text-red-600 p-3 rounded-md text-sm">{error}</div>}
 
           <button
             type="submit"
@@ -130,5 +138,5 @@ const handleSubmit = async (e: React.FormEvent) => {
         </form>
       </div>
     </div>
-  )
+  );
 }

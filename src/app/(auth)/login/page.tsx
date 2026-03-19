@@ -1,220 +1,251 @@
-'use client'
+'use client';
 
-import { useState, useRef, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import Link from 'next/link'
-import { useAuth } from '@/contexts/AuthContext'
-import { SignInFormData } from '@/types/form'
+import { useState, useRef, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase';
+import { SignInFormData } from '@/types/form';
 
 export default function LoginPage() {
-  const router = useRouter()
-  const { signInWithPhone, sendOTP, signInWithGoogle } = useAuth()
-  const [step, setStep] = useState<'phone' | 'otp'>('phone')
+  const router = useRouter();
+  const { signInWithPhone, sendOTP, signInWithGoogle } = useAuth();
+  const [step, setStep] = useState<'phone' | 'otp'>('phone');
   const [formData, setFormData] = useState<SignInFormData>({
     phone: '',
     otp_code: '',
-  })
-  const [loading, setLoading] = useState(false)
-  const [googleLoading, setGoogleLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [otpSent, setOtpSent] = useState(false)
-  const [countdown, setCountdown] = useState(0)
+  });
+  const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [otpSent, setOtpSent] = useState(false);
+  const [countdown, setCountdown] = useState(0);
 
-
-  const holdIntervalRef = useRef<NodeJS.Timeout | null>(null)
-  const holdStartTimeRef = useRef<number | null>(null)
-
+  const holdIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const holdStartTimeRef = useRef<number | null>(null);
 
   useEffect(() => {
     const handleResize = () => {
-
       if (window.innerHeight < window.screen.height * 0.75) {
-
-        const activeElement = document.activeElement as HTMLElement
-        if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA')) {
+        const activeElement = document.activeElement as HTMLElement;
+        if (
+          activeElement &&
+          (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA')
+        ) {
           setTimeout(() => {
-            activeElement.scrollIntoView({
-              behavior: 'smooth',
-              block: 'center'
-            })
-          }, 100)
+            activeElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }, 100);
         }
       }
-    }
+    };
 
+    window.addEventListener('resize', handleResize);
 
-    window.addEventListener('resize', handleResize)
-
-
-    const inputs = document.querySelectorAll('input, textarea')
+    const inputs = document.querySelectorAll('input, textarea');
     const handleInputFocus = (e: Event) => {
       setTimeout(() => {
-        const target = e.target as HTMLElement
-        target.scrollIntoView({
-          behavior: 'smooth',
-          block: 'center'
-        })
-      }, 300)
-    }
+        const target = e.target as HTMLElement;
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 300);
+    };
 
-    inputs.forEach(input => {
-      input.addEventListener('focus', handleInputFocus)
-    })
+    inputs.forEach((input) => input.addEventListener('focus', handleInputFocus));
 
     return () => {
-      window.removeEventListener('resize', handleResize)
-      inputs.forEach(input => {
-        input.removeEventListener('focus', handleInputFocus)
-      })
-    }
-  }, [step])
+      window.removeEventListener('resize', handleResize);
+      inputs.forEach((input) => input.removeEventListener('focus', handleInputFocus));
+    };
+  }, [step]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }))
-  }
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
 
   const handleHoldStart = () => {
-    holdStartTimeRef.current = Date.now()
-
+    holdStartTimeRef.current = Date.now();
     holdIntervalRef.current = setInterval(() => {
-      const elapsed = Date.now() - (holdStartTimeRef.current || 0)
-
-      if (elapsed >= 5000) {
-        handleHoldComplete()
-      }
-    }, 100)
-  }
+      const elapsed = Date.now() - (holdStartTimeRef.current || 0);
+      if (elapsed >= 5000) handleHoldComplete();
+    }, 100);
+  };
 
   const handleHoldEnd = () => {
     if (holdIntervalRef.current) {
-      clearInterval(holdIntervalRef.current)
-      holdIntervalRef.current = null
+      clearInterval(holdIntervalRef.current);
+      holdIntervalRef.current = null;
     }
-    holdStartTimeRef.current = null
-  }
+    holdStartTimeRef.current = null;
+  };
 
   const handleHoldComplete = () => {
-    handleHoldEnd()
-    router.push('/legacy-login')
-  }
+    handleHoldEnd();
+    router.push('/legacy-login');
+  };
 
   const validatePhoneNumber = (phone: string): boolean => {
-    const phoneRegex = /^[\+]?[0-9][\d]{0,15}$/
-    return phoneRegex.test(phone.replace(/\s/g, ''))
-  }
+    const phoneRegex = /^[\+]?[0-9][\d]{0,15}$/;
+    return phoneRegex.test(phone.replace(/\s/g, ''));
+  };
 
   const validateForm = (): boolean => {
     if (step === 'phone') {
       if (!formData.phone) {
-        setError('Phone number is required')
-        return false
+        setError('Phone number is required');
+        return false;
       }
       if (!validatePhoneNumber(formData.phone)) {
-        setError('Please enter a valid phone number (e.g., 0821234567)')
-        return false
+        setError('Please enter a valid phone number (e.g., 0821234567)');
+        return false;
       }
     } else if (step === 'otp') {
       if (!formData.otp_code) {
-        setError('OTP code is required')
-        return false
+        setError('OTP code is required');
+        return false;
       }
       if (!/^\d{6}$/.test(formData.otp_code)) {
-        setError('OTP code must be 6 digits')
-        return false
+        setError('OTP code must be 6 digits');
+        return false;
       }
     }
+    return true;
+  };
+  const checkAndRedirect = async (userId: string) => {
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('id, phone')
+      .eq('id', userId)
+      .single();
 
-    return true
-  }
+    if (!profile?.phone || profile.phone.trim() === '') {
+      router.push('/update-phone');
+    } else {
+      router.push('/');
+    }
+  };
 
   const handleGoogleSignIn = async () => {
-    setGoogleLoading(true)
-    setError(null)
+    setGoogleLoading(true);
+    setError(null);
 
     try {
-      await signInWithGoogle()
+      await signInWithGoogle();
+
+      const {
+        data: { subscription },
+      } = supabase.auth.onAuthStateChange(async (event, session) => {
+        if (event === 'SIGNED_IN' && session?.user) {
+          subscription.unsubscribe();
+
+          const { data: existingProfile } = await supabase
+            .from('users')
+            .select('id')
+            .eq('id', session.user.id)
+            .single();
+
+          if (!existingProfile) {
+            await supabase.from('users').insert({
+              id: session.user.id,
+              is_active: true,
+              is_deleted: false,
+              is_practitioner: false,
+            });
+          }
+
+          await checkAndRedirect(session.user.id);
+        }
+      });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to sign in with Google')
-      setGoogleLoading(false)
+      setError(err instanceof Error ? err.message : 'Failed to sign in with Google');
+      setGoogleLoading(false);
     }
-  }
+  };
 
   const handleSendOTP = async () => {
-    if (!validateForm()) return
+    if (!validateForm()) return;
 
-    setLoading(true)
-    setError(null)
+    setLoading(true);
+    setError(null);
 
     try {
-      await sendOTP(formData.phone, 'signin')
-      setOtpSent(true)
-      setStep('otp')
-      setCountdown(60)
+      const { data: existingUser } = await supabase
+        .from('user_profiles')
+        .select('id, phone')
+        .eq('phone', formData.phone)
+        .maybeSingle();
 
+      if (!existingUser) {
+        setError('No account found with this phone number. Please sign up first.');
+        setLoading(false);
+        return;
+      }
+
+      await sendOTP(formData.phone, 'signin');
+      setOtpSent(true);
+      setStep('otp');
+      setCountdown(60);
 
       const timer = setInterval(() => {
-        setCountdown(prev => {
+        setCountdown((prev) => {
           if (prev <= 1) {
-            clearInterval(timer)
-            return 0
+            clearInterval(timer);
+            return 0;
           }
-          return prev - 1
-        })
-      }, 1000)
+          return prev - 1;
+        });
+      }, 1000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to send OTP')
+      setError(err instanceof Error ? err.message : 'Failed to send OTP');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError(null)
+    e.preventDefault();
+    setError(null);
+    if (!validateForm()) return;
 
-    if (!validateForm()) return
-
-    setLoading(true)
+    setLoading(true);
 
     try {
-      await signInWithPhone(formData.phone, formData.otp_code || '')
-      router.push('/')
+      await signInWithPhone(formData.phone, formData.otp_code || '');
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (user) await checkAndRedirect(user.id);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred during login')
+      setError(err instanceof Error ? err.message : 'An error occurred during login');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleResendOTP = async () => {
-    if (countdown > 0) return
-
-    setLoading(true)
-    setError(null)
+    if (countdown > 0) return;
+    setLoading(true);
+    setError(null);
 
     try {
-      await sendOTP(formData.phone, 'signin')
-      setCountdown(60)
+      await sendOTP(formData.phone, 'signin');
+      setCountdown(60);
 
       const timer = setInterval(() => {
-        setCountdown(prev => {
+        setCountdown((prev) => {
           if (prev <= 1) {
-            clearInterval(timer)
-            return 0
+            clearInterval(timer);
+            return 0;
           }
-          return prev - 1
-        })
-      }, 1000)
+          return prev - 1;
+        });
+      }, 1000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to resend OTP')
+      setError(err instanceof Error ? err.message : 'Failed to resend OTP');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const GoogleSignInButton = () => (
     <button
@@ -247,7 +278,7 @@ export default function LoginPage() {
       )}
       <span>{googleLoading ? 'Signing in...' : 'Continue with Google'}</span>
     </button>
-  )
+  );
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -281,9 +312,7 @@ export default function LoginPage() {
               >
                 Sign In
               </h2>
-              <p className="mt-2 text-sm text-gray-600">
-                Sign in with your mobile number
-              </p>
+              <p className="mt-2 text-sm text-gray-600">Sign in with your mobile number</p>
             </div>
 
             <div className="bg-white rounded-lg shadow-sm p-6">
@@ -293,11 +322,9 @@ export default function LoginPage() {
                 </div>
               )}
 
-              {/* Google Sign-In Button - Only show on phone step */}
               {step === 'phone' && (
                 <>
                   <GoogleSignInButton />
-
                   <div className="relative my-6">
                     <div className="absolute inset-0 flex items-center">
                       <div className="w-full border-t border-gray-300" />
@@ -339,7 +366,7 @@ export default function LoginPage() {
                       disabled={loading}
                       className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
                     >
-                      {loading ? 'Sending...' : 'Send Verification Code'}
+                      {loading ? 'Checking...' : 'Send Verification Code'}
                     </button>
                   </>
                 )}
@@ -445,9 +472,7 @@ export default function LoginPage() {
             >
               Sign In
             </h2>
-            <p className="mt-2 text-sm text-gray-600">
-              Sign in with your mobile number
-            </p>
+            <p className="mt-2 text-sm text-gray-600">Sign in with your mobile number</p>
           </div>
 
           <div className="bg-white rounded-lg shadow-sm p-6 sm:p-8">
@@ -585,5 +610,5 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
-  )
+  );
 }

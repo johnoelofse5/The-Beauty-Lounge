@@ -1,42 +1,43 @@
--- Script to assign practitioner role to stacey.mattheys@gmail.com
--- Run this script to give stacey.mattheys@gmail.com practitioner privileges
-
--- First, let's check if the user exists and get their current role
+-- Check if the user exists and get their current role
 SELECT 
-    u.id,
-    u.email,
-    u.first_name,
-    u.last_name,
+    up.id,
+    up.email,
+    up.first_name,
+    up.last_name,
     r.name as current_role,
     r.description as role_description
-FROM users u
-LEFT JOIN roles r ON u.role_id = r.id
-WHERE u.email = 'Stacey.mattheys@gmail.com';
+FROM user_profiles up
+LEFT JOIN roles r ON up.role_id = r.id
+WHERE up.email = 'stacey.mattheys@gmail.com';
 
 -- Get the practitioner role ID
 SELECT id, name, description 
 FROM roles 
 WHERE name = 'practitioner';
 
--- Update the user to have practitioner role
-UPDATE users 
+-- Update the user to have practitioner role and set is_practitioner flag
+UPDATE public.users 
 SET 
     role_id = (SELECT id FROM roles WHERE name = 'practitioner'),
+    is_practitioner = true,
     updated_at = NOW()
-WHERE email = 'Stacey.mattheys@gmail.com';
+WHERE id = (
+    SELECT id FROM auth.users WHERE lower(email) = 'stacey.mattheys@gmail.com'
+);
 
 -- Verify the update was successful
 SELECT 
-    u.id,
-    u.email,
-    u.first_name,
-    u.last_name,
+    up.id,
+    up.email,
+    up.first_name,
+    up.last_name,
+    up.is_practitioner,
     r.name as role_name,
     r.description as role_description,
-    u.updated_at
-FROM users u
-LEFT JOIN roles r ON u.role_id = r.id
-WHERE u.email = 'Stacey.mattheys@gmail.com';
+    up.updated_at
+FROM user_profiles up
+LEFT JOIN roles r ON up.role_id = r.id
+WHERE up.email = 'stacey.mattheys@gmail.com';
 
 -- Show all permissions that the practitioner role has
 SELECT 

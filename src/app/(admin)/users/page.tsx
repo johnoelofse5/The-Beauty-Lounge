@@ -1,108 +1,117 @@
-'use client'
+'use client';
 
-import { useState, useEffect, useCallback, memo, useRef } from 'react'
-import Link from 'next/link'
-import { useAuth } from '@/contexts/AuthContext'
-import { supabase } from '@/lib/supabase'
-import { ValidationInput } from '@/components/validation/ValidationComponents'
-import { AdminUser, AdminRole, UserFormData, UserViewMode } from '@/types'
+import { useState, useEffect, useCallback, memo, useRef } from 'react';
+import Link from 'next/link';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase';
+import { ValidationInput } from '@/components/validation/ValidationComponents';
+import { AdminUser, AdminRole, UserFormData, UserViewMode } from '@/types';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
+} from '@/components/ui/select';
 
 export default function UserManagementPage() {
-  const { user, loading: authLoading } = useAuth()
-  const [users, setUsers] = useState<AdminUser[]>([])
-  const [roles, setRoles] = useState<AdminRole[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState<string | null>(null)
-  const [viewMode] = useState<UserViewMode>('all')
-  const [searchTerm, setSearchTerm] = useState('')
-  const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null)
-  const [showUserModal, setShowUserModal] = useState(false)
-  const [showAddUserModal, setShowAddUserModal] = useState(false)
-  const [isEditing, setIsEditing] = useState(false)
+  const { user, loading: authLoading } = useAuth();
+  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [roles, setRoles] = useState<AdminRole[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [viewMode] = useState<UserViewMode>('all');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
+  const [showUserModal, setShowUserModal] = useState(false);
+  const [showAddUserModal, setShowAddUserModal] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<UserFormData>({
     email: '',
     first_name: '',
     last_name: '',
     phone: '',
     is_practitioner: false,
-    role_id: null
-  })
-  const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({})
-  const [isModalClosing, setIsModalClosing] = useState(false)
+    role_id: null,
+  });
+  const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
+  const [isModalClosing, setIsModalClosing] = useState(false);
 
-  
-  const emailRef = useRef<HTMLInputElement>(null)
-  const firstNameRef = useRef<HTMLInputElement>(null)
-  const lastNameRef = useRef<HTMLInputElement>(null)
-  const phoneRef = useRef<HTMLInputElement>(null)
-  const practitionerRef = useRef<HTMLInputElement>(null)
-  const roleRef = useRef<HTMLSelectElement>(null)
+  const emailRef = useRef<HTMLInputElement>(null);
+  const firstNameRef = useRef<HTMLInputElement>(null);
+  const lastNameRef = useRef<HTMLInputElement>(null);
+  const phoneRef = useRef<HTMLInputElement>(null);
+  const practitionerRef = useRef<HTMLInputElement>(null);
+  const roleRef = useRef<HTMLSelectElement>(null);
 
-  
   useEffect(() => {
     if (error) {
-      const timer = setTimeout(() => setError(null), 3000)
-      return () => clearTimeout(timer)
+      const timer = setTimeout(() => setError(null), 3000);
+      return () => clearTimeout(timer);
     }
-  }, [error])
+  }, [error]);
 
   useEffect(() => {
     if (success) {
-      const timer = setTimeout(() => setSuccess(null), 3000)
-      return () => clearTimeout(timer)
+      const timer = setTimeout(() => setSuccess(null), 3000);
+      return () => clearTimeout(timer);
     }
-  }, [success])
+  }, [success]);
 
-  
   useEffect(() => {
     if (user) {
-      loadUsers()
-      loadRoles()
+      loadUsers();
+      loadRoles();
     }
-  }, [user])
+  }, [user]);
 
   const loadUsers = async () => {
     try {
-      setLoading(true)
-      
+      setLoading(true);
+
       const { data: usersData, error } = await supabase
-        .from('users')
-        .select(`
-          *,
+        .from('user_profiles')
+        .select(
+          `
+          id,
+          email,
+          phone,
+          first_name,
+          last_name,
+          created_at,
+          is_active,
+          is_deleted,
+          is_practitioner,
+          role_id,
+          updated_at,
           role:roles (
             id,
             name,
             description
           )
-        `)
+        `
+        )
         .eq('is_deleted', false)
-        .order('created_at', { ascending: false })
+        .order('created_at', { ascending: false });
 
-      if (error) throw error
+      if (error) throw error;
 
-      
-      const transformedUsers = usersData?.map(user => ({
-        ...user,
-        role_name: user.role?.name || null,
-        role_description: user.role?.description || null
-      })) || []
+      const transformedUsers =
+        usersData?.map((user) => ({
+          ...user,
+          role_name: user.role?.name || null,
+          role_description: user.role?.description || null,
+        })) || [];
 
-      setUsers(transformedUsers)
+      setUsers(transformedUsers);
     } catch (err) {
-      setError('Failed to load users')
-      console.error('Error loading users:', err)
+      setError('Failed to load users');
+      console.error('Error loading users:', err);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const loadRoles = async () => {
     try {
@@ -111,121 +120,131 @@ export default function UserManagementPage() {
         .select('*')
         .eq('is_active', true)
         .eq('is_deleted', false)
-        .order('name', { ascending: true })
+        .order('name', { ascending: true });
 
-      if (error) throw error
+      if (error) throw error;
 
-      setRoles(rolesData || [])
+      setRoles(rolesData || []);
     } catch (err) {
-      console.error('Error loading roles:', err)
+      console.error('Error loading roles:', err);
     }
-  }
+  };
 
   const validateForm = (): boolean => {
-    const errors: { [key: string]: string } = {}
+    const errors: { [key: string]: string } = {};
 
-    
-    const email = isEditing ? formData.email : (emailRef.current?.value || '')
-    const firstName = isEditing ? formData.first_name : (firstNameRef.current?.value || '')
-    const lastName = isEditing ? formData.last_name : (lastNameRef.current?.value || '')
-    const phone = isEditing ? formData.phone : (phoneRef.current?.value || '')
+    const email = isEditing ? formData.email : emailRef.current?.value || '';
+    const firstName = isEditing ? formData.first_name : firstNameRef.current?.value || '';
+    const lastName = isEditing ? formData.last_name : lastNameRef.current?.value || '';
+    const phone = isEditing ? formData.phone : phoneRef.current?.value || '';
 
     if (!email.trim()) {
-      errors.email = 'Email is required'
+      errors.email = 'Email is required';
     } else if (!/\S+@\S+\.\S+/.test(email)) {
-      errors.email = 'Please enter a valid email'
+      errors.email = 'Please enter a valid email';
     }
 
     if (!firstName.trim()) {
-      errors.first_name = 'First name is required'
+      errors.first_name = 'First name is required';
     }
 
     if (!lastName.trim()) {
-      errors.last_name = 'Last name is required'
+      errors.last_name = 'Last name is required';
     }
 
     if (!phone.trim()) {
-      errors.phone = 'Phone number is required'
+      errors.phone = 'Phone number is required';
     }
 
-    setFormErrors(errors)
-    return Object.keys(errors).length === 0
-  }
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
 
   const handleAddUser = async () => {
-    if (!validateForm()) return
+    if (!validateForm()) return;
 
     try {
-      const email = emailRef.current?.value || ''
-      const firstName = firstNameRef.current?.value || ''
-      const lastName = lastNameRef.current?.value || ''
-      const phone = phoneRef.current?.value || ''
-      const isPractitioner = practitionerRef.current?.checked || false
-      const roleId = roleRef.current?.value || null
+      const email = formData.email;
+      const firstName = formData.first_name;
+      const lastName = formData.last_name;
+      const phone = formData.phone;
+      const isPractitioner = formData.is_practitioner;
+      const roleId = formData.role_id;
 
-      
-      
+      const { data: authData, error: authError } = await supabase.functions.invoke('create-user', {
+        body: { email, phone, first_name: firstName, last_name: lastName },
+      });
+
+      if (authError || !authData?.user?.id) {
+        throw new Error(
+          'Creating users requires an admin edge function. Ask the user to sign up instead.'
+        );
+      }
+
       const { error } = await supabase
         .from('users')
-        .insert([{
-          id: crypto.randomUUID(),
-          email: email,
+        .update({
           first_name: firstName,
           last_name: lastName,
           phone: phone,
           is_practitioner: isPractitioner,
           role_id: roleId,
-          is_active: true,
-          is_deleted: false
-        }])
-        .select()
-        .single()
+        })
+        .eq('id', authData.user.id);
 
-      if (error) throw error
+      if (error) throw error;
 
-      setSuccess('User created successfully! The user will need to set up their password via password reset.')
-      setShowAddUserModal(false)
-      resetForm()
-      loadUsers()
+      setSuccess('User created successfully!');
+      setShowAddUserModal(false);
+      resetForm();
+      loadUsers();
     } catch (err) {
-      setError('Failed to create user. Please try again.')
-      console.error('Error creating user:', err)
+      setError(err instanceof Error ? err.message : 'Failed to create user. Please try again.');
+      console.error('Error creating user:', err);
     }
-  }
+  };
 
   const handleEditUser = async () => {
-    if (!selectedUser || !validateForm()) return
+    if (!selectedUser || !validateForm()) return;
 
     try {
-      
-      const { error } = await supabase
+      if (formData.phone !== selectedUser.phone) {
+        const { error: phoneError } = await supabase.functions.invoke('admin-update-user', {
+          body: {
+            user_id: selectedUser.id,
+            phone: formData.phone,
+          },
+        });
+        if (phoneError) throw new Error('Failed to update phone number');
+      }
+
+      const { error: userError } = await supabase
         .from('users')
         .update({
           first_name: formData.first_name,
           last_name: formData.last_name,
-          phone: formData.phone,
           is_practitioner: formData.is_practitioner,
           role_id: formData.role_id,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         })
-        .eq('id', selectedUser.id)
+        .eq('id', selectedUser.id);
 
-      if (error) throw error
+      if (userError) throw userError;
 
-      setSuccess('User updated successfully!')
-      setShowUserModal(false)
-      setIsEditing(false)
-      resetForm()
-      loadUsers()
+      setSuccess('User updated successfully!');
+      setShowUserModal(false);
+      setIsEditing(false);
+      resetForm();
+      loadUsers();
     } catch (err) {
-      setError('Failed to update user. Please try again.')
-      console.error('Error updating user:', err)
+      setError(err instanceof Error ? err.message : 'Failed to update user. Please try again.');
+      console.error('Error updating user:', err);
     }
-  }
+  };
 
   const handleDeleteUser = async (userId: string) => {
     if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
-      return
+      return;
     }
 
     try {
@@ -234,84 +253,78 @@ export default function UserManagementPage() {
         .update({
           is_deleted: true,
           is_active: false,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         })
-        .eq('id', userId)
+        .eq('id', userId);
 
-      if (error) throw error
+      if (error) throw error;
 
-      setSuccess('User deleted successfully!')
-      loadUsers()
+      setSuccess('User deleted successfully!');
+      loadUsers();
     } catch (err) {
-      setError('Failed to delete user. Please try again.')
-      console.error('Error deleting user:', err)
+      setError('Failed to delete user. Please try again.');
+      console.error('Error deleting user:', err);
     }
-  }
+  };
 
   const resetForm = useCallback(() => {
-    if (emailRef.current) emailRef.current.value = ''
-    if (firstNameRef.current) firstNameRef.current.value = ''
-    if (lastNameRef.current) lastNameRef.current.value = ''
-    if (phoneRef.current) phoneRef.current.value = ''
-    if (practitionerRef.current) practitionerRef.current.checked = false
-    if (roleRef.current) roleRef.current.value = ''
-    setFormErrors({})
-  }, [])
+    if (emailRef.current) emailRef.current.value = '';
+    if (firstNameRef.current) firstNameRef.current.value = '';
+    if (lastNameRef.current) lastNameRef.current.value = '';
+    if (phoneRef.current) phoneRef.current.value = '';
+    if (practitionerRef.current) practitionerRef.current.checked = false;
+    if (roleRef.current) roleRef.current.value = '';
+    setFormErrors({});
+  }, []);
 
   const openEditModal = (user: AdminUser) => {
-    setSelectedUser(user)
+    setSelectedUser(user);
     setFormData({
-      email: user.email,
-      first_name: user.first_name,
-      last_name: user.last_name,
-      phone: user.phone,
-      is_practitioner: user.is_practitioner,
-      role_id: user.role_id
-    })
-    if (emailRef.current) emailRef.current.value = user.email
-    if (firstNameRef.current) firstNameRef.current.value = user.first_name
-    if (lastNameRef.current) lastNameRef.current.value = user.last_name
-    if (phoneRef.current) phoneRef.current.value = user.phone
-    if (practitionerRef.current) practitionerRef.current.checked = user.is_practitioner
-    if (roleRef.current) roleRef.current.value = user.role_id || ''
-    setIsEditing(true)
-    setShowUserModal(true)
-  }
+      email: user.email || '',
+      first_name: user.first_name || '',
+      last_name: user.last_name || '',
+      phone: user.phone || '',
+      is_practitioner: user.is_practitioner || false,
+      role_id: user.role_id || null,
+    });
+    setIsEditing(true);
+    setShowUserModal(true);
+  };
 
   const openAddModal = () => {
-    resetForm()
-    setIsEditing(false)
-    setShowAddUserModal(true)
-  }
+    resetForm();
+    setIsEditing(false);
+    setShowAddUserModal(true);
+  };
 
   const closeModals = () => {
-    setIsModalClosing(true)
+    setIsModalClosing(true);
     setTimeout(() => {
-      setShowUserModal(false)
-      setShowAddUserModal(false)
-      setSelectedUser(null)
-      setIsEditing(false)
-      resetForm()
-      setIsModalClosing(false)
-    }, 300)
-  }
+      setShowUserModal(false);
+      setShowAddUserModal(false);
+      setSelectedUser(null);
+      setIsEditing(false);
+      resetForm();
+      setIsModalClosing(false);
+    }, 300);
+  };
 
-  const filteredUsers = users.filter(user => {
-    const matchesSearch = 
+  const filteredUsers = users.filter((user) => {
+    const matchesSearch =
       user.first_name?.toLowerCase()?.includes(searchTerm?.toLowerCase()) ||
       user.last_name?.toLowerCase()?.includes(searchTerm?.toLowerCase()) ||
       user.email?.toLowerCase()?.includes(searchTerm?.toLowerCase()) ||
-      user.phone?.includes(searchTerm)
+      user.phone?.includes(searchTerm);
 
     switch (viewMode) {
       case 'practitioners':
-        return matchesSearch && user.is_practitioner
+        return matchesSearch && user.is_practitioner;
       case 'clients':
-        return matchesSearch && !user.is_practitioner
+        return matchesSearch && !user.is_practitioner;
       default:
-        return matchesSearch
+        return matchesSearch;
     }
-  })
+  });
 
   if (authLoading || loading) {
     return (
@@ -321,7 +334,7 @@ export default function UserManagementPage() {
           <p className="mt-2 text-gray-600">Loading...</p>
         </div>
       </div>
-    )
+    );
   }
 
   if (!user) {
@@ -335,12 +348,11 @@ export default function UserManagementPage() {
           </Link>
         </div>
       </div>
-    )
+    );
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
-
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Messages */}
@@ -422,33 +434,39 @@ export default function UserManagementPage() {
                         <div className="text-sm text-gray-900">{user.phone}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          user.is_practitioner 
-                            ? 'bg-blue-100 text-blue-800' 
-                            : 'bg-green-100 text-green-800'
-                        }`}>
+                        <span
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            user.is_practitioner
+                              ? 'bg-blue-100 text-blue-800'
+                              : 'bg-green-100 text-green-800'
+                          }`}
+                        >
                           {user.is_practitioner ? 'Practitioner' : 'Client'}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          user.role_name === 'super_admin' 
-                            ? 'bg-purple-100 text-purple-800'
-                            : user.role_name === 'practitioner'
-                            ? 'bg-blue-100 text-blue-800'
-                            : user.role_name === 'client'
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-gray-100 text-gray-800'
-                        }`}>
+                        <span
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            user.role_name === 'super_admin'
+                              ? 'bg-purple-100 text-purple-800'
+                              : user.role_name === 'practitioner'
+                                ? 'bg-blue-100 text-blue-800'
+                                : user.role_name === 'client'
+                                  ? 'bg-green-100 text-green-800'
+                                  : 'bg-gray-100 text-gray-800'
+                          }`}
+                        >
                           {user.role_name || 'No Role'}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          user.is_active 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-red-100 text-red-800'
-                        }`}>
+                        <span
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            user.is_active
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-red-100 text-red-800'
+                          }`}
+                        >
                           {user.is_active ? 'Active' : 'Inactive'}
                         </span>
                       </td>
@@ -462,8 +480,18 @@ export default function UserManagementPage() {
                             className="text-[#F2C7EB] hover:text-[#E8A8D8] p-1 rounded hover:bg-gray-100"
                             title="Edit user"
                           >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                              />
                             </svg>
                           </button>
                           <button
@@ -471,8 +499,18 @@ export default function UserManagementPage() {
                             className="text-red-500 hover:text-red-700 p-1 rounded hover:bg-gray-100"
                             title="Delete user"
                           >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                              />
                             </svg>
                           </button>
                         </div>
@@ -488,10 +526,7 @@ export default function UserManagementPage() {
         {/* Mobile Card View */}
         <div className="lg:hidden space-y-3">
           {filteredUsers.map((user) => (
-            <div
-              key={user.id}
-              className="bg-white rounded-lg border border-gray-200 shadow-sm"
-            >
+            <div key={user.id} className="bg-white rounded-lg border border-gray-200 shadow-sm">
               {/* Clickable area for viewing details */}
               <div
                 onClick={() => openEditModal(user)}
@@ -503,31 +538,41 @@ export default function UserManagementPage() {
                       {user.first_name} {user.last_name}
                     </h3>
                     <div className="flex items-center space-x-2 mt-1">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                        user.is_practitioner 
-                          ? 'bg-blue-100 text-blue-800' 
-                          : 'bg-green-100 text-green-800'
-                      }`}>
+                      <span
+                        className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                          user.is_practitioner
+                            ? 'bg-blue-100 text-blue-800'
+                            : 'bg-green-100 text-green-800'
+                        }`}
+                      >
                         {user.is_practitioner ? 'Practitioner' : 'Client'}
                       </span>
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                        user.is_active 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-red-100 text-red-800'
-                      }`}>
+                      <span
+                        className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                          user.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                        }`}
+                      >
                         {user.is_active ? 'Active' : 'Inactive'}
                       </span>
                     </div>
-                    <p className="text-xs text-gray-500 mt-1 truncate">
-                      {user.email}
-                    </p>
+                    <p className="text-xs text-gray-500 mt-1 truncate">{user.email}</p>
                   </div>
                   <div className="flex items-center space-x-2 ml-4">
                     <span className="text-xs text-gray-500">
                       {new Date(user.created_at).toLocaleDateString()}
                     </span>
-                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    <svg
+                      className="w-4 h-4 text-gray-400"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 5l7 7-7 7"
+                      />
                     </svg>
                   </div>
                 </div>
@@ -542,7 +587,12 @@ export default function UserManagementPage() {
                     title="Edit user"
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                      />
                     </svg>
                   </button>
                   <button
@@ -551,7 +601,12 @@ export default function UserManagementPage() {
                     title="Delete user"
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                      />
                     </svg>
                   </button>
                 </div>
@@ -570,41 +625,50 @@ export default function UserManagementPage() {
         {showAddUserModal && (
           <div className="fixed inset-0 z-50 pointer-events-none">
             {/* Backdrop - invisible but clickable */}
-            <div 
-              className="fixed inset-0 pointer-events-auto"
-              onClick={closeModals}
-            />
-            
+            <div className="fixed inset-0 pointer-events-auto" onClick={closeModals} />
+
             {/* Bottom Sheet (Mobile) / Modal (Desktop) */}
-            <div className={`fixed bottom-0 left-0 right-0 lg:top-1/2 lg:left-1/2 lg:transform lg:-translate-x-1/2 lg:-translate-y-1/2 lg:bottom-auto lg:right-auto lg:w-full lg:max-w-lg bg-white rounded-t-xl lg:rounded-xl shadow-2xl transform transition-transform duration-300 ease-out max-h-[90vh] lg:max-h-[80vh] flex flex-col pointer-events-auto ${
-              isModalClosing 
-                ? 'translate-y-full lg:translate-y-full lg:translate-x-[-50%]' 
-                : 'translate-y-0 lg:translate-x-[-50%] lg:translate-y-[-50%] modal-enter lg:modal-enter-desktop'
-            }`}>
+            <div
+              className={`fixed bottom-0 left-0 right-0 lg:top-1/2 lg:left-1/2 lg:transform lg:-translate-x-1/2 lg:-translate-y-1/2 lg:bottom-auto lg:right-auto lg:w-full lg:max-w-lg bg-white rounded-t-xl lg:rounded-xl shadow-2xl transform transition-transform duration-300 ease-out max-h-[90vh] lg:max-h-[80vh] flex flex-col pointer-events-auto ${
+                isModalClosing
+                  ? 'translate-y-full lg:translate-y-full lg:translate-x-[-50%]'
+                  : 'translate-y-0 lg:translate-x-[-50%] lg:translate-y-[-50%] modal-enter lg:modal-enter-desktop'
+              }`}
+            >
               {/* Handle bar (Mobile only) */}
               <div className="flex justify-center pt-3 pb-2 lg:hidden">
                 <div className="w-10 h-1 bg-gray-300 rounded-full"></div>
               </div>
-              
+
               {/* Header */}
               <div className="flex justify-between items-center px-6 py-4 border-b border-gray-200">
-                <h3 className="text-lg font-semibold text-gray-900">
-                  Add New User
-                </h3>
+                <h3 className="text-lg font-semibold text-gray-900">Add New User</h3>
                 <button
                   type="button"
                   onClick={closeModals}
                   className="p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100"
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
                   </svg>
                 </button>
               </div>
 
               {/* Form Content */}
               <div className="flex-1 overflow-y-auto px-6 py-4">
-                <form onSubmit={(e) => { e.preventDefault(); handleAddUser(); }} className="space-y-4" id="add-user-form">
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    handleAddUser();
+                  }}
+                  className="space-y-4"
+                  id="add-user-form"
+                >
                   <ValidationInput
                     label="Email"
                     required
@@ -612,9 +676,9 @@ export default function UserManagementPage() {
                     type="email"
                     value={formData.email}
                     onChange={(e) => {
-                      setFormData({ ...formData, email: e.target.value })
+                      setFormData({ ...formData, email: e.target.value });
                       if (formErrors.email) {
-                        setFormErrors({ ...formErrors, email: '' })
+                        setFormErrors({ ...formErrors, email: '' });
                       }
                     }}
                   />
@@ -627,9 +691,9 @@ export default function UserManagementPage() {
                       type="text"
                       value={formData.first_name}
                       onChange={(e) => {
-                        setFormData({ ...formData, first_name: e.target.value })
+                        setFormData({ ...formData, first_name: e.target.value });
                         if (formErrors.first_name) {
-                          setFormErrors({ ...formErrors, first_name: '' })
+                          setFormErrors({ ...formErrors, first_name: '' });
                         }
                       }}
                     />
@@ -641,9 +705,9 @@ export default function UserManagementPage() {
                       type="text"
                       value={formData.last_name}
                       onChange={(e) => {
-                        setFormData({ ...formData, last_name: e.target.value })
+                        setFormData({ ...formData, last_name: e.target.value });
                         if (formErrors.last_name) {
-                          setFormErrors({ ...formErrors, last_name: '' })
+                          setFormErrors({ ...formErrors, last_name: '' });
                         }
                       }}
                     />
@@ -656,28 +720,26 @@ export default function UserManagementPage() {
                     type="tel"
                     value={formData.phone}
                     onChange={(e) => {
-                      setFormData({ ...formData, phone: e.target.value })
+                      setFormData({ ...formData, phone: e.target.value });
                       if (formErrors.phone) {
-                        setFormErrors({ ...formErrors, phone: '' })
+                        setFormErrors({ ...formErrors, phone: '' });
                       }
                     }}
                   />
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Role
-                    </label>
-                    <Select 
-                      value={formData.role_id || ''} 
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Role</label>
+                    <Select
+                      value={formData.role_id || ''}
                       onValueChange={(value) => {
-                        setFormData({ ...formData, role_id: value || null })
+                        setFormData({ ...formData, role_id: value || null });
                       }}
                     >
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder="Select a role" />
                       </SelectTrigger>
                       <SelectContent className="bg-white border border-gray-300 shadow-lg">
-                        {roles.map(role => (
+                        {roles.map((role) => (
                           <SelectItem key={role.id} value={role.id}>
                             {role.name} - {role.description}
                           </SelectItem>
@@ -726,41 +788,50 @@ export default function UserManagementPage() {
         {showUserModal && selectedUser && (
           <div className="fixed inset-0 z-50 pointer-events-none">
             {/* Backdrop - invisible but clickable */}
-            <div 
-              className="fixed inset-0 pointer-events-auto"
-              onClick={closeModals}
-            />
-            
+            <div className="fixed inset-0 pointer-events-auto" onClick={closeModals} />
+
             {/* Bottom Sheet (Mobile) / Modal (Desktop) */}
-            <div className={`fixed bottom-0 left-0 right-0 lg:top-1/2 lg:left-1/2 lg:transform lg:-translate-x-1/2 lg:-translate-y-1/2 lg:bottom-auto lg:right-auto lg:w-full lg:max-w-lg bg-white rounded-t-xl lg:rounded-xl shadow-2xl transform transition-transform duration-300 ease-out max-h-[90vh] lg:max-h-[80vh] flex flex-col pointer-events-auto ${
-              isModalClosing 
-                ? 'translate-y-full lg:translate-y-full lg:translate-x-[-50%]' 
-                : 'translate-y-0 lg:translate-x-[-50%] lg:translate-y-[-50%] modal-enter lg:modal-enter-desktop'
-            }`}>
+            <div
+              className={`fixed bottom-0 left-0 right-0 lg:top-1/2 lg:left-1/2 lg:transform lg:-translate-x-1/2 lg:-translate-y-1/2 lg:bottom-auto lg:right-auto lg:w-full lg:max-w-lg bg-white rounded-t-xl lg:rounded-xl shadow-2xl transform transition-transform duration-300 ease-out max-h-[90vh] lg:max-h-[80vh] flex flex-col pointer-events-auto ${
+                isModalClosing
+                  ? 'translate-y-full lg:translate-y-full lg:translate-x-[-50%]'
+                  : 'translate-y-0 lg:translate-x-[-50%] lg:translate-y-[-50%] modal-enter lg:modal-enter-desktop'
+              }`}
+            >
               {/* Handle bar (Mobile only) */}
               <div className="flex justify-center pt-3 pb-2 lg:hidden">
                 <div className="w-10 h-1 bg-gray-300 rounded-full"></div>
               </div>
-              
+
               {/* Header */}
               <div className="flex justify-between items-center px-6 py-4 border-b border-gray-200">
-                <h3 className="text-lg font-semibold text-gray-900">
-                  Edit User
-                </h3>
+                <h3 className="text-lg font-semibold text-gray-900">Edit User</h3>
                 <button
                   type="button"
                   onClick={closeModals}
                   className="p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100"
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
                   </svg>
                 </button>
               </div>
 
               {/* Form Content */}
               <div className="flex-1 overflow-y-auto px-6 py-4">
-                <form onSubmit={(e) => { e.preventDefault(); handleEditUser(); }} className="space-y-4" id="edit-user-form">
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    handleEditUser();
+                  }}
+                  className="space-y-4"
+                  id="edit-user-form"
+                >
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                       Email
@@ -782,9 +853,9 @@ export default function UserManagementPage() {
                       type="text"
                       value={formData.first_name}
                       onChange={(e) => {
-                        setFormData({ ...formData, first_name: e.target.value })
+                        setFormData({ ...formData, first_name: e.target.value });
                         if (formErrors.first_name) {
-                          setFormErrors({ ...formErrors, first_name: '' })
+                          setFormErrors({ ...formErrors, first_name: '' });
                         }
                       }}
                     />
@@ -796,9 +867,9 @@ export default function UserManagementPage() {
                       type="text"
                       value={formData.last_name}
                       onChange={(e) => {
-                        setFormData({ ...formData, last_name: e.target.value })
+                        setFormData({ ...formData, last_name: e.target.value });
                         if (formErrors.last_name) {
-                          setFormErrors({ ...formErrors, last_name: '' })
+                          setFormErrors({ ...formErrors, last_name: '' });
                         }
                       }}
                     />
@@ -811,28 +882,26 @@ export default function UserManagementPage() {
                     type="tel"
                     value={formData.phone}
                     onChange={(e) => {
-                      setFormData({ ...formData, phone: e.target.value })
+                      setFormData({ ...formData, phone: e.target.value });
                       if (formErrors.phone) {
-                        setFormErrors({ ...formErrors, phone: '' })
+                        setFormErrors({ ...formErrors, phone: '' });
                       }
                     }}
                   />
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Role
-                    </label>
-                    <Select 
-                      value={formData.role_id || ''} 
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Role</label>
+                    <Select
+                      value={formData.role_id || ''}
                       onValueChange={(value) => {
-                        setFormData({ ...formData, role_id: value || null })
+                        setFormData({ ...formData, role_id: value || null });
                       }}
                     >
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder="Select a role" />
                       </SelectTrigger>
                       <SelectContent className="bg-white border border-gray-300 shadow-lg">
-                        {roles.map(role => (
+                        {roles.map((role) => (
                           <SelectItem key={role.id} value={role.id}>
                             {role.name} - {role.description}
                           </SelectItem>
@@ -847,7 +916,7 @@ export default function UserManagementPage() {
                         type="checkbox"
                         checked={formData.is_practitioner}
                         onChange={(e) => {
-                          setFormData({ ...formData, is_practitioner: e.target.checked })
+                          setFormData({ ...formData, is_practitioner: e.target.checked });
                         }}
                         className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                       />
@@ -881,5 +950,5 @@ export default function UserManagementPage() {
         )}
       </main>
     </div>
-  )
+  );
 }
