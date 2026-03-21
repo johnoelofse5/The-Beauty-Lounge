@@ -1,139 +1,144 @@
-'use client'
+'use client';
 
-import { useState, useEffect } from 'react'
-import { useAuth } from '@/contexts/AuthContext'
-import { useToast } from '@/contexts/ToastContext'
-import { supabase } from '@/lib/supabase'
-import { User } from '@supabase/supabase-js'
-import { ArrowLeft, Save, User as UserIcon, Mail, Phone, Calendar } from 'lucide-react'
-import Link from 'next/link'
-import { ValidationInput } from '@/components/validation/ValidationComponents'
+import { useState, useEffect } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/contexts/ToastContext';
+import { supabase } from '@/lib/supabase';
+import { User } from '@supabase/supabase-js';
+import { ArrowLeft, Save, User as UserIcon, Mail, Phone, Calendar } from 'lucide-react';
+import Link from 'next/link';
+import { ValidationInput } from '@/components/validation/ValidationComponents';
 
 interface ProfileData {
-  id: string
-  email: string
-  first_name: string | null
-  last_name: string | null
-  phone: string | null
-  created_at: string
-  updated_at: string
+  id: string;
+  email: string;
+  first_name: string | null;
+  last_name: string | null;
+  phone: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export default function ProfilePage() {
-  const { user, userRoleData } = useAuth()
-  const { showSuccess, showError } = useToast()
-  const [profileData, setProfileData] = useState<ProfileData | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [isEditing, setIsEditing] = useState(false)
+  const { user, userRoleData } = useAuth();
+  const { showSuccess, showError } = useToast();
+  const [profileData, setProfileData] = useState<ProfileData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
     email: user?.email || '',
     first_name: '',
     last_name: '',
     phone: '',
-  })
-  const [formErrors, setFormErrors] = useState<Record<string, string>>({})
+  });
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (user) {
-      loadProfileData()
+      loadProfileData();
     }
-  }, [user])
+  }, [user]);
 
   const loadProfileData = async () => {
-    if (!user) return
+    if (!user) return;
 
     try {
       const { data, error } = await supabase
-        .from('users')
+        .from('user_profiles')
         .select('id, email, first_name, last_name, phone, created_at, updated_at')
         .eq('id', user.id)
-        .single()
+        .single();
 
       if (error) {
-        console.error('Error loading profile:', error)
-        showError('Failed to load profile data')
-        return
+        console.error('Error loading profile:', error);
+        showError('Failed to load profile data');
+        return;
       }
 
-      setProfileData(data)
+      setProfileData(data);
       setFormData({
         email: user?.email || '',
         first_name: data.first_name || '',
         last_name: data.last_name || '',
         phone: data.phone || '',
-      })
+      });
     } catch (err) {
-      console.error('Error loading profile:', err)
-      showError('Failed to load profile data')
+      console.error('Error loading profile:', err);
+      showError('Failed to load profile data');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target
-    setFormData(prev => ({
+    const { name, value } = e.target;
+    setFormData((prev) => ({
       ...prev,
-      [name]: value
-    }))
-
+      [name]: value,
+    }));
 
     if (formErrors[name]) {
-      setFormErrors(prev => ({ ...prev, [name]: '' }))
+      setFormErrors((prev) => ({ ...prev, [name]: '' }));
     }
-  }
+  };
 
   const handleSave = async () => {
-    if (!user || !profileData) return
+    if (!user || !profileData) return;
 
-    setSaving(true)
+    setSaving(true);
 
     try {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(formData.email)) {
-        setFormErrors({ email: 'Please enter a valid email address' })
-        return
+        setFormErrors({ email: 'Please enter a valid email address' });
+        setSaving(false);
+        return;
       }
 
-      const { error } = await supabase
+      const { error: userError } = await supabase
         .from('users')
         .update({
           first_name: formData.first_name || null,
           last_name: formData.last_name || null,
-          phone: formData.phone || null,
-          email: formData.email,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         })
-        .eq('id', user.id)
+        .eq('id', user.id);
 
-      if (error) {
-        console.error('Error updating profile:', error)
-        showError('Failed to update profile')
-        return
+      if (userError) {
+        showError('Failed to update profile');
+        return;
+      }
+
+      if (formData.phone !== profileData.phone) {
+        const { error: phoneError } = await supabase.functions.invoke('admin-update-user', {
+          body: { user_id: user.id, phone: formData.phone },
+        });
+        if (phoneError) {
+          showError('Profile saved but failed to update phone number');
+        }
       }
 
       if (formData.email !== user.email) {
-        const { error: authError } = await supabase.auth.updateUser({ email: formData.email })
+        const { error: authError } = await supabase.auth.updateUser({ email: formData.email });
         if (authError) {
-          console.error('Error updating auth email:', authError)
-          showError('Profile updated, but failed to update email in authentication. Please try again.')
-          return
+          showError('Profile updated, but failed to update email. Please try again.');
+          return;
         }
-        showSuccess('Profile updated! Please check your new email for confirmation to complete the email change.')
+        showSuccess('Profile updated! Please check your new email for a confirmation link.');
       } else {
-        showSuccess('Profile updated successfully!')
+        showSuccess('Profile updated successfully!');
       }
 
-      setIsEditing(false)
-      await loadProfileData()
+      setIsEditing(false);
+      await loadProfileData();
     } catch (err) {
-      console.error('Error updating profile:', err)
-      showError('Failed to update profile')
+      console.error('Error updating profile:', err);
+      showError('Failed to update profile');
     } finally {
-      setSaving(false)
+      setSaving(false);
     }
-  }
+  };
 
   const handleCancel = () => {
     if (profileData) {
@@ -142,10 +147,10 @@ export default function ProfilePage() {
         first_name: profileData.first_name || '',
         last_name: profileData.last_name || '',
         phone: profileData.phone || '',
-      })
+      });
     }
-    setIsEditing(false)
-  }
+    setIsEditing(false);
+  };
 
   if (loading) {
     return (
@@ -155,7 +160,7 @@ export default function ProfilePage() {
           <p className="text-gray-600">Loading profile...</p>
         </div>
       </div>
-    )
+    );
   }
 
   if (!profileData) {
@@ -168,7 +173,7 @@ export default function ProfilePage() {
           </Link>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -198,8 +203,7 @@ export default function ProfilePage() {
                 <h2 className="text-xl font-semibold text-gray-900">
                   {profileData.first_name && profileData.last_name
                     ? `${profileData.first_name} ${profileData.last_name}`
-                    : profileData.email
-                  }
+                    : profileData.email}
                 </h2>
                 <p className="text-gray-600">{profileData.email}</p>
                 {userRoleData?.role && (
@@ -276,7 +280,7 @@ export default function ProfilePage() {
                       {new Date(profileData.created_at).toLocaleDateString('en-US', {
                         year: 'numeric',
                         month: 'long',
-                        day: 'numeric'
+                        day: 'numeric',
                       })}
                     </p>
                   </div>
@@ -289,7 +293,7 @@ export default function ProfilePage() {
                       {new Date(profileData.updated_at).toLocaleDateString('en-US', {
                         year: 'numeric',
                         month: 'long',
-                        day: 'numeric'
+                        day: 'numeric',
                       })}
                     </p>
                   </div>
@@ -339,5 +343,5 @@ export default function ProfilePage() {
         </div>
       </div>
     </div>
-  )
+  );
 }

@@ -1,11 +1,12 @@
-
-import { Client } from "./client";
-import { ExternalClientInfo } from "./external-client-info";
-import { Practitioner } from "./practitioner";
-import { ServiceWithCategory } from "./service";
+import { Client } from './client';
+import { ExternalClientInfo } from './external-client-info';
+import { Practitioner } from './practitioner';
+import { ServiceWithCategory } from './service';
+import { SelectedServiceOptions } from './service-option';
 
 export interface DateTimeStepProps {
   selectedServices: ServiceWithCategory[];
+  selectedServiceOptions: SelectedServiceOptions;
   selectedPractitioner: Practitioner | null;
   selectedClient: Client | null;
   selectedDate: Date | undefined;

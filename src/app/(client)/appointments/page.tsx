@@ -1,31 +1,30 @@
-"use client";
+'use client';
 
-import { BookingProgressSave } from "@/components/booking-progress-save";
-import { BookingProgressSteps } from "@/components/booking-progress-steps";
-import { useAppointmentBooking } from "@/hooks/use-appointment-booking";
-import { ClientSelectionStep } from "@/steps/client-selection-step";
-import { ConfirmationStep } from "@/steps/confirmation-step";
-import { DateTimeStep } from "@/steps/date-time-step";
-import { PractitionerSelectionStep } from "@/steps/practitioner-selection-step";
-import { ServiceSelectionStep } from "@/steps/service-selection-step";
-import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { useEffect } from "react";
-
+import { BookingProgressSave } from '@/components/booking-progress-save';
+import { BookingProgressSteps } from '@/components/booking-progress-steps';
+import { useAppointmentBooking } from '@/hooks/use-appointment-booking';
+import { ClientSelectionStep } from '@/steps/client-selection-step';
+import { ConfirmationStep } from '@/steps/confirmation-step';
+import { DateTimeStep } from '@/steps/date-time-step';
+import { PractitionerSelectionStep } from '@/steps/practitioner-selection-step';
+import { ServiceSelectionStep } from '@/steps/service-selection-step';
+import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
+import { useEffect } from 'react';
 
 export default function AppointmentsPage() {
   const searchParams = useSearchParams();
   const b = useAppointmentBooking();
 
   useEffect(() => {
-    const serviceId = searchParams.get("serviceId");
+    const serviceId = searchParams.get('serviceId');
     if (serviceId && b.services.length > 0) {
       const match = b.services.find((s) => s.id === serviceId);
       if (match && !b.selectedServices.find((s) => s.id === serviceId)) {
         b.handleServiceSelect(match);
         const newUrl = new URL(window.location.href);
-        newUrl.searchParams.delete("serviceId");
-        window.history.replaceState({}, "", newUrl.toString());
+        newUrl.searchParams.delete('serviceId');
+        window.history.replaceState({}, '', newUrl.toString());
       }
     }
   }, [b.services, searchParams]);
@@ -47,7 +46,9 @@ export default function AppointmentsPage() {
         <div className="text-center">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">Please Sign In</h2>
           <p className="text-gray-600 mb-4">You must be logged in to book appointments.</p>
-          <Link href="/login" className="text-indigo-600 hover:text-indigo-500">Sign In</Link>
+          <Link href="/login" className="text-indigo-600 hover:text-indigo-500">
+            Sign In
+          </Link>
         </div>
       </div>
     );
@@ -56,7 +57,6 @@ export default function AppointmentsPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-
         <BookingProgressSteps
           bookingStep={b.bookingStep}
           isPractitionerUser={b.isPractitionerUser}
@@ -71,19 +71,22 @@ export default function AppointmentsPage() {
           onClearProgress={b.clearProgress}
         />
 
-        {b.bookingStep === "service" && (
+        {b.bookingStep === 'service' && (
           <ServiceSelectionStep
             services={b.services}
             selectedServices={b.selectedServices}
+            serviceOptionsMap={b.serviceOptionsMap}
+            selectedServiceOptions={b.selectedServiceOptions}
             visibleElements={b.visibleElements}
             isPractitionerUser={b.isPractitionerUser}
             showFloatingPill={b.showFloatingPill}
             onServiceSelect={b.handleServiceSelect}
+            onOptionSelect={b.handleOptionSelect}
             onContinue={b.handleContinueToPractitioner}
           />
         )}
 
-        {b.bookingStep === "practitioner" && (
+        {b.bookingStep === 'practitioner' && (
           <PractitionerSelectionStep
             practitioners={b.practitioners}
             selectedPractitioner={b.selectedPractitioner}
@@ -91,11 +94,11 @@ export default function AppointmentsPage() {
             visibleElements={b.visibleElements}
             onSelectPractitioner={b.setSelectedPractitioner}
             onContinue={b.handleContinueToDateTime}
-            onBack={() => b.updateCurrentStep("service")}
+            onBack={() => b.updateCurrentStep('service')}
           />
         )}
 
-        {b.bookingStep === "client" && b.isPractitionerUser && (
+        {b.bookingStep === 'client' && b.isPractitionerUser && (
           <ClientSelectionStep
             clients={b.clients}
             selectedClient={b.selectedClient}
@@ -113,19 +116,20 @@ export default function AppointmentsPage() {
             }}
             onExternalInfoChange={b.setExternalClientInfo}
             onClearError={(field) =>
-              b.setExternalClientFormErrors((prev) => ({ ...prev, [field]: "" }))
+              b.setExternalClientFormErrors((prev) => ({ ...prev, [field]: '' }))
             }
             onContinue={b.handleContinueToDateTime}
-            onBack={() => b.updateCurrentStep("service")}
+            onBack={() => b.updateCurrentStep('service')}
           />
         )}
 
-        {b.bookingStep === "datetime" &&
+        {b.bookingStep === 'datetime' &&
           b.selectedServices.length > 0 &&
           ((b.isPractitionerUser && (b.selectedClient || b.isExternalClient)) ||
             (!b.isPractitionerUser && b.selectedPractitioner)) && (
             <DateTimeStep
               selectedServices={b.selectedServices}
+              selectedServiceOptions={b.selectedServiceOptions}
               selectedPractitioner={b.selectedPractitioner}
               selectedClient={b.selectedClient}
               selectedDate={b.selectedDate}
@@ -146,13 +150,13 @@ export default function AppointmentsPage() {
               onNotesChange={b.setNotes}
               onSMSChange={b.setSendClientSMS}
               onContinue={b.handleDateTimeConfirm}
-              onBack={() => b.updateCurrentStep(b.isPractitionerUser ? "client" : "practitioner")}
+              onBack={() => b.updateCurrentStep(b.isPractitionerUser ? 'client' : 'practitioner')}
               getTomorrowDate={b.getTomorrowDate}
               getMaxDate={b.getMaxDate}
             />
           )}
 
-        {b.bookingStep === "confirm" &&
+        {b.bookingStep === 'confirm' &&
           b.selectedServices.length > 0 &&
           ((b.isPractitionerUser && (b.selectedClient || b.isExternalClient)) ||
             (!b.isPractitionerUser && b.selectedPractitioner)) &&
@@ -160,6 +164,7 @@ export default function AppointmentsPage() {
           b.selectedTime && (
             <ConfirmationStep
               selectedServices={b.selectedServices}
+              selectedServiceOptions={b.selectedServiceOptions}
               selectedPractitioner={b.selectedPractitioner}
               selectedClient={b.selectedClient}
               selectedDate={b.selectedDate}
@@ -173,12 +178,11 @@ export default function AppointmentsPage() {
               isBooking={b.isBooking}
               visibleElements={b.visibleElements}
               onConfirm={b.handleBookingConfirm}
-              onStartOver={() => b.updateCurrentStep("service")}
-              onBack={() => b.updateCurrentStep("datetime")}
+              onStartOver={() => b.updateCurrentStep('service')}
+              onBack={() => b.updateCurrentStep('datetime')}
               formatTimeDisplay={b.formatTimeDisplay}
             />
           )}
-
       </main>
     </div>
   );

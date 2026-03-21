@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
-import { getServicesWithCategories } from '@/lib/services';
+import { getServicesWithCategories, getServiceOptionsMap } from '@/lib/services';
 import { supabase } from '@/lib/supabase';
 import { isPractitioner } from '@/lib/rbac';
 import { ValidationService } from '@/lib/validation-service';
@@ -14,6 +14,7 @@ import { AppointmentCalendarService } from '@/lib/appointment-calendar-service';
 import { InventoryService } from '@/lib/inventory-service';
 import { ScheduleService } from '@/lib/schedule-service';
 import { ServiceWithCategory } from '@/types';
+import { ServiceOption, SelectedServiceOptions } from '@/types/service-option';
 import { Practitioner } from '@/types/practitioner';
 import { Client } from '@/types/client';
 import { BookingStep } from '@/types/booking-step';
@@ -28,10 +29,12 @@ export function useAppointmentBooking() {
   const [practitioners, setPractitioners] = useState<Practitioner[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
+  const [serviceOptionsMap, setServiceOptionsMap] = useState<Record<string, ServiceOption[]>>({});
   //#endregion
 
   //#region Selection State
   const [selectedServices, setSelectedServices] = useState<ServiceWithCategory[]>([]);
+  const [selectedServiceOptions, setSelectedServiceOptions] = useState<SelectedServiceOptions>({});
   const [selectedPractitioner, setSelectedPractitioner] = useState<Practitioner | null>(null);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
@@ -61,6 +64,7 @@ export function useAppointmentBooking() {
   const [savingProgress, setSavingProgress] = useState<boolean>(false);
   const [progressLoaded, setProgressLoaded] = useState<boolean>(false);
   const [savedServiceIds, setSavedServiceIds] = useState<string[]>([]);
+  const [savedServiceOptionIds, setSavedServiceOptionIds] = useState<Record<string, string>>({});
   const [savedPractitionerId, setSavedPractitionerId] = useState<string | null>(null);
   const [savedClientId, setSavedClientId] = useState<string | null>(null);
   //#endregion
@@ -122,7 +126,9 @@ export function useAppointmentBooking() {
     try {
       setLoading(true);
       const data = await getServicesWithCategories();
+      const optMap = await getServiceOptionsMap(data.map((s) => s.id));
       setServices(data);
+      setServiceOptionsMap(optMap);
     } catch {
       showError('Failed to load services');
     } finally {
@@ -194,6 +200,14 @@ export function useAppointmentBooking() {
   const restoreSelectedServices = () => {
     if (savedServiceIds.length > 0 && services.length > 0) {
       setSelectedServices(services.filter((s) => savedServiceIds.includes(s.id)));
+      if (Object.keys(savedServiceOptionIds).length > 0) {
+        const restored: SelectedServiceOptions = {};
+        for (const [serviceId, optionId] of Object.entries(savedServiceOptionIds)) {
+          const opt = (serviceOptionsMap[serviceId] || []).find((o) => o.id === optionId);
+          if (opt) restored[serviceId] = opt;
+        }
+        setSelectedServiceOptions(restored);
+      }
     }
   };
 
@@ -220,6 +234,8 @@ export function useAppointmentBooking() {
         setHasSavedProgress(true);
         setProgressLoaded(true);
         if (progress.selected_services) setSavedServiceIds(progress.selected_services);
+        if (progress.selected_service_options)
+          setSavedServiceOptionIds(progress.selected_service_options);
         if (progress.selected_practitioner_id)
           setSavedPractitionerId(progress.selected_practitioner_id);
         if (progress.selected_client_id) setSavedClientId(progress.selected_client_id);
@@ -250,6 +266,11 @@ export function useAppointmentBooking() {
       const progressData: Partial<BookingProgress> = {
         current_step: currentStep,
         selected_services: selectedServices.map((s) => s.id),
+        selected_service_options: Object.fromEntries(
+          Object.entries(selectedServiceOptions)
+            .filter(([, opt]) => opt !== null)
+            .map(([sid, opt]) => [sid, opt!.id])
+        ),
         selected_practitioner_id: selectedPractitioner?.id,
         selected_client_id: selectedClient?.id,
         selected_date: selectedDate ? formatDateForAPI(selectedDate) : undefined,
@@ -292,15 +313,35 @@ export function useAppointmentBooking() {
 
   //#region Step handlers
   const handleServiceSelect = (service: ServiceWithCategory) => {
-    setSelectedServices((prev) =>
-      prev.some((s) => s.id === service.id)
-        ? prev.filter((s) => s.id !== service.id)
-        : [...prev, service]
-    );
+    setSelectedServices((prev) => {
+      const isSelected = prev.some((s) => s.id === service.id);
+      if (isSelected) {
+        setSelectedServiceOptions((opts) => {
+          const next = { ...opts };
+          delete next[service.id];
+          return next;
+        });
+        return prev.filter((s) => s.id !== service.id);
+      }
+      return [...prev, service];
+    });
+  };
+
+  const handleOptionSelect = (serviceId: string, option: ServiceOption | null) => {
+    setSelectedServiceOptions((prev) => ({ ...prev, [serviceId]: option }));
   };
 
   const handleContinueToPractitioner = () => {
     if (selectedServices.length > 0) {
+      const servicesNeedingOptions = selectedServices.filter(
+        (s) => (serviceOptionsMap[s.id] || []).length > 0 && !selectedServiceOptions[s.id]
+      );
+      if (servicesNeedingOptions.length > 0) {
+        showError(
+          `Please select an option for: ${servicesNeedingOptions.map((s) => s.name).join(', ')}`
+        );
+        return;
+      }
       updateCurrentStep(isPractitionerUser ? 'client' : 'practitioner');
     }
   };
@@ -389,7 +430,16 @@ export function useAppointmentBooking() {
     }
 
     try {
-      const totalDuration = selectedServices.reduce((t, s) => t + s.duration_minutes, 0);
+      const totalDuration = selectedServices.reduce((t, s) => {
+        const opt = selectedServiceOptions[s.id];
+        return t + s.duration_minutes + (opt?.duration_adjustment_minutes || 0);
+      }, 0);
+
+      const totalPrice = selectedServices.reduce((t, s) => {
+        const opt = selectedServiceOptions[s.id];
+        return t + (s.price || 0) + (opt?.price_adjustment || 0);
+      }, 0);
+
       const [hours, minutes] = selectedTime.split(':').map(Number);
       const endMins = hours * 60 + minutes + totalDuration;
       const endTimeString = `${Math.floor(endMins / 60)
@@ -428,12 +478,23 @@ export function useAppointmentBooking() {
       if (error) throw error;
       if (!inserted) throw new Error('Failed to create appointment');
 
+      const optionRows = Object.entries(selectedServiceOptions)
+        .filter(([, opt]) => opt !== null)
+        .map(([serviceId, opt]) => ({
+          appointment_id: inserted.id,
+          service_id: serviceId,
+          service_option_id: opt!.id,
+        }));
+      if (optionRows.length > 0) {
+        await supabase.from('appointment_service_options').insert(optionRows);
+      }
+
       try {
         await InventoryService.createFinancialTransaction(
           {
             transaction_type: 'income' as const,
             category: 'service_revenue',
-            amount: selectedServices.reduce((s, svc) => s + (svc.price || 0), 0),
+            amount: totalPrice,
             transaction_date: new Date().toISOString().split('T')[0],
             payment_method: 'Pending',
             receipt_number: `APPT-${inserted.id}`,
@@ -460,6 +521,7 @@ export function useAppointmentBooking() {
       showSuccess('Appointment booked successfully! Redirecting...');
 
       setSelectedServices([]);
+      setSelectedServiceOptions({});
       setSelectedPractitioner(practitioners.length === 1 ? practitioners[0] : null);
       setSelectedClient(null);
       setSelectedDate(undefined);
@@ -469,6 +531,7 @@ export function useAppointmentBooking() {
       setExternalClientInfo({ firstName: '', lastName: '', email: '', phone: '' });
       setExternalClientFormErrors({});
       setSavedServiceIds([]);
+      setSavedServiceOptionIds({});
       setSavedPractitionerId(null);
       setSavedClientId(null);
       updateCurrentStep('service');
@@ -517,6 +580,7 @@ export function useAppointmentBooking() {
     if (user && currentStep > 1) saveProgress();
   }, [
     selectedServices,
+    selectedServiceOptions,
     selectedPractitioner,
     selectedClient,
     selectedDate,
@@ -600,10 +664,12 @@ export function useAppointmentBooking() {
     user,
     authLoading,
     services,
+    serviceOptionsMap,
     practitioners,
     clients,
     loading,
     selectedServices,
+    selectedServiceOptions,
     selectedPractitioner,
     selectedClient,
     selectedDate,
@@ -632,6 +698,7 @@ export function useAppointmentBooking() {
     allowSameDayBooking,
     canControlClientSMS,
     handleServiceSelect,
+    handleOptionSelect,
     handleContinueToPractitioner,
     handleContinueToDateTime,
     handleDateTimeConfirm,

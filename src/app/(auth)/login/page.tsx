@@ -285,7 +285,10 @@ export default function LoginPage() {
       {/* Desktop Layout */}
       <div className="hidden lg:flex min-h-screen">
         {/* Logo Section - 70% of screen */}
-        <div className="w-[70%] bg-gradient-to-br from-[#F2C7EB] to-[#E8A8D8] flex items-center justify-center">
+        <div
+          className="w-[70%] flex items-center justify-center"
+          style={{ backgroundColor: '#FAE8F5' }}
+        >
           <div className="text-center">
             {/* Company Logo Placeholder */}
             <div className="w-100 h-100 mx-auto mb-8">

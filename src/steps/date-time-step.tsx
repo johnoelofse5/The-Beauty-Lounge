@@ -1,13 +1,14 @@
-"use client";
+'use client';
 
-import { formatPrice, formatDuration } from "@/lib/services";
-import { DatePicker } from "@/components/date-picker";
-import { Textarea } from "@/components/ui/textarea";
-import TimeSlotSelector from "@/components/TimeSlotSelector";
-import { DateTimeStepProps } from "@/types/date-time-step-props";
+import { formatPrice, formatDuration } from '@/lib/services';
+import { DatePicker } from '@/components/date-picker';
+import { Textarea } from '@/components/ui/textarea';
+import TimeSlotSelector from '@/components/TimeSlotSelector';
+import { DateTimeStepProps } from '@/types/date-time-step-props';
 
 export function DateTimeStep({
   selectedServices,
+  selectedServiceOptions,
   selectedPractitioner,
   selectedClient,
   selectedDate,
@@ -32,21 +33,30 @@ export function DateTimeStep({
   getTomorrowDate,
   getMaxDate,
 }: DateTimeStepProps) {
-  const totalDuration = selectedServices.reduce((t, s) => t + s.duration_minutes, 0);
-  const totalPrice = selectedServices.reduce((t, s) => t + (s.price || 0), 0);
+  const totalDuration = selectedServices.reduce((t, s) => {
+    const opt = selectedServiceOptions[s.id];
+    return t + s.duration_minutes + (opt?.duration_adjustment_minutes || 0);
+  }, 0);
+  const totalPrice = selectedServices.reduce((t, s) => {
+    const opt = selectedServiceOptions[s.id];
+    return t + (s.price || 0) + (opt?.price_adjustment || 0);
+  }, 0);
 
   return (
     <div
       data-animate-id="datetime-selection"
       style={{
-        opacity: visibleElements.has("datetime-selection") ? 1 : 0,
-        transform: visibleElements.has("datetime-selection") ? "translateY(0)" : "translateY(40px)",
-        transition: "all 0.7s ease-out",
+        opacity: visibleElements.has('datetime-selection') ? 1 : 0,
+        transform: visibleElements.has('datetime-selection') ? 'translateY(0)' : 'translateY(40px)',
+        transition: 'all 0.7s ease-out',
       }}
     >
       <div className="mb-6">
-        <button onClick={onBack} className="text-indigo-600 hover:text-indigo-500 text-sm font-medium">
-          ← Change {isPractitionerUser ? "Client" : "Practitioner"}
+        <button
+          onClick={onBack}
+          className="text-indigo-600 hover:text-indigo-500 text-sm font-medium"
+        >
+          ← Change {isPractitionerUser ? 'Client' : 'Practitioner'}
         </button>
       </div>
 
@@ -58,15 +68,24 @@ export function DateTimeStep({
           <div>
             <h4 className="font-medium text-gray-900 mb-3">Services</h4>
             <div className="space-y-2">
-              {selectedServices.map((service) => (
-                <div key={service.id} className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium text-gray-900">{service.name}</p>
-                    <p className="text-sm text-gray-700">{formatDuration(service.duration_minutes)}</p>
+              {selectedServices.map((service) => {
+                const opt = selectedServiceOptions[service.id];
+                const lineDuration =
+                  service.duration_minutes + (opt?.duration_adjustment_minutes || 0);
+                const linePrice = (service.price || 0) + (opt?.price_adjustment || 0);
+                return (
+                  <div key={service.id}>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium text-gray-900">{service.name}</p>
+                        <p className="text-sm text-gray-700">{formatDuration(lineDuration)}</p>
+                      </div>
+                      <div className="text-gray-900 font-semibold">{formatPrice(linePrice)}</div>
+                    </div>
+                    {opt && <p className="text-xs text-indigo-600 mt-0.5">Option: {opt.name}</p>}
                   </div>
-                  <div className="text-gray-900 font-semibold">{formatPrice(service.price || 0)}</div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
@@ -83,32 +102,46 @@ export function DateTimeStep({
                 />
                 <span className="text-sm text-gray-700">Send SMS notification to client</span>
               </label>
-              <p className="text-xs text-gray-500 mt-2">You will always receive appointment notifications</p>
+              <p className="text-xs text-gray-500 mt-2">
+                You will always receive appointment notifications
+              </p>
             </div>
           )}
 
           {/* Client / Practitioner info */}
           <div>
-            <h4 className="font-medium text-gray-900 mb-3">{isPractitionerUser ? "Client" : "Practitioner"}</h4>
+            <h4 className="font-medium text-gray-900 mb-3">
+              {isPractitionerUser ? 'Client' : 'Practitioner'}
+            </h4>
             <div className="p-3 bg-gray-50 rounded-md">
               {isPractitionerUser ? (
                 isExternalClient ? (
                   <>
-                    <p className="font-medium text-gray-900">{externalClientInfo.firstName} {externalClientInfo.lastName}</p>
-                    {externalClientInfo.email && <p className="text-sm text-gray-600">{externalClientInfo.email}</p>}
-                    {externalClientInfo.phone && <p className="text-sm text-gray-600">{externalClientInfo.phone}</p>}
+                    <p className="font-medium text-gray-900">
+                      {externalClientInfo.firstName} {externalClientInfo.lastName}
+                    </p>
+                    {externalClientInfo.email && (
+                      <p className="text-sm text-gray-600">{externalClientInfo.email}</p>
+                    )}
+                    {externalClientInfo.phone && (
+                      <p className="text-sm text-gray-600">{externalClientInfo.phone}</p>
+                    )}
                     <p className="text-xs text-gray-500 mt-1">(External Client)</p>
                   </>
                 ) : (
                   <>
-                    <p className="font-medium text-gray-900">{selectedClient?.first_name} {selectedClient?.last_name}</p>
+                    <p className="font-medium text-gray-900">
+                      {selectedClient?.first_name} {selectedClient?.last_name}
+                    </p>
                     <p className="text-sm text-gray-600">{selectedClient?.email}</p>
                     <p className="text-sm text-gray-600">{selectedClient?.phone}</p>
                   </>
                 )
               ) : (
                 <>
-                  <p className="font-medium text-gray-900">{selectedPractitioner?.first_name} {selectedPractitioner?.last_name}</p>
+                  <p className="font-medium text-gray-900">
+                    {selectedPractitioner?.first_name} {selectedPractitioner?.last_name}
+                  </p>
                   <p className="text-sm text-gray-600">{selectedPractitioner?.email}</p>
                   <p className="text-sm text-gray-600">{selectedPractitioner?.phone}</p>
                 </>
@@ -147,8 +180,8 @@ export function DateTimeStep({
           />
           <p className="mt-2 text-sm text-gray-500">
             {allowSameDayBooking
-              ? "You can book appointments from today up to 3 months in advance"
-              : "You can book appointments from tomorrow up to 3 months in advance"}
+              ? 'You can book appointments from today up to 3 months in advance'
+              : 'You can book appointments from tomorrow up to 3 months in advance'}
           </p>
         </div>
 
