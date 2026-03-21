@@ -35,7 +35,6 @@ export interface AppointmentExtended {
     phone?: string;
   } | null;
   services?: ServiceWithCategory[];
-  /** serviceId → the option chosen for that service in this appointment */
   appointment_service_options?: Record<string, ServiceOption>;
 }
 

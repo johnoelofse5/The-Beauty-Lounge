@@ -59,7 +59,6 @@ export function useAppointments(currentDate: Date, viewMode: ViewMode) {
               .eq('appointment_id', apt.id),
           ]);
 
-          // Build a map of serviceId → chosen option
           const optionsMap: Record<string, any> = {};
           for (const row of optionsData || []) {
             if (row.service_option) {
