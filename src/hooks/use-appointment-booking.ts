@@ -333,15 +333,6 @@ export function useAppointmentBooking() {
 
   const handleContinueToPractitioner = () => {
     if (selectedServices.length > 0) {
-      const servicesNeedingOptions = selectedServices.filter(
-        (s) => (serviceOptionsMap[s.id] || []).length > 0 && !selectedServiceOptions[s.id]
-      );
-      if (servicesNeedingOptions.length > 0) {
-        showError(
-          `Please select an option for: ${servicesNeedingOptions.map((s) => s.name).join(', ')}`
-        );
-        return;
-      }
       updateCurrentStep(isPractitionerUser ? 'client' : 'practitioner');
     }
   };
