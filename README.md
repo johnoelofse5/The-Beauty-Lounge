@@ -1,53 +1,73 @@
-# Stacey's Booking App
+# The Beauty Lounge — Booking App
 
-A modern booking application built with Next.js 15, TypeScript, Tailwind CSS, and Supabase.
+A full-stack booking and business management application for a beauty salon, built with Next.js 15, TypeScript, Tailwind CSS v4, shadcn/ui, and Supabase.
 
 ## Features
 
-- 🔐 **Secure Authentication** - Built-in authentication with Supabase Auth
-- 📊 **Real-time Database** - PostgreSQL database with real-time subscriptions
-- 🚀 **Modern Stack** - Next.js 15, TypeScript, and Tailwind CSS
-- 📱 **Responsive Design** - Mobile-first responsive design
-- ⚡ **Fast Development** - Hot reload and instant feedback
+- **Multi-step booking wizard** — clients book services, choose a practitioner, and select a date/time slot
+- **Role-based access control** — three roles: `super_admin`, `practitioner`, and `client`, with per-permission granularity
+- **Appointment management** — day, week, and month calendar views
+- **Services & optional extras** — manage service catalogue including optional add-ons
+- **Inventory & finance** — inventory tracking, invoice generation (PDF via jsPDF), and financial transaction reports
+- **Portfolio gallery** — practitioners can manage a portfolio of work images
+- **SMS & email notifications** — appointment reminders via Supabase Edge Functions
+- **Google Calendar integration** — sync appointments to Google Calendar
+- **In-app notifications** — real-time notification centre
+- **Analytics dashboard** — business analytics and reporting
+- **Authentication** — email/password, Google OAuth, and phone/OTP login
+- **Dark/light mode** — full theme support
+
+## Tech Stack
+
+| Layer         | Technology                                           |
+| ------------- | ---------------------------------------------------- |
+| Framework     | Next.js 15 (App Router, Turbopack)                   |
+| Language      | TypeScript 5                                         |
+| Styling       | Tailwind CSS v4 + shadcn/ui (Radix UI)               |
+| Backend       | Supabase (PostgreSQL, Auth, Storage, Edge Functions) |
+| PDF           | jsPDF                                                |
+| Charts        | Recharts                                             |
+| Date handling | date-fns, react-day-picker                           |
+| Icons         | Lucide React                                         |
+| Deployment    | Vercel                                               |
 
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js 18+ installed on your machine
-- A Supabase account and project
+- Node.js 18+
+- A Supabase project
 
-### 1. Clone and Install
+### 1. Install dependencies
 
 ```bash
-cd staceys-booking-app
 npm install
 ```
 
-### 2. Set up Supabase
+### 2. Environment variables
 
-1. Go to [supabase.com](https://supabase.com)
-2. Create a new account or sign in
-3. Create a new project
-4. Go to Settings > API in your Supabase dashboard
-5. Copy your project URL and anon key
-
-### 3. Environment Variables
-
-Create a `.env.local` file in the root directory and add your Supabase credentials:
+Create a `.env.local` file in the root directory:
 
 ```env
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url_here
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key_here
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
 
-### 4. Run the Development Server
+### 3. Run the development server
 
 ```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+## Scripts
+
+```bash
+npm run dev      # Start dev server with Turbopack
+npm run build    # Production build
+npm run lint     # Run ESLint
+```
 
 ## Project Structure
 
@@ -55,85 +75,87 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 staceys-booking-app/
 ├── src/
 │   ├── app/
-│   │   ├── layout.tsx       # Root layout with AuthProvider
-│   │   ├── page.tsx         # Homepage with auth
-│   │   └── globals.css      # Global styles
-│   ├── contexts/
-│   │   └── AuthContext.tsx  # Authentication context
-│   └── lib/
-│       └── supabase.ts      # Supabase client configuration
-├── .env.local               # Environment variables
-└── package.json
+│   │   ├── (auth)/              # Login, signup, OAuth callback, password reset, complete-profile
+│   │   ├── (admin)/             # Admin/practitioner pages
+│   │   │   ├── analytics/
+│   │   │   ├── appointments-management/
+│   │   │   ├── back-office/
+│   │   │   ├── inventory-finance/
+│   │   │   ├── roles/
+│   │   │   ├── services/
+│   │   │   ├── sms-tracking/
+│   │   │   └── users/
+│   │   └── (client)/            # Client-facing pages
+│   │       ├── appointments/    # Multi-step booking wizard
+│   │       ├── blocked-dates/
+│   │       ├── portfolio/
+│   │       ├── profile/
+│   │       └── schedule/
+│   ├── components/              # Shared UI components + shadcn/ui primitives
+│   ├── contexts/                # AuthContext, ToastContext
+│   ├── constants/               # Lookup codes (enums)
+│   ├── hooks/                   # Custom React hooks
+│   ├── lib/                     # Service layer and Supabase clients
+│   ├── steps/                   # Booking wizard step components
+│   └── types/                   # TypeScript type definitions
+├── supabase/
+│   └── functions/               # Edge Functions (SMS, OTP, email, PDF, Google Calendar)
+├── database/                    # SQL schema files
+└── scripts/                     # SQL migration scripts
 ```
 
-## Authentication
+## Architecture Notes
 
-The app includes a complete authentication system:
+### Route Groups
 
-- Sign up with email/password
-- Sign in with email/password
-- Sign out functionality
-- Protected routes (coming soon)
-- User session management
+Both `(admin)` and `(client)` route groups share the root `src/app/layout.tsx` — there are no separate layout files per group.
 
-## Next Steps
+### Authentication
 
-1. **Database Schema**: Create tables for your booking system in Supabase
-2. **Row Level Security**: Set up RLS policies for data security
-3. **Booking Components**: Build booking forms and calendar views
-4. **API Routes**: Create server-side API endpoints
-5. **Email Templates**: Customize authentication emails
+`src/contexts/AuthContext.tsx` handles all auth state. On sign-in it checks whether the `users` table record is complete; if not, it redirects to `/complete-profile`. Phone/OTP auth is handled through Supabase Edge Functions (`send-otp`, `verify-otp`, `create-mobile-session`).
 
-## Supabase Setup Tips
+### Role-Based Access Control
 
-### Enable Email Auth
+`src/lib/rbac.ts` defines three roles — `super_admin`, `practitioner`, `client` — with helpers used throughout pages and `SidebarNav` to conditionally show/hide routes. Roles and permissions are loaded from the `users_with_roles` DB view and `role_permissions` table.
 
-1. Go to Authentication > Settings in your Supabase dashboard
-2. Configure your email templates
-3. Set up email confirmation if needed
+### Supabase Clients
 
-### Database Tables (Example)
+- `src/lib/supabase/client.ts` — browser client (used in most client components)
+- `src/lib/supabase/server.ts` — server-side client (API routes / server components)
+- `src/lib/supabase.ts` — legacy singleton browser client (used in some older services)
 
-You might want to create tables like:
+### Lookup System
 
-```sql
--- Bookings table
-create table bookings (
-  id uuid default gen_random_uuid() primary key,
-  user_id uuid references auth.users not null,
-  title text not null,
-  description text,
-  start_time timestamp with time zone not null,
-  end_time timestamp with time zone not null,
-  created_at timestamp with time zone default timezone('utc'::text, now()) not null
-);
+Enum-like values (appointment statuses, service categories, payment methods, etc.) are stored in a `lookups` DB table. Constants live in `src/constants/lookup-codes.ts`. Use `src/lib/lookup-service-cached.ts` for cached reads backed by IndexedDB.
 
--- Enable RLS
-alter table bookings enable row level security;
+### Booking Wizard
 
--- Policy: Users can only see their own bookings
-create policy "Users can view own bookings" on bookings for select using (auth.uid() = user_id);
-create policy "Users can insert own bookings" on bookings for insert with check (auth.uid() = user_id);
-```
+The multi-step booking flow is driven by `src/hooks/use-appointment-booking.ts`. Steps are rendered from `src/steps/`:
 
-## Deployment
+1. Service selection
+2. Practitioner selection (clients) or Client selection (practitioners/admins)
+3. Date & time selection
+4. Confirmation
 
-The easiest way to deploy your Next.js app is to use [Vercel](https://vercel.com/new):
+### Database Conventions
 
-1. Push your code to GitHub
-2. Import your GitHub repository on Vercel
-3. Add your environment variables in Vercel dashboard
-4. Deploy!
+- Soft deletes via `is_active` and `is_deleted` columns — always filter with `.eq('is_active', true).eq('is_deleted', false)`
+- Global settings (SMS toggles, etc.) stored in `app_settings` table (single row, `id=1`), managed via the Back Office page
 
-## Learn More
+## Edge Functions
 
-- [Next.js Documentation](https://nextjs.org/docs)
-- [Supabase Documentation](https://supabase.com/docs)
-- [Tailwind CSS Documentation](https://tailwindcss.com/docs)
-
-## Support
-
-If you need help, feel free to:
-- Check the [Next.js GitHub discussions](https://github.com/vercel/next.js/discussions)
-- Visit the [Supabase Discord](https://discord.supabase.com/)
-- Read the documentation links above
+| Function                             | Purpose                         |
+| ------------------------------------ | ------------------------------- |
+| `send-otp`                           | Send OTP for phone login        |
+| `verify-otp`                         | Verify OTP code                 |
+| `create-mobile-session`              | Create session after OTP        |
+| `send-appointment-sms`               | Send appointment SMS reminders  |
+| `process-scheduled-sms`              | Process queued SMS messages     |
+| `send-email`                         | Send transactional emails       |
+| `admin-update-user`                  | Admin-level user updates        |
+| `mark-completed-appointments`        | Auto-complete past appointments |
+| `create-google-calendar-event`       | Add event to Google Calendar    |
+| `update-google-calendar-event`       | Update Google Calendar event    |
+| `delete-google-calendar-event`       | Remove Google Calendar event    |
+| `generate-invoice-pdf`               | Generate invoice PDF            |
+| `generate-financial-transaction-pdf` | Generate financial report PDF   |
