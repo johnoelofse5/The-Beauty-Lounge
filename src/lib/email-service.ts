@@ -2,16 +2,20 @@ import { EmailOptions, EmailResponse } from '../types/email';
 import { supabase } from './supabase';
 
 async function isEmailEnabled(type: 'booking' | 'invoice'): Promise<boolean> {
-  const column = type === 'invoice' ? 'send_email_on_invoice' : 'send_email_on_booking';
-
-  const { data, error } = await supabase.from('app_settings').select(column).eq('id', 1).single();
+  const { data, error } = await supabase
+    .from('app_settings')
+    .select('send_email_on_booking, send_email_on_invoice')
+    .eq('id', 1)
+    .single();
 
   if (error || !data) {
     console.warn('Could not fetch app_settings, defaulting to email enabled');
     return true;
   }
 
-  return data[column] ?? true;
+  return type === 'invoice'
+    ? (data.send_email_on_invoice ?? true)
+    : (data.send_email_on_booking ?? true);
 }
 
 export async function sendEmail(options: EmailOptions): Promise<EmailResponse> {
