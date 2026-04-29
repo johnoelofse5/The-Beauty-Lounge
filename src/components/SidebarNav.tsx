@@ -200,8 +200,8 @@ export default function SidebarNav({ title = 'The Beauty Lounge' }: SidebarNavPr
       show: canViewAdminFeatures,
     },
     {
-      title: 'SMS Logs',
-      url: '/sms-tracking',
+      title: 'Logs',
+      url: '/tracking',
       icon: Mail,
       show: canViewAdminFeatures,
     },

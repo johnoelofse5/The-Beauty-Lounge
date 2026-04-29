@@ -24,3 +24,14 @@ export interface SMSStats {
   failed: number;
   scheduled: number;
 }
+
+export type { EmailTracking, EmailType, EmailStatus } from '@/types/email-tracking';
+
+export interface EmailStats {
+  total: number;
+  pending: number;
+  sent: number;
+  delivered: number;
+  failed: number;
+  bounced: number;
+}

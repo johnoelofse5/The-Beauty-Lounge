@@ -75,14 +75,14 @@ export default function SmsLogsTable({
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {log.client_sms_sent ? (
-                      <span className="text-green-600 font-medium">✓ Sent</span>
+                      <span className="text-green-600 font-medium">&#10003; Sent</span>
                     ) : (
                       <span className="text-gray-400">—</span>
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {log.practitioner_sms_sent ? (
-                      <span className="text-green-600 font-medium">✓ Sent</span>
+                      <span className="text-green-600 font-medium">&#10003; Sent</span>
                     ) : (
                       <span className="text-gray-400">—</span>
                     )}

@@ -42,6 +42,14 @@ serve(async (req) => {
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    const { data: appSettings } = await supabase
+      .from('app_settings')
+      .select('send_calendar_invite_email')
+      .eq('id', 1)
+      .single();
+    const sendInviteEmail = appSettings?.send_calendar_invite_email ?? false;
+
     const { appointment_id } = await req.json();
 
     if (!appointment_id) {
@@ -166,7 +174,7 @@ serve(async (req) => {
     );
 
     const calendarResponse = await fetch(
-      `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(googleCalendarId)}/events?sendUpdates=none`,
+      `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(googleCalendarId)}/events?sendUpdates=${sendInviteEmail ? 'all' : 'none'}`,
       {
         method: 'POST',
         headers: {

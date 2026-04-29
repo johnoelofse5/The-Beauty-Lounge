@@ -1,142 +1,55 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 
-const MAILERSEND_API_KEY = Deno.env.get('MAILERSEND_API_KEY');
+const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
 
-interface EmailAttachment {
-  filename: string;
-  content: string;
-  contentType: string;
-  encoding: string;
-}
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers':
+    'authorization, x-client-info, apikey, content-type, x-supabase-client-platform',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+};
 
-interface EmailRequest {
-  to: string;
-  subject: string;
-  html: string;
-  text: string;
-  attachments?: EmailAttachment[];
-}
-
-serve(async (req) => {
+serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
-    return new Response(null, {
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-client-info, apikey',
-      },
-    });
+    return new Response('ok', { headers: corsHeaders });
   }
 
   try {
-    const { to, subject, html, text, attachments }: EmailRequest = await req.json();
+    const { to, subject, html, text, attachments } = await req.json();
 
-    if (!to || !subject || !html) {
-      return new Response(
-        JSON.stringify({ error: 'Missing required fields: to, subject, html' }),
-        {
-          status: 400,
-          headers: {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
-          },
-        }
-      );
-    }
-
-    if (!MAILERSEND_API_KEY) {
-      return new Response(
-        JSON.stringify({ error: 'MAILERSEND_API_KEY not configured' }),
-        {
-          status: 500,
-          headers: {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
-          },
-        }
-      );
-    }
-
-    const emailPayload: any = {
-      from: {
-        email: 'noreply@test-3m5jgro1d9dgdpyo.mlsender.net',
-        name: "The Beauty Lounge"
-      },
-      to: [
-        {
-          email: to
-        }
-      ],
-      subject,
-      html,
-      text,
-    };
-    
-    if (attachments && attachments.length > 0) {
-      emailPayload.attachments = attachments.map(att => ({
-        filename: att.filename,
-        content: att.content,
-        disposition: 'attachment'
-      }));
-    }
-
-    const response = await fetch('https://api.mailersend.com/v1/email', {
+    const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${MAILERSEND_API_KEY}`,
         'Content-Type': 'application/json',
-        'X-Requested-With': 'XMLHttpRequest',
+        Authorization: `Bearer ${RESEND_API_KEY}`,
       },
-      body: JSON.stringify(emailPayload),
+      body: JSON.stringify({
+        from: 'onboarding@resend.dev',
+        to,
+        subject,
+        html,
+        ...(text && { text }),
+        ...(attachments && { attachments }),
+      }),
     });
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      console.error('MailerSend API error:', errorData);
+    const data = await res.json();
+
+    if (!res.ok) {
       return new Response(
-        JSON.stringify({ 
-          error: errorData.message || 'Failed to send email',
-          details: errorData 
-        }),
-        {
-          status: response.status,
-          headers: {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
-          },
-        }
+        JSON.stringify({ success: false, error: data?.message || 'Resend API error' }),
+        { status: res.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const messageId = response.headers.get('X-Message-Id');
-
-    return new Response(
-      JSON.stringify({ 
-        success: true, 
-        messageId: messageId || 'sent'
-      }),
-      {
-        status: 200,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-        },
-      }
-    );
-
+    return new Response(JSON.stringify({ success: true, messageId: data?.id }), {
+      status: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   } catch (error) {
-    console.error('Error in send-email function:', error);
-    return new Response(
-      JSON.stringify({ 
-        error: error instanceof Error ? error.message : 'Unknown error occurred' 
-      }),
-      {
-        status: 500,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-        },
-      }
-    );
+    return new Response(JSON.stringify({ success: false, error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 });

@@ -1,31 +1,68 @@
 import { EmailOptions, EmailResponse } from '../types/email';
 import { supabase } from './supabase';
 
+async function isEmailEnabled(type: 'booking' | 'invoice'): Promise<boolean> {
+  const column = type === 'invoice' ? 'send_email_on_invoice' : 'send_email_on_booking';
+
+  const { data, error } = await supabase.from('app_settings').select(column).eq('id', 1).single();
+
+  if (error || !data) {
+    console.warn('Could not fetch app_settings, defaulting to email enabled');
+    return true;
+  }
+
+  return data[column] ?? true;
+}
+
 export async function sendEmail(options: EmailOptions): Promise<EmailResponse> {
   try {
     const { data, error } = await supabase.functions.invoke('send-email', {
-      body: options
+      body: options,
     });
 
     if (error) {
       console.error('Error calling send-email function:', error);
       return {
         success: false,
-        error: error.message || 'Failed to send email'
+        error: error.message || 'Failed to send email',
       };
     }
 
     return {
       success: data?.success || false,
       messageId: data?.messageId,
-      error: data?.error
+      error: data?.error,
     };
   } catch (error) {
     console.error('Error in sendEmail:', error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: error instanceof Error ? error.message : 'Unknown error',
     };
+  }
+}
+
+async function trackEmail(
+  email: string,
+  emailType: string,
+  subject: string,
+  status: 'sent' | 'failed',
+  metadata?: Record<string, any>,
+  errorMessage?: string
+): Promise<void> {
+  const { error } = await supabase.from('email_tracking').insert({
+    email,
+    email_type: emailType,
+    subject,
+    status,
+    sent_at: status === 'sent' ? new Date().toISOString() : null,
+    failed_at: status === 'failed' ? new Date().toISOString() : null,
+    error_message: errorMessage ?? null,
+    metadata: metadata ? JSON.stringify(metadata) : null,
+  });
+
+  if (error) {
+    console.error('Failed to insert email tracking record:', error);
   }
 }
 
@@ -43,6 +80,7 @@ export async function sendInvoiceEmail(
   };
 }> {
   try {
+    const emailEnabled = await isEmailEnabled('invoice');
 
     const generatePayload = {
       appointment_id: appointmentId,
@@ -62,6 +100,27 @@ export async function sendInvoiceEmail(
     }
 
     const invoice = invoiceData.data;
+
+    if (!emailEnabled) {
+      console.log('Invoice email suppressed by app_settings');
+      await trackEmail(
+        recipientEmail,
+        'invoice',
+        `Invoice ${invoice.invoice_number} - The Beauty Lounge`,
+        'failed',
+        { appointment_id: appointmentId, invoice_number: invoice.invoice_number },
+        'Email sending disabled in app_settings'
+      );
+      return {
+        success: true,
+        message: 'Invoice generated but email sending is disabled',
+        data: {
+          invoice_id: invoiceData.data.invoice_id,
+          invoice_number: invoiceData.data.invoice_number,
+          email_sent: false,
+        },
+      };
+    }
 
     const pdfResponse = await fetch(invoice.pdf_url);
 
@@ -145,12 +204,28 @@ The Beauty Lounge
     });
 
     if (!emailResponse.success) {
+      await trackEmail(
+        recipientEmail,
+        'invoice',
+        `Invoice ${invoice.invoice_number} - The Beauty Lounge`,
+        'failed',
+        { appointment_id: appointmentId, invoice_number: invoice.invoice_number },
+        emailResponse.error
+      );
       return {
         success: false,
         message: emailResponse.error || 'Failed to send invoice email',
       };
     }
-    
+
+    await trackEmail(
+      recipientEmail,
+      'invoice',
+      `Invoice ${invoice.invoice_number} - The Beauty Lounge`,
+      'sent',
+      { appointment_id: appointmentId, invoice_number: invoice.invoice_number }
+    );
+
     return {
       success: true,
       message: 'Invoice email sent successfully',
