@@ -10,7 +10,6 @@ import {
   canManageServices,
   canManageUsers,
   isPractitioner,
-  isSuperAdmin,
   canManagePortfolio,
   canViewPortfolio,
   canManageSchedule,
@@ -26,60 +25,80 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
   SidebarSeparator,
   useSidebar,
 } from '@/components/ui/sidebar';
+import { Collapsible as CollapsiblePrimitive } from 'radix-ui';
 import {
-  Home,
-  Calendar,
-  Users,
-  Settings,
-  Mail,
-  User,
-  LogOut,
-  Sparkles,
-  PlusCircle,
-  Image,
-  Clock,
-  Package,
-  TrendingUp,
-  DollarSign,
-  Sun,
-  Moon,
   Ban,
   BarChart2,
+  Calendar,
+  ChevronRight,
+  Clock,
+  Home,
+  Image,
+  LogOut,
+  Mail,
+  MessageSquare,
+  Moon,
+  PlusCircle,
+  Settings,
+  Sparkles,
+  Sun,
+  TrendingUp,
+  User,
+  Users,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTheme } from '@/hooks/useTheme';
 import { FaInstagram, FaFacebook } from 'react-icons/fa';
+import { NavGroup } from '@/types/nav-group';
 
 interface SidebarNavProps {
   title?: string;
 }
+
+const GROUP_CHILD_URLS: Record<string, string[]> = {
+  Appointments: ['/appointments-management', '/appointments'],
+  Portfolio: ['/portfolio', '/portfolio/manage'],
+  Schedule: ['/schedule', '/blocked-dates'],
+  Business: ['/analytics', '/inventory-finance'],
+  Administration: ['/services', '/users', '/roles', '/tracking', '/back-office', '/send-sms'],
+};
 
 export default function SidebarNav({ title = 'The Beauty Lounge' }: SidebarNavProps) {
   const { user, userRoleData, signOut } = useAuth();
   const { showSuccess, showError } = useToast();
   const pathname = usePathname();
   const { setOpenMobile, isMobile } = useSidebar();
-  const { theme, toggleTheme, effectiveTheme } = useTheme();
+  const { toggleTheme, effectiveTheme } = useTheme();
+
   const [permissions, setPermissions] = useState({
     canManagePortfolio: false,
     canViewPortfolio: false,
     canManageSchedule: false,
   });
 
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
+    const initial: Record<string, boolean> = {};
+    for (const [group, urls] of Object.entries(GROUP_CHILD_URLS)) {
+      initial[group] = urls.includes(pathname);
+    }
+    return initial;
+  });
+
   useEffect(() => {
     const loadPermissions = async () => {
       if (!user?.id) return;
-
       try {
         const [portfolioManage, portfolioView, scheduleManage] = await Promise.all([
           canManagePortfolio(user.id),
           canViewPortfolio(user.id),
           canManageSchedule(user.id),
         ]);
-
         setPermissions({
           canManagePortfolio: portfolioManage,
           canViewPortfolio: portfolioView,
@@ -89,9 +108,17 @@ export default function SidebarNav({ title = 'The Beauty Lounge' }: SidebarNavPr
         console.error('Error loading permissions:', error);
       }
     };
-
     loadPermissions();
   }, [user?.id]);
+
+  useEffect(() => {
+    for (const [group, urls] of Object.entries(GROUP_CHILD_URLS)) {
+      if (urls.includes(pathname)) {
+        setOpenGroups((prev) => ({ ...prev, [group]: true }));
+        break;
+      }
+    }
+  }, [pathname]);
 
   const handleSignOut = async () => {
     try {
@@ -99,7 +126,6 @@ export default function SidebarNav({ title = 'The Beauty Lounge' }: SidebarNavPr
       showSuccess('Successfully signed out');
     } catch (error) {
       console.error('Error signing out:', error);
-
       showError('Session expired. Please sign in again.');
     }
   };
@@ -108,6 +134,10 @@ export default function SidebarNav({ title = 'The Beauty Lounge' }: SidebarNavPr
     if (isMobile) {
       setOpenMobile(false);
     }
+  };
+
+  const toggleGroup = (groupTitle: string) => {
+    setOpenGroups((prev) => ({ ...prev, [groupTitle]: !prev[groupTitle] }));
   };
 
   if (!user) {
@@ -120,7 +150,7 @@ export default function SidebarNav({ title = 'The Beauty Lounge' }: SidebarNavPr
   const canManageUsersAccess = canManageUsers(userRoleData?.role || null);
   const isPractitionerUser = isPractitioner(userRoleData?.role || null);
 
-  const navigationItems = [
+  const navGroups: NavGroup[] = [
     {
       title: 'Home',
       url: '/',
@@ -128,92 +158,127 @@ export default function SidebarNav({ title = 'The Beauty Lounge' }: SidebarNavPr
       show: true,
     },
     {
-      title: 'My Appointments',
-      url: '/appointments-management',
+      title: 'Appointments',
       icon: Calendar,
-      show: !canViewAllAppts,
-    },
-    {
-      title: 'All Appointments',
-      url: '/appointments-management',
-      icon: Calendar,
-      show: canViewAllAppts,
-    },
-    {
-      title: 'Book for Client',
-      url: '/appointments',
-      icon: PlusCircle,
-      show: isPractitionerUser || canViewAdminFeatures,
+      show: true,
+      children: [
+        {
+          title: canViewAllAppts ? 'All Appointments' : 'My Appointments',
+          url: '/appointments-management',
+          icon: Calendar,
+          show: true,
+        },
+        {
+          title: 'Book for Client',
+          url: '/appointments',
+          icon: PlusCircle,
+          show: isPractitionerUser || canViewAdminFeatures,
+        },
+      ],
     },
     {
       title: 'Portfolio',
-      url: '/portfolio',
       icon: Image,
-      show: permissions.canViewPortfolio,
+      show: permissions.canViewPortfolio || permissions.canManagePortfolio,
+      children: [
+        {
+          title: 'View Portfolio',
+          url: '/portfolio',
+          icon: Image,
+          show: permissions.canViewPortfolio,
+        },
+        {
+          title: 'Manage Portfolio',
+          url: '/portfolio/manage',
+          icon: Image,
+          show: permissions.canManagePortfolio,
+        },
+      ],
     },
     {
-      title: 'Manage Portfolio',
-      url: '/portfolio/manage',
-      icon: Image,
-      show: permissions.canManagePortfolio,
-    },
-    {
-      title: 'Working Schedule',
-      url: '/schedule',
+      title: 'Schedule',
       icon: Clock,
       show: permissions.canManageSchedule,
+      children: [
+        {
+          title: 'Working Schedule',
+          url: '/schedule',
+          icon: Clock,
+          show: true,
+        },
+        {
+          title: 'Blocked Dates',
+          url: '/blocked-dates',
+          icon: Ban,
+          show: true,
+        },
+      ],
     },
     {
-      title: 'Blocked Dates',
-      url: '/blocked-dates',
-      icon: Ban,
-      show: permissions.canManageSchedule,
-    },
-    {
-      title: 'Analytics',
-      url: '/analytics',
-      icon: BarChart2,
-      show: canViewAdminFeatures || isPractitionerUser,
-    },
-    {
-      title: 'Inventory & Finance',
-      url: '/inventory-finance',
+      title: 'Business',
       icon: TrendingUp,
       show: canViewAdminFeatures || isPractitionerUser,
+      children: [
+        {
+          title: 'Analytics',
+          url: '/analytics',
+          icon: BarChart2,
+          show: canViewAdminFeatures || isPractitionerUser,
+        },
+        {
+          title: 'Inventory & Finance',
+          url: '/inventory-finance',
+          icon: TrendingUp,
+          show: canViewAdminFeatures || isPractitionerUser,
+        },
+      ],
     },
     {
-      title: 'Services',
-      url: '/services',
-      icon: Sparkles,
-      show: canManageServicesAccess,
-    },
-    {
-      title: 'Users',
-      url: '/users',
-      icon: Users,
-      show: canManageUsersAccess,
-    },
-    {
-      title: 'Roles & Permissions',
-      url: '/roles',
+      title: 'Administration',
       icon: Settings,
       show: canViewAdminFeatures,
-    },
-    {
-      title: 'Logs',
-      url: '/tracking',
-      icon: Mail,
-      show: canViewAdminFeatures,
-    },
-    {
-      title: 'Back Office',
-      url: '/back-office',
-      icon: Settings,
-      show: canViewAdminFeatures,
+      children: [
+        {
+          title: 'Services',
+          url: '/services',
+          icon: Sparkles,
+          show: canManageServicesAccess,
+        },
+        {
+          title: 'Users',
+          url: '/users',
+          icon: Users,
+          show: canManageUsersAccess,
+        },
+        {
+          title: 'Roles & Permissions',
+          url: '/roles',
+          icon: Settings,
+          show: canViewAdminFeatures,
+        },
+        {
+          title: 'Logs',
+          url: '/tracking',
+          icon: Mail,
+          show: canViewAdminFeatures,
+        },
+        {
+          title: 'Back Office',
+          url: '/back-office',
+          icon: Settings,
+          show: canViewAdminFeatures,
+        },
+        {
+          title: 'Send SMS',
+          url: '/send-sms',
+          icon: MessageSquare,
+          show: canViewAdminFeatures,
+        },
+      ],
     },
   ];
 
-  const filteredItems = navigationItems.filter((item) => item.show);
+  const visibleGroups = navGroups.filter((g) => g.show);
 
   return (
     <Sidebar className="overflow-x-hidden">
@@ -236,23 +301,88 @@ export default function SidebarNav({ title = 'The Beauty Lounge' }: SidebarNavPr
           <SidebarGroupLabel>Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu className="min-w-0">
-              {filteredItems.map((item) => {
-                const Icon = item.icon;
-                const isActive = pathname === item.url;
+              {visibleGroups.map((group) => {
+                const Icon = group.icon;
+
+                if (!group.children) {
+                  const isActive = pathname === group.url;
+                  return (
+                    <SidebarMenuItem key={group.title}>
+                      <SidebarMenuButton asChild isActive={isActive}>
+                        <Link
+                          href={group.url!}
+                          onClick={handleNavigationClick}
+                          className="min-w-0 w-full"
+                        >
+                          <Icon className="h-4 w-4 flex-shrink-0" />
+                          <span className="truncate min-w-0">{group.title}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                }
+
+                const visibleChildren = group.children.filter((c) => c.show);
+                if (visibleChildren.length === 0) return null;
+
+                if (visibleChildren.length === 1) {
+                  const child = visibleChildren[0];
+                  const ChildIcon = child.icon;
+                  const isActive = pathname === child.url;
+                  return (
+                    <SidebarMenuItem key={group.title}>
+                      <SidebarMenuButton asChild isActive={isActive}>
+                        <Link
+                          href={child.url}
+                          onClick={handleNavigationClick}
+                          className="min-w-0 w-full"
+                        >
+                          <ChildIcon className="h-4 w-4 flex-shrink-0" />
+                          <span className="truncate min-w-0">{child.title}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                }
+
+                const isGroupActive = visibleChildren.some((c) => c.url === pathname);
+                const isOpen = openGroups[group.title] ?? false;
 
                 return (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton asChild isActive={isActive}>
-                      <Link
-                        href={item.url}
-                        onClick={handleNavigationClick}
-                        className="min-w-0 w-full"
-                      >
-                        <Icon className="h-4 w-4 flex-shrink-0" />
-                        <span className="truncate min-w-0">{item.title}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
+                  <CollapsiblePrimitive.Root
+                    key={group.title}
+                    open={isOpen}
+                    onOpenChange={() => toggleGroup(group.title)}
+                    className="group/collapsible"
+                  >
+                    <SidebarMenuItem>
+                      <CollapsiblePrimitive.Trigger asChild>
+                        <SidebarMenuButton isActive={isGroupActive} className="min-w-0 w-full">
+                          <Icon className="h-4 w-4 flex-shrink-0" />
+                          <span className="truncate min-w-0 flex-1">{group.title}</span>
+                          <ChevronRight className="h-4 w-4 flex-shrink-0 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                        </SidebarMenuButton>
+                      </CollapsiblePrimitive.Trigger>
+                      <CollapsiblePrimitive.Content>
+                        <SidebarMenuSub>
+                          {visibleChildren.map((child) => {
+                            const ChildIcon = child.icon;
+                            const isActive = pathname === child.url;
+                            return (
+                              <SidebarMenuSubItem key={child.title}>
+                                <SidebarMenuSubButton asChild isActive={isActive}>
+                                  <Link href={child.url} onClick={handleNavigationClick}>
+                                    <ChildIcon className="h-4 w-4 flex-shrink-0" />
+                                    <span className="truncate">{child.title}</span>
+                                  </Link>
+                                </SidebarMenuSubButton>
+                              </SidebarMenuSubItem>
+                            );
+                          })}
+                        </SidebarMenuSub>
+                      </CollapsiblePrimitive.Content>
+                    </SidebarMenuItem>
+                  </CollapsiblePrimitive.Root>
                 );
               })}
             </SidebarMenu>

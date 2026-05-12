@@ -1,14 +1,14 @@
 @import url('https://fonts.googleapis.com/css2?family=Le+Jour+Script:wght@400&family=Nunito:ital,wght@0,200..1000;1,200..1000&display=swap');
-@import "tailwindcss";
-@import "tw-animate-css";
+@import 'tailwindcss';
+@import 'tw-animate-css';
 
 @custom-variant dark (&:is(.dark *));
 
 /* Base light theme - default */
 :root {
   --primary: oklch(0.205 0 0);
-  --primary-dark: #E8A8D8;
-  --primary-light: #F6D5F0;
+  --primary-dark: #e8a8d8;
+  --primary-light: #f6d5f0;
 
   /* Light mode colors */
   --background: oklch(1 0 0);
@@ -209,7 +209,10 @@
   *,
   *::before,
   *::after {
-    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+    transition:
+      background-color 0.3s ease,
+      color 0.3s ease,
+      border-color 0.3s ease;
   }
 }
 
@@ -309,7 +312,9 @@
 .light .bg-white,
 :root:not(.dark) .bg-white {
   background: linear-gradient(135deg, #ffffff, #f8fafc) !important;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
 }
 
 .light .bg-gray-200,
@@ -365,7 +370,7 @@
 /* Enhanced light mode buttons - pink brand colors */
 .light button,
 :root:not(.dark) button {
-  background: linear-gradient(135deg, #F2C7EB, #E8A8D8) !important;
+  background: linear-gradient(135deg, #f2c7eb, #e8a8d8) !important;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
   border: 1px solid rgba(242, 199, 235, 0.3) !important;
   transition: all 0.3s ease !important;
@@ -374,7 +379,7 @@
 
 .light button:hover,
 :root:not(.dark) button:hover {
-  background: linear-gradient(135deg, #E8A8D8, #F6D5F0) !important;
+  background: linear-gradient(135deg, #e8a8d8, #f6d5f0) !important;
   transform: translateY(-1px) !important;
   box-shadow: 0 4px 8px rgba(242, 199, 235, 0.3) !important;
 }
@@ -386,26 +391,26 @@
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05) !important;
 }
 
-.light [data-sidebar="sidebar"],
-:root:not(.dark) [data-sidebar="sidebar"] {
+.light [data-sidebar='sidebar'],
+:root:not(.dark) [data-sidebar='sidebar'] {
   background: linear-gradient(180deg, #ffffff, #f8fafc) !important;
   box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1) !important;
 }
 
-.light [data-sidebar="menu-button"]:not([data-active="true"]),
-:root:not(.dark) [data-sidebar="menu-button"]:not([data-active="true"]) {
-  background: linear-gradient(135deg, #ffffff, #f8fafc) !important;
+.light [data-sidebar='menu-button']:not([data-active='true']),
+:root:not(.dark) [data-sidebar='menu-button']:not([data-active='true']) {
+  background: linear-gradient(135deg, #f2c7eb, #e8a8d8) !important;
   color: #374151 !important;
 }
 
-.light [data-sidebar="menu-button"][data-active="true"],
-:root:not(.dark) [data-sidebar="menu-button"][data-active="true"] {
-  background: linear-gradient(135deg, #F2C7EB, #E8A8D8) !important;
+.light [data-sidebar='menu-button'][data-active='true'],
+:root:not(.dark) [data-sidebar='menu-button'][data-active='true'] {
+  background: linear-gradient(135deg, #f2c7eb, #e8a8d8) !important;
   color: #374151 !important;
 }
 
-.light [data-sidebar="trigger"],
-:root:not(.dark) [data-sidebar="trigger"] {
+.light [data-sidebar='trigger'],
+:root:not(.dark) [data-sidebar='trigger'] {
   background: linear-gradient(135deg, #f1f5f9, #e2e8f0) !important;
   color: #374151 !important;
 }
@@ -457,21 +462,21 @@
     border-color: oklch(0.269 0 0) !important;
   }
 
-  :root:not(.light) [data-sidebar="sidebar"] {
+  :root:not(.light) [data-sidebar='sidebar'] {
     background: linear-gradient(180deg, oklch(0.145 0 0), oklch(0.165 0.02 300)) !important;
   }
 
-  :root:not(.light) [data-sidebar="menu-button"]:not([data-active="true"]) {
+  :root:not(.light) [data-sidebar='menu-button']:not([data-active='true']) {
     background: linear-gradient(135deg, oklch(0.185 0.03 320), oklch(0.205 0.04 340)) !important;
     color: oklch(0.985 0 0) !important;
   }
 
-  :root:not(.light) [data-sidebar="menu-button"][data-active="true"] {
+  :root:not(.light) [data-sidebar='menu-button'][data-active='true'] {
     background: linear-gradient(135deg, oklch(0.225 0.05 360), oklch(0.245 0.06 20)) !important;
     color: oklch(0.985 0 0) !important;
   }
 
-  :root:not(.light) [data-sidebar="trigger"] {
+  :root:not(.light) [data-sidebar='trigger'] {
     background-color: oklch(0.269 0 0) !important;
     color: oklch(0.985 0 0) !important;
   }
@@ -523,26 +528,26 @@
   border-color: oklch(0.269 0 0) !important;
 }
 
-.dark [data-sidebar="sidebar"] {
+.dark [data-sidebar='sidebar'] {
   background: linear-gradient(180deg, oklch(0.145 0 0), oklch(0.165 0.02 300)) !important;
 }
 
-.dark [data-sidebar="menu-button"]:not([data-active="true"]) {
+.dark [data-sidebar='menu-button']:not([data-active='true']) {
   background: linear-gradient(135deg, oklch(0.185 0.03 320), oklch(0.205 0.04 340)) !important;
   color: oklch(0.985 0 0) !important;
 }
 
-.dark [data-sidebar="menu-button"][data-active="true"] {
+.dark [data-sidebar='menu-button'][data-active='true'] {
   background: linear-gradient(135deg, oklch(0.225 0.05 360), oklch(0.245 0.06 20)) !important;
   color: oklch(0.985 0 0) !important;
 }
 
-.dark [data-sidebar="trigger"] {
+.dark [data-sidebar='trigger'] {
   background-color: oklch(0.269 0 0) !important;
   color: oklch(0.985 0 0) !important;
 }
 
-.light [data-sidebar="trigger"] {
+.light [data-sidebar='trigger'] {
   background: linear-gradient(135deg, #f1f5f9, #e2e8f0) !important;
   color: #374151 !important;
 }
@@ -553,17 +558,19 @@
 }
 
 .light .bg-white,
-.light [class*="bg-white"],
+.light [class*='bg-white'],
 .light .card,
 .light .container,
 .light .content,
 .light .main-content {
   background: linear-gradient(135deg, #ffffff, #f8fafc) !important;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
   border: 1px solid rgba(0, 0, 0, 0.1) !important;
 }
 
-.light div[class*="bg-"]:not([class*="bg-transparent"]):not([class*="bg-current"]) {
+.light div[class*='bg-']:not([class*='bg-transparent']):not([class*='bg-current']) {
   background: linear-gradient(135deg, #ffffff, #f8fafc) !important;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05) !important;
 }
@@ -573,7 +580,9 @@
 .light .rounded-md,
 .light .rounded-xl {
   background: linear-gradient(135deg, #ffffff, #f8fafc) !important;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
   border: 1px solid rgba(0, 0, 0, 0.1) !important;
   transition: all 0.3s ease !important;
 }
@@ -582,13 +591,15 @@
 .light .rounded-md:hover,
 .light .rounded-xl:hover {
   transform: translateY(-2px) !important;
-  box-shadow: 0 8px 15px -3px rgba(0, 0, 0, 0.15), 0 4px 6px -2px rgba(0, 0, 0, 0.1) !important;
+  box-shadow:
+    0 8px 15px -3px rgba(0, 0, 0, 0.15),
+    0 4px 6px -2px rgba(0, 0, 0, 0.1) !important;
   background: linear-gradient(135deg, #f8fafc, #f1f5f9) !important;
 }
 
 /* Enhanced light mode buttons - restore pink brand colors */
 .light button {
-  background: linear-gradient(135deg, #F2C7EB, #E8A8D8) !important;
+  background: linear-gradient(135deg, #f2c7eb, #e8a8d8) !important;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
   border: 1px solid rgba(242, 199, 235, 0.3) !important;
   transition: all 0.3s ease !important;
@@ -596,7 +607,7 @@
 }
 
 .light button:hover {
-  background: linear-gradient(135deg, #E8A8D8, #F6D5F0) !important;
+  background: linear-gradient(135deg, #e8a8d8, #f6d5f0) !important;
   transform: translateY(-1px) !important;
   box-shadow: 0 4px 8px rgba(242, 199, 235, 0.3) !important;
 }
@@ -604,8 +615,8 @@
 /* General button styling for all pages */
 .light .btn-primary,
 .light .btn,
-.light a[class*="bg-"]:not([class*="bg-transparent"]):not([class*="bg-current"]) {
-  background: linear-gradient(135deg, #F2C7EB, #E8A8D8) !important;
+.light a[class*='bg-']:not([class*='bg-transparent']):not([class*='bg-current']) {
+  background: linear-gradient(135deg, #f2c7eb, #e8a8d8) !important;
   color: #374151 !important;
   border: 1px solid rgba(242, 199, 235, 0.3) !important;
   box-shadow: 0 2px 4px rgba(242, 199, 235, 0.2) !important;
@@ -614,8 +625,8 @@
 
 .light .btn-primary:hover,
 .light .btn:hover,
-.light a[class*="bg-"]:not([class*="bg-transparent"]):not([class*="bg-current"]):hover {
-  background: linear-gradient(135deg, #E8A8D8, #F6D5F0) !important;
+.light a[class*='bg-']:not([class*='bg-transparent']):not([class*='bg-current']):hover {
+  background: linear-gradient(135deg, #e8a8d8, #f6d5f0) !important;
   transform: translateY(-1px) !important;
   box-shadow: 0 4px 8px rgba(242, 199, 235, 0.3) !important;
 }
@@ -633,26 +644,26 @@
 }
 
 /* Enhanced light mode sidebar */
-.light [data-sidebar="sidebar"] {
+.light [data-sidebar='sidebar'] {
   background: linear-gradient(180deg, #ffffff, #f8fafc) !important;
   box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1) !important;
 }
 
-.light [data-sidebar="menu-button"]:not([data-active="true"]) {
-  background: linear-gradient(135deg, #ffffff, #f8fafc) !important;
-  border: 1px solid rgba(0, 0, 0, 0.05) !important;
+.light [data-sidebar='menu-button']:not([data-active='true']) {
+  background: linear-gradient(135deg, #f2c7eb, #e8a8d8) !important;
+  border: 1px solid rgba(242, 199, 235, 0.3) !important;
   transition: all 0.3s ease !important;
   color: #374151 !important;
 }
 
-.light [data-sidebar="menu-button"]:not([data-active="true"]):hover {
-  background: linear-gradient(135deg, #f8fafc, #f1f5f9) !important;
+.light [data-sidebar='menu-button']:not([data-active='true']):hover {
+  background: linear-gradient(135deg, #f2c7eb, #e8a8d8) !important;
   transform: translateX(4px) !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+  box-shadow: 0 2px 8px rgba(242, 199, 235, 0.2) !important;
 }
 
-.light [data-sidebar="menu-button"][data-active="true"] {
-  background: linear-gradient(135deg, #F2C7EB, #E8A8D8) !important;
+.light [data-sidebar='menu-button'][data-active='true'] {
+  background: linear-gradient(135deg, #f2c7eb, #e8a8d8) !important;
   box-shadow: 0 2px 8px rgba(242, 199, 235, 0.3) !important;
   border: 1px solid rgba(242, 199, 235, 0.4) !important;
   color: #374151 !important;
@@ -660,7 +671,7 @@
 
 /* Enhanced light mode service category tabs */
 .light .tab-button,
-.light [role="tab"] {
+.light [role='tab'] {
   background: linear-gradient(135deg, #ffffff, #f8fafc) !important;
   border: 1px solid rgba(0, 0, 0, 0.1) !important;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05) !important;
@@ -668,15 +679,15 @@
 }
 
 .light .tab-button:hover,
-.light [role="tab"]:hover {
+.light [role='tab']:hover {
   background: linear-gradient(135deg, #f8fafc, #f1f5f9) !important;
   transform: translateY(-1px) !important;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1) !important;
 }
 
 .light .tab-button.active,
-.light [role="tab"][aria-selected="true"] {
-  background: linear-gradient(135deg, #F2C7EB, #E8A8D8) !important;
+.light [role='tab'][aria-selected='true'] {
+  background: linear-gradient(135deg, #f2c7eb, #e8a8d8) !important;
   box-shadow: 0 4px 8px rgba(242, 199, 235, 0.3) !important;
   border: 1px solid rgba(242, 199, 235, 0.4) !important;
 }
@@ -685,19 +696,23 @@
 .light .service-card {
   background: linear-gradient(135deg, #ffffff, #f8fafc) !important;
   border: 1px solid rgba(0, 0, 0, 0.1) !important;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
   transition: all 0.3s ease !important;
 }
 
 .light .service-card:hover {
   transform: translateY(-4px) !important;
-  box-shadow: 0 10px 20px -3px rgba(0, 0, 0, 0.15), 0 4px 6px -2px rgba(0, 0, 0, 0.1) !important;
+  box-shadow:
+    0 10px 20px -3px rgba(0, 0, 0, 0.15),
+    0 4px 6px -2px rgba(0, 0, 0, 0.1) !important;
   background: linear-gradient(135deg, #f8fafc, #f1f5f9) !important;
 }
 
 /* Enhanced light mode book appointment buttons - restore pink brand colors */
 .light .book-appointment-btn {
-  background: linear-gradient(135deg, #F2C7EB, #E8A8D8) !important;
+  background: linear-gradient(135deg, #f2c7eb, #e8a8d8) !important;
   border: 1px solid rgba(242, 199, 235, 0.3) !important;
   box-shadow: 0 2px 4px rgba(242, 199, 235, 0.2) !important;
   transition: all 0.3s ease !important;
@@ -705,13 +720,13 @@
 }
 
 .light .book-appointment-btn:hover {
-  background: linear-gradient(135deg, #E8A8D8, #F6D5F0) !important;
+  background: linear-gradient(135deg, #e8a8d8, #f6d5f0) !important;
   transform: translateY(-1px) !important;
   box-shadow: 0 4px 8px rgba(242, 199, 235, 0.4) !important;
 }
 
 /* Enhanced light mode sidebar trigger */
-.light [data-sidebar="trigger"] {
+.light [data-sidebar='trigger'] {
   background: linear-gradient(135deg, #f1f5f9, #e2e8f0) !important;
   color: #374151 !important;
   border-color: rgba(0, 0, 0, 0.1) !important;
@@ -719,7 +734,7 @@
   transition: all 0.3s ease !important;
 }
 
-.light [data-sidebar="trigger"]:hover {
+.light [data-sidebar='trigger']:hover {
   background: linear-gradient(135deg, #e2e8f0, #cbd5e1) !important;
   transform: translateY(-1px) !important;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15) !important;
@@ -736,7 +751,9 @@
 
 .dark .bg-white {
   background: linear-gradient(135deg, oklch(0.185 0.03 320), oklch(0.205 0.04 340)) !important;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2) !important;
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.3),
+    0 2px 4px -1px rgba(0, 0, 0, 0.2) !important;
 }
 
 .dark .bg-gray-200 {
@@ -768,7 +785,7 @@
 }
 
 .dark .bg-gray-900 {
-  background: linear-gradient(135deg, oklch(0.305 0.09 80), oklch(0.325 0.10 100)) !important;
+  background: linear-gradient(135deg, oklch(0.305 0.09 80), oklch(0.325 0.1 100)) !important;
 }
 
 .dark .text-gray-900 {
@@ -814,18 +831,20 @@
 
 /* Target any white containers or cards with enhanced styling */
 .dark .bg-white,
-.dark [class*="bg-white"],
+.dark [class*='bg-white'],
 .dark .card,
 .dark .container,
 .dark .content,
 .dark .main-content {
   background: linear-gradient(135deg, oklch(0.185 0.03 320), oklch(0.205 0.04 340)) !important;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2) !important;
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.3),
+    0 2px 4px -1px rgba(0, 0, 0, 0.2) !important;
   border: 1px solid oklch(0.269 0 0 / 0.3) !important;
 }
 
 /* Ensure all containers use the same dark shade */
-.dark div[class*="bg-"]:not([class*="bg-transparent"]):not([class*="bg-current"]) {
+.dark div[class*='bg-']:not([class*='bg-transparent']):not([class*='bg-current']) {
   background: linear-gradient(135deg, oklch(0.185 0.03 320), oklch(0.205 0.04 340)) !important;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
 }
@@ -835,7 +854,9 @@
 .dark .rounded-md,
 .dark .rounded-xl {
   background: linear-gradient(135deg, oklch(0.185 0.03 320), oklch(0.205 0.04 340)) !important;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2) !important;
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.3),
+    0 2px 4px -1px rgba(0, 0, 0, 0.2) !important;
   border: 1px solid oklch(0.269 0 0 / 0.3) !important;
   transition: all 0.3s ease !important;
 }
@@ -844,7 +865,9 @@
 .dark .rounded-md:hover,
 .dark .rounded-xl:hover {
   transform: translateY(-2px) !important;
-  box-shadow: 0 8px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.3) !important;
+  box-shadow:
+    0 8px 15px -3px rgba(0, 0, 0, 0.4),
+    0 4px 6px -2px rgba(0, 0, 0, 0.3) !important;
   background: linear-gradient(135deg, oklch(0.205 0.04 340), oklch(0.225 0.05 360)) !important;
 }
 
@@ -885,14 +908,14 @@
 }
 
 /* Target any remaining white backgrounds */
-.dark [style*="background-color: white"],
-.dark [style*="background-color: #fff"],
-.dark [style*="background-color: #ffffff"] {
+.dark [style*='background-color: white'],
+.dark [style*='background-color: #fff'],
+.dark [style*='background-color: #ffffff'] {
   background-color: oklch(0.145 0 0) !important;
 }
 
 /* Sidebar theme toggle specific styles */
-.dark [data-sidebar="menu-button"]:hover {
+.dark [data-sidebar='menu-button']:hover {
   background-color: hsl(var(--sidebar-accent));
   color: hsl(var(--sidebar-accent-foreground));
 }
@@ -907,13 +930,13 @@
 }
 
 /* Sidebar trigger button dark mode styling */
-.dark [data-sidebar="trigger"] {
+.dark [data-sidebar='trigger'] {
   background-color: oklch(0.269 0 0) !important;
   color: oklch(0.985 0 0) !important;
   border-color: oklch(0.269 0 0) !important;
 }
 
-.dark [data-sidebar="trigger"]:hover {
+.dark [data-sidebar='trigger']:hover {
   background-color: oklch(0.205 0 0) !important;
   color: oklch(0.985 0 0) !important;
 }
@@ -931,27 +954,27 @@
 }
 
 /* Enhanced sidebar styling */
-.dark [data-sidebar="sidebar"] {
+.dark [data-sidebar='sidebar'] {
   background: linear-gradient(180deg, oklch(0.145 0 0), oklch(0.165 0.02 300)) !important;
   box-shadow: 2px 0 8px rgba(0, 0, 0, 0.3) !important;
 }
 
 /* Enhanced sidebar menu items */
-.dark [data-sidebar="menu-button"]:not([data-active="true"]) {
+.dark [data-sidebar='menu-button']:not([data-active='true']) {
   background: linear-gradient(135deg, oklch(0.185 0.03 320), oklch(0.205 0.04 340)) !important;
   border: 1px solid oklch(0.269 0 0 / 0.2) !important;
   transition: all 0.3s ease !important;
   color: oklch(0.985 0 0) !important;
 }
 
-.dark [data-sidebar="menu-button"]:not([data-active="true"]):hover {
+.dark [data-sidebar='menu-button']:not([data-active='true']):hover {
   background: linear-gradient(135deg, oklch(0.205 0.04 340), oklch(0.225 0.05 360)) !important;
   transform: translateX(4px) !important;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
 }
 
 /* Active sidebar item styling - complementary colors for dark mode */
-.dark [data-sidebar="menu-button"][data-active="true"] {
+.dark [data-sidebar='menu-button'][data-active='true'] {
   background: linear-gradient(135deg, oklch(0.225 0.05 360), oklch(0.245 0.06 20)) !important;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4) !important;
   border: 1px solid oklch(0.269 0 0 / 0.5) !important;
@@ -959,44 +982,44 @@
 }
 
 /* Ensure sidebar text is visible */
-.light [data-sidebar="menu-button"] span {
+.light [data-sidebar='menu-button'] span {
   color: #374151 !important;
 }
 
-.light [data-sidebar="menu-button"][data-active="true"] span {
+.light [data-sidebar='menu-button'][data-active='true'] span {
   color: #374151 !important;
   font-weight: 600 !important;
 }
 
-.dark [data-sidebar="menu-button"] span {
+.dark [data-sidebar='menu-button'] span {
   color: oklch(0.985 0 0) !important;
 }
 
-.dark [data-sidebar="menu-button"][data-active="true"] span {
+.dark [data-sidebar='menu-button'][data-active='true'] span {
   color: oklch(0.985 0 0) !important;
   font-weight: 600 !important;
 }
 
 /* Ensure sidebar icons are visible */
-.light [data-sidebar="menu-button"] svg {
+.light [data-sidebar='menu-button'] svg {
   color: #374151 !important;
 }
 
-.light [data-sidebar="menu-button"][data-active="true"] svg {
+.light [data-sidebar='menu-button'][data-active='true'] svg {
   color: #374151 !important;
 }
 
-.dark [data-sidebar="menu-button"] svg {
+.dark [data-sidebar='menu-button'] svg {
   color: oklch(0.985 0 0) !important;
 }
 
-.dark [data-sidebar="menu-button"][data-active="true"] svg {
+.dark [data-sidebar='menu-button'][data-active='true'] svg {
   color: oklch(0.985 0 0) !important;
 }
 
 /* Enhanced service category tabs */
 .dark .tab-button,
-.dark [role="tab"] {
+.dark [role='tab'] {
   background: linear-gradient(135deg, oklch(0.185 0.03 320), oklch(0.205 0.04 340)) !important;
   border: 1px solid oklch(0.269 0 0 / 0.3) !important;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
@@ -1004,14 +1027,14 @@
 }
 
 .dark .tab-button:hover,
-.dark [role="tab"]:hover {
+.dark [role='tab']:hover {
   background: linear-gradient(135deg, oklch(0.205 0.04 340), oklch(0.225 0.05 360)) !important;
   transform: translateY(-1px) !important;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3) !important;
 }
 
 .dark .tab-button.active,
-.dark [role="tab"][aria-selected="true"] {
+.dark [role='tab'][aria-selected='true'] {
   background: linear-gradient(135deg, oklch(0.225 0.05 360), oklch(0.245 0.06 20)) !important;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4) !important;
   border: 1px solid oklch(0.269 0 0 / 0.5) !important;
@@ -1022,13 +1045,17 @@
 .dark .service-card {
   background: linear-gradient(135deg, oklch(0.185 0.03 320), oklch(0.205 0.04 340)) !important;
   border: 1px solid oklch(0.269 0 0 / 0.3) !important;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2) !important;
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.3),
+    0 2px 4px -1px rgba(0, 0, 0, 0.2) !important;
   transition: all 0.3s ease !important;
 }
 
 .dark .service-card:hover {
   transform: translateY(-4px) !important;
-  box-shadow: 0 10px 20px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.3) !important;
+  box-shadow:
+    0 10px 20px -3px rgba(0, 0, 0, 0.4),
+    0 4px 6px -2px rgba(0, 0, 0, 0.3) !important;
   background: linear-gradient(135deg, oklch(0.205 0.04 340), oklch(0.225 0.05 360)) !important;
 }
 
@@ -1050,7 +1077,7 @@
 /* General button styling for dark mode - complementary colors */
 .dark .btn-primary,
 .dark .btn,
-.dark a[class*="bg-"]:not([class*="bg-transparent"]):not([class*="bg-current"]) {
+.dark a[class*='bg-']:not([class*='bg-transparent']):not([class*='bg-current']) {
   background: linear-gradient(135deg, oklch(0.225 0.05 360), oklch(0.245 0.06 20)) !important;
   color: oklch(0.985 0 0) !important;
   border: 1px solid oklch(0.269 0 0 / 0.4) !important;
@@ -1060,7 +1087,7 @@
 
 .dark .btn-primary:hover,
 .dark .btn:hover,
-.dark a[class*="bg-"]:not([class*="bg-transparent"]):not([class*="bg-current"]):hover {
+.dark a[class*='bg-']:not([class*='bg-transparent']):not([class*='bg-current']):hover {
   background: linear-gradient(135deg, oklch(0.245 0.06 20), oklch(0.265 0.07 40)) !important;
   transform: translateY(-1px) !important;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4) !important;
@@ -1077,7 +1104,10 @@
 
   /* Smooth transitions for theme changes */
   * {
-    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+    transition:
+      background-color 0.3s ease,
+      color 0.3s ease,
+      border-color 0.3s ease;
   }
 
   /* Dark mode specific adjustments - applies to both manual .dark class and system preference */
@@ -1177,7 +1207,7 @@
 
     /* Target any white containers or cards */
     :root:not(.light) .bg-white,
-    :root:not(.light) [class*="bg-white"],
+    :root:not(.light) [class*='bg-white'],
     :root:not(.light) .card,
     :root:not(.light) .container,
     :root:not(.light) .content,
@@ -1186,7 +1216,7 @@
     }
 
     /* Ensure all containers use the same dark shade */
-    :root:not(.light) div[class*="bg-"]:not([class*="bg-transparent"]):not([class*="bg-current"]) {
+    :root:not(.light) div[class*='bg-']:not([class*='bg-transparent']):not([class*='bg-current']) {
       background-color: oklch(0.145 0 0) !important;
     }
 
@@ -1213,20 +1243,20 @@
     }
 
     /* Target any remaining white backgrounds */
-    :root:not(.light) [style*="background-color: white"],
-    :root:not(.light) [style*="background-color: #fff"],
-    :root:not(.light) [style*="background-color: #ffffff"] {
+    :root:not(.light) [style*='background-color: white'],
+    :root:not(.light) [style*='background-color: #fff'],
+    :root:not(.light) [style*='background-color: #ffffff'] {
       background-color: oklch(0.145 0 0) !important;
     }
 
     /* Sidebar trigger button dark mode styling */
-    :root:not(.light) [data-sidebar="trigger"] {
+    :root:not(.light) [data-sidebar='trigger'] {
       background-color: oklch(0.269 0 0) !important;
       color: oklch(0.985 0 0) !important;
       border-color: oklch(0.269 0 0) !important;
     }
 
-    :root:not(.light) [data-sidebar="trigger"]:hover {
+    :root:not(.light) [data-sidebar='trigger']:hover {
       background-color: oklch(0.205 0 0) !important;
       color: oklch(0.985 0 0) !important;
     }
