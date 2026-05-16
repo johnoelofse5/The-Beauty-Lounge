@@ -1,16 +1,16 @@
 'use client';
 
 import { useRef, useState, useCallback, useEffect } from 'react';
-import { ScanResult } from '../components/types/scan-result';
-import { ScanState } from '../components/types/scan-state';
-import { UseReceiptScannerOptions } from '../components/types/use-receipt-scanner-options';
+import { ScanResult } from '../types/scan-result';
+import { ScanState } from '../types/scan-state';
+import { UseReceiptScannerOptions } from '../types/use-receipt-scanner-options';
 import { FinancialTransactionForm } from '@/types/inventory';
 
 function parseReceiptText(text: string): ScanResult {
   const result: ScanResult = {};
 
   const totalMatch = text.match(
-    /(?:total|amount due|subtotal|grand total|to pay|balance due)[:\s]*[Rr]?\s*([\d\s,]+\.?\d*)/i
+    /(?:total|amount due|subtotal|grand total|to pay|balance due|purchase|amount)[:\s]*[Rr]?\s*([\d\s,]+\.?\d*)/i
   );
   if (totalMatch) {
     const parsed = parseFloat(totalMatch[1].replace(/[\s,]/g, ''));
@@ -24,36 +24,46 @@ function parseReceiptText(text: string): ScanResult {
     if (allAmounts.length > 0) result.amount = Math.max(...allAmounts);
   }
 
-  const datePatterns: RegExp[] = [
-    /(\d{4}[-/]\d{2}[-/]\d{2})/,
-    /(\d{2}[-/]\d{2}[-/]\d{4})/,
-    /(\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\w*\.?\s+\d{4})/i,
-  ];
-  for (const pattern of datePatterns) {
-    const match = text.match(pattern);
-    if (match) {
-      let date: Date | null = null;
-      const s = match[1];
-      if (/^\d{4}/.test(s)) {
-        date = new Date(s);
-      } else if (/^\d{2}[-/]\d{2}[-/]\d{4}$/.test(s)) {
+  const datePatterns: Array<{ re: RegExp; parse: (s: string) => Date }> = [
+    {
+      re: /(\d{2}[-/]\d{2}[-/]\d{4})/,
+      parse: (s) => {
         const sep = s.includes('/') ? '/' : '-';
         const [d, m, y] = s.split(sep);
-        date = new Date(`${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`);
-      } else {
-        date = new Date(s);
-      }
-      if (date && !isNaN(date.getTime())) {
+        return new Date(`${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`);
+      },
+    },
+    {
+      re: /(\d{4}[-/]\d{2}[-/]\d{2})/,
+      parse: (s) => new Date(s),
+    },
+    {
+      re: /(\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\w*\.?\s+\d{4})/i,
+      parse: (s) => new Date(s),
+    },
+  ];
+  for (const { re, parse } of datePatterns) {
+    const match = text.match(re);
+    if (match) {
+      const date = parse(match[1]);
+      if (!isNaN(date.getTime())) {
         result.transaction_date = date.toISOString().split('T')[0];
         break;
       }
     }
   }
 
-  const refMatch = text.match(
-    /(?:receipt|invoice|ref(?:erence)?|no\.?|inv\.?|#)[:\s#]*([A-Z0-9][A-Z0-9\-]{2,19})/i
+  const cardRefMatch = text.match(
+    /(?:auth(?:orisa?tion)?|approval\s*(?:code)?|stan|rrn|trace\s*no\.?)[:\s#]*([A-Z0-9]{4,12})/i
   );
-  if (refMatch) result.receipt_number = refMatch[1].trim();
+  if (cardRefMatch) {
+    result.receipt_number = cardRefMatch[1].trim();
+  } else {
+    const refMatch = text.match(
+      /(?:receipt|invoice|ref(?:erence)?|no\.?|inv\.?|#)[:\s#]*([A-Z0-9][A-Z0-9\-]{2,19})/i
+    );
+    if (refMatch) result.receipt_number = refMatch[1].trim();
+  }
 
   return result;
 }

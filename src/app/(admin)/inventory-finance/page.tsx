@@ -55,29 +55,49 @@ export default function InventoryFinancePage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabKey)}>
-        {/* Page header */}
+        {/* Page title — scrolls away */}
         <div className="bg-white shadow">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
+              Inventory & Financial Management
+            </h1>
+            <p className="mt-1 text-xs sm:text-sm text-gray-600">
+              Manage your stock, track purchases, and monitor financial performance
+            </p>
+          </div>
+        </div>
+
+        {/* Tab bar — sticks below the app header */}
+        <div className="sticky top-16 z-40 bg-white border-b border-gray-200 shadow-sm">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="py-6">
-              <h1 className="text-2xl font-bold text-gray-900">Inventory & Financial Management</h1>
-              <p className="mt-2 text-sm text-gray-600">
-                Manage your stock, track purchases, and monitor financial performance
-              </p>
+            <div className="flex overflow-x-auto scrollbar-hide py-3 gap-2">
+              <TabsList className="gap-1 p-1 h-auto min-w-max">
+                <TabsTrigger
+                  value="dashboard"
+                  className="px-3 py-2 text-sm sm:px-5 sm:py-2.5 sm:text-base whitespace-nowrap"
+                >
+                  Dashboard
+                </TabsTrigger>
+                <TabsTrigger
+                  value="inventory"
+                  className="px-3 py-2 text-sm sm:px-5 sm:py-2.5 sm:text-base whitespace-nowrap"
+                >
+                  Inventory
+                </TabsTrigger>
+                <TabsTrigger
+                  value="service-inventory"
+                  className="px-3 py-2 text-sm sm:px-5 sm:py-2.5 sm:text-base whitespace-nowrap"
+                >
+                  Service Inventory
+                </TabsTrigger>
+                <TabsTrigger
+                  value="finances"
+                  className="px-3 py-2 text-sm sm:px-5 sm:py-2.5 sm:text-base whitespace-nowrap"
+                >
+                  Finances
+                </TabsTrigger>
+              </TabsList>
             </div>
-            <TabsList className="mb-2 gap-1.5 p-1.5 h-auto">
-              <TabsTrigger value="dashboard" className="px-5 py-4 text-base">
-                Dashboard
-              </TabsTrigger>
-              <TabsTrigger value="inventory" className="px-5 py-4 text-base">
-                Inventory
-              </TabsTrigger>
-              <TabsTrigger value="service-inventory" className="px-5 py-4 text-base">
-                Service Inventory
-              </TabsTrigger>
-              <TabsTrigger value="finances" className="px-5 py-4 text-base">
-                Financial Transactions
-              </TabsTrigger>
-            </TabsList>
           </div>
         </div>
 

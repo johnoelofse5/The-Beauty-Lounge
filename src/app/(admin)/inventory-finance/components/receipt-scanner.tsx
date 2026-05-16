@@ -1,6 +1,6 @@
 'use client';
 
-import { ReceiptScannerProps } from './types/receipt-scanner-props';
+import { ReceiptScannerProps } from '../types/receipt-scanner-props';
 import { useReceiptScanner } from '../hooks/use-receipt-scanner';
 import { ReceiptScannerView } from '../views/receipt-scanner-view';
 
