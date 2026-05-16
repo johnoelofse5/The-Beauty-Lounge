@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\johno\\\\Documents\\\\Stacey's Booking Project\\\\staceys-booking-app\\\\src\\\\app\\\\\\(admin\\)\\\\inventory-finance\" -Recurse -Force)",
+      "Bash(Select-Object FullName, PSIsContainer)",
+      "Bash(Sort-Object FullName)"
+    ]
+  }
+}
