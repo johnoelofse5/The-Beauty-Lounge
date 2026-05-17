@@ -8,6 +8,8 @@ import { ConfirmationStep } from '@/steps/confirmation-step';
 import { DateTimeStep } from '@/steps/date-time-step';
 import { PractitionerSelectionStep } from '@/steps/practitioner-selection-step';
 import { ServiceSelectionStep } from '@/steps/service-selection-step';
+import { BookingStep } from '@/types/booking-step';
+import { RoleName } from '@/types/enums/role-name.enum';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useEffect } from 'react';
@@ -71,7 +73,7 @@ export default function AppointmentsPage() {
           onClearProgress={b.clearProgress}
         />
 
-        {b.bookingStep === 'service' && (
+        {b.bookingStep === BookingStep.Service && (
           <ServiceSelectionStep
             services={b.services}
             selectedServices={b.selectedServices}
@@ -86,7 +88,7 @@ export default function AppointmentsPage() {
           />
         )}
 
-        {b.bookingStep === 'practitioner' && (
+        {b.bookingStep === BookingStep.Practitioner && (
           <PractitionerSelectionStep
             practitioners={b.practitioners}
             selectedPractitioner={b.selectedPractitioner}
@@ -94,11 +96,11 @@ export default function AppointmentsPage() {
             visibleElements={b.visibleElements}
             onSelectPractitioner={b.setSelectedPractitioner}
             onContinue={b.handleContinueToDateTime}
-            onBack={() => b.updateCurrentStep('service')}
+            onBack={() => b.updateCurrentStep(BookingStep.Service)}
           />
         )}
 
-        {b.bookingStep === 'client' && b.isPractitionerUser && (
+        {b.bookingStep === BookingStep.Client && b.isPractitionerUser && (
           <ClientSelectionStep
             clients={b.clients}
             selectedClient={b.selectedClient}
@@ -119,11 +121,11 @@ export default function AppointmentsPage() {
               b.setExternalClientFormErrors((prev) => ({ ...prev, [field]: '' }))
             }
             onContinue={b.handleContinueToDateTime}
-            onBack={() => b.updateCurrentStep('service')}
+            onBack={() => b.updateCurrentStep(BookingStep.Service)}
           />
         )}
 
-        {b.bookingStep === 'datetime' &&
+        {b.bookingStep === BookingStep.DateTime &&
           b.selectedServices.length > 0 &&
           ((b.isPractitionerUser && (b.selectedClient || b.isExternalClient)) ||
             (!b.isPractitionerUser && b.selectedPractitioner)) && (
@@ -150,13 +152,17 @@ export default function AppointmentsPage() {
               onNotesChange={b.setNotes}
               onSMSChange={b.setSendClientSMS}
               onContinue={b.handleDateTimeConfirm}
-              onBack={() => b.updateCurrentStep(b.isPractitionerUser ? 'client' : 'practitioner')}
+              onBack={() =>
+                b.updateCurrentStep(
+                  b.isPractitionerUser ? BookingStep.Client : BookingStep.Practitioner
+                )
+              }
               getTomorrowDate={b.getTomorrowDate}
               getMaxDate={b.getMaxDate}
             />
           )}
 
-        {b.bookingStep === 'confirm' &&
+        {b.bookingStep === BookingStep.Confirm &&
           b.selectedServices.length > 0 &&
           ((b.isPractitionerUser && (b.selectedClient || b.isExternalClient)) ||
             (!b.isPractitionerUser && b.selectedPractitioner)) &&
@@ -178,8 +184,8 @@ export default function AppointmentsPage() {
               isBooking={b.isBooking}
               visibleElements={b.visibleElements}
               onConfirm={b.handleBookingConfirm}
-              onStartOver={() => b.updateCurrentStep('service')}
-              onBack={() => b.updateCurrentStep('datetime')}
+              onStartOver={() => b.updateCurrentStep(BookingStep.Service)}
+              onBack={() => b.updateCurrentStep(BookingStep.DateTime)}
               formatTimeDisplay={b.formatTimeDisplay}
             />
           )}

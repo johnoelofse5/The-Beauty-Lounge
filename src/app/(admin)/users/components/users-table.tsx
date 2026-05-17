@@ -1,4 +1,5 @@
 import { AdminUser } from '@/types';
+import { RoleName } from '@/types/enums/role-name.enum';
 
 interface UsersTableProps {
   filteredUsers: AdminUser[];
@@ -30,11 +31,11 @@ const DeleteIcon = ({ size = 4 }: { size?: number }) => (
 
 const roleBadgeClass = (roleName: string | null) => {
   switch (roleName) {
-    case 'super_admin':
+    case RoleName.SuperAdmin:
       return 'bg-purple-100 text-purple-800';
-    case 'practitioner':
+    case RoleName.Practitioner:
       return 'bg-blue-100 text-blue-800';
-    case 'client':
+    case RoleName.Client:
       return 'bg-green-100 text-green-800';
     default:
       return 'bg-gray-100 text-gray-800';

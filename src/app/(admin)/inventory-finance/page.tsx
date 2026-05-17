@@ -9,6 +9,7 @@ import DashboardView from './views/dashboard-view';
 import ServiceInventoryView from './views/service-inventory-view';
 import InventoryView from './views/inventory-view';
 import FinancialTransactionsView from './views/financial-transactions-view';
+import { RoleName } from '@/types/enums/role-name.enum';
 
 type TabKey = 'dashboard' | 'inventory' | 'service-inventory' | 'finances';
 
@@ -18,7 +19,8 @@ export default function InventoryFinancePage() {
   const [activeTab, setActiveTab] = useState<TabKey>('dashboard');
 
   const hasAccess =
-    userRoleData?.role?.name === 'super_admin' || userRoleData?.role?.name === 'practitioner';
+    userRoleData?.role?.name === RoleName.SuperAdmin ||
+    userRoleData?.role?.name === RoleName.Practitioner;
 
   const { loading, inventorySummary, financialSummary, lowStockItems } = useDashboard(
     !!user && hasAccess

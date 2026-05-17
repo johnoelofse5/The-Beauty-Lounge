@@ -1,5 +1,6 @@
 import { UserWithRole } from '@/types';
 import { supabase } from './supabase';
+import { RoleName } from '@/types/enums/role-name.enum';
 
 export interface UserRole {
   id: string;
@@ -86,15 +87,15 @@ export function hasRole(userRole: UserRole | null, roleName: string): boolean {
 }
 
 export function isSuperAdmin(userRole: UserRole | null): boolean {
-  return hasRole(userRole, 'super_admin');
+  return hasRole(userRole, RoleName.SuperAdmin);
 }
 
 export function isPractitioner(userRole: UserRole | null): boolean {
-  return hasRole(userRole, 'practitioner');
+  return hasRole(userRole, RoleName.Practitioner);
 }
 
 export function isClient(userRole: UserRole | null): boolean {
-  return hasRole(userRole, 'client');
+  return hasRole(userRole, RoleName.Client);
 }
 
 export function canViewAllAppointments(userRole: UserRole | null): boolean {

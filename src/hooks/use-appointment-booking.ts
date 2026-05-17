@@ -18,6 +18,7 @@ import { ServiceOption, SelectedServiceOptions } from '@/types/service-option';
 import { Practitioner } from '@/types/practitioner';
 import { Client } from '@/types/client';
 import { BookingStep } from '@/types/booking-step';
+import { RoleName } from '@/types/enums/role-name.enum';
 
 export function useAppointmentBooking() {
   const { user, userRoleData, loading: authLoading } = useAuth();
@@ -58,7 +59,7 @@ export function useAppointmentBooking() {
   //#endregion
 
   //#region Step / Progress
-  const [bookingStep, setBookingStep] = useState<BookingStep>('service');
+  const [bookingStep, setBookingStep] = useState<BookingStep>(BookingStep.Service);
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [hasSavedProgress, setHasSavedProgress] = useState<boolean>(false);
   const [savingProgress, setSavingProgress] = useState<boolean>(false);
@@ -80,7 +81,7 @@ export function useAppointmentBooking() {
 
   //#region Derived
   const isPractitionerUser = isPractitioner(userRoleData?.role || null);
-  const isSuperAdmin = userRoleData?.role?.name === 'super_admin';
+  const isSuperAdmin = userRoleData?.role?.name === RoleName.SuperAdmin;
   const allowSameDayBooking = isPractitionerUser || isSuperAdmin;
   const canControlClientSMS = isPractitionerUser || isSuperAdmin;
   //#endregion
@@ -246,11 +247,11 @@ export function useAppointmentBooking() {
           setIsExternalClient(true);
           if (progress.external_client_info) setExternalClientInfo(progress.external_client_info);
         }
-        if (progress.current_step >= 4) updateCurrentStep('confirm');
-        else if (progress.current_step >= 3) updateCurrentStep('datetime');
+        if (progress.current_step >= 4) updateCurrentStep(BookingStep.Confirm);
+        else if (progress.current_step >= 3) updateCurrentStep(BookingStep.DateTime);
         else if (progress.current_step >= 2)
-          updateCurrentStep(isPractitionerUser ? 'client' : 'practitioner');
-        else updateCurrentStep('service');
+          updateCurrentStep(isPractitionerUser ? BookingStep.Client : BookingStep.Practitioner);
+        else updateCurrentStep(BookingStep.Service);
       } else {
         setProgressLoaded(true);
       }
@@ -333,34 +334,34 @@ export function useAppointmentBooking() {
 
   const handleContinueToPractitioner = () => {
     if (selectedServices.length > 0) {
-      updateCurrentStep(isPractitionerUser ? 'client' : 'practitioner');
+      updateCurrentStep(isPractitionerUser ? BookingStep.Client : BookingStep.Practitioner);
     }
   };
 
   const handleContinueToDateTime = () => {
     if (isPractitionerUser) {
       if (selectedServices.length > 0 && selectedClient) {
-        updateCurrentStep('datetime');
+        updateCurrentStep(BookingStep.DateTime);
       } else if (isExternalClient) {
         const validationResult = ValidationService.validateForm(
           externalClientInfo,
           ValidationService.schemas.externalClient
         );
         if (validationResult.isValid) {
-          updateCurrentStep('datetime');
+          updateCurrentStep(BookingStep.DateTime);
         } else {
           setExternalClientFormErrors(validationResult.errors);
         }
       }
     } else {
       if (selectedServices.length > 0 && selectedPractitioner) {
-        updateCurrentStep('datetime');
+        updateCurrentStep(BookingStep.DateTime);
       }
     }
   };
 
   const handleDateTimeConfirm = () => {
-    if (selectedDate && selectedTime) updateCurrentStep('confirm');
+    if (selectedDate && selectedTime) updateCurrentStep(BookingStep.Confirm);
   };
 
   //#endregion
@@ -525,7 +526,7 @@ export function useAppointmentBooking() {
       setSavedServiceOptionIds({});
       setSavedPractitionerId(null);
       setSavedClientId(null);
-      updateCurrentStep('service');
+      updateCurrentStep(BookingStep.Service);
       await BookingProgressService.clearProgress(user.id);
       setHasSavedProgress(false);
       setProgressLoaded(false);

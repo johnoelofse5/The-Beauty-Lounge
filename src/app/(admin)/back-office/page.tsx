@@ -7,11 +7,12 @@ import { useToast } from '@/contexts/ToastContext';
 import { supabase } from '@/lib/supabase';
 import { SMSSettings, EmailSettings } from '@/types/sms-settings';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { RoleName } from '@/types/enums/role-name.enum';
 
 //#region Permission check
 function useBackOfficeAccess() {
   const { userRoleData, loading } = useAuth();
-  const isSuperAdmin = userRoleData?.role?.name === 'super_admin';
+  const isSuperAdmin = userRoleData?.role?.name === RoleName.SuperAdmin;
   return { hasAccess: isSuperAdmin, loading };
 }
 //#endregion

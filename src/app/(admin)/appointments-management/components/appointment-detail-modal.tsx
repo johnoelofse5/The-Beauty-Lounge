@@ -3,6 +3,7 @@ import { isPractitioner, canViewOwnAppointmentsOnly } from '@/lib/rbac';
 import { StatusBadge } from './appointment-card';
 import { formatDate, formatPrice, formatTime } from '../utils/appointment-formatters';
 import { formatPriceAdjustment } from '@/lib/services';
+import { RoleName } from '@/types/enums/role-name.enum';
 
 interface Props {
   appointment: AppointmentExtended;
@@ -29,7 +30,7 @@ export default function AppointmentDetailModal({
 }: Props) {
   const isClient = userRoleData?.role && canViewOwnAppointmentsOnly(userRoleData.role);
   const isPract = userRoleData?.role && isPractitioner(userRoleData.role);
-  const isAdmin = userRoleData?.role?.name === 'super_admin';
+  const isAdmin = userRoleData?.role?.name === RoleName.SuperAdmin;
 
   const canEdit =
     appointment.status === 'scheduled' &&
