@@ -8,6 +8,7 @@ import { User } from '@supabase/supabase-js';
 import { ArrowLeft, Save, User as UserIcon, Mail, Phone, Calendar } from 'lucide-react';
 import Link from 'next/link';
 import { ValidationInput } from '@/components/validation/ValidationComponents';
+import { normalizeSAPhone } from '@/lib/phone-utils';
 
 interface ProfileData {
   id: string;
@@ -111,8 +112,9 @@ export default function ProfilePage() {
       }
 
       if (formData.phone !== profileData.phone) {
+        const normalizedPhone = normalizeSAPhone(formData.phone);
         const { error: phoneError } = await supabase.functions.invoke('admin-update-user', {
-          body: { user_id: user.id, phone: formData.phone },
+          body: { user_id: user.id, phone: normalizedPhone },
         });
         if (phoneError) {
           showError('Profile saved but failed to update phone number');

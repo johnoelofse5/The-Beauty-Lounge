@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { SignInFormData } from '@/types/form';
+import { normalizeSAPhone } from '@/lib/phone-utils';
 
 export function useLogin() {
   const router = useRouter();
@@ -150,14 +151,12 @@ export function useLogin() {
             .eq('id', session.user.id)
             .single();
           if (!existingProfile) {
-            await supabase
-              .from('users')
-              .insert({
-                id: session.user.id,
-                is_active: true,
-                is_deleted: false,
-                is_practitioner: false,
-              });
+            await supabase.from('users').insert({
+              id: session.user.id,
+              is_active: true,
+              is_deleted: false,
+              is_practitioner: false,
+            });
           }
           await checkAndRedirect(session.user.id);
         }
@@ -170,13 +169,14 @@ export function useLogin() {
 
   const handleSendOTP = async () => {
     if (!validateForm()) return;
+    const normalizedPhone = normalizeSAPhone(formData.phone);
     setLoading(true);
     setError(null);
     try {
       const { data: existingUser } = await supabase
         .from('user_profiles')
         .select('id, phone')
-        .eq('phone', formData.phone)
+        .eq('phone', normalizedPhone)
         .maybeSingle();
 
       if (!existingUser) {

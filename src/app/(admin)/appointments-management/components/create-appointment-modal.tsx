@@ -12,6 +12,7 @@ import { Practitioner } from '@/types/practitioner';
 import { Client } from '@/types/client';
 import { formatDateForAPI } from '../utils/appointment-formatters';
 import { RoleName } from '@/types/enums/role-name.enum';
+import { normalizeSAPhone } from '@/lib/phone-utils';
 
 interface Props {
   selectedDate: Date;
@@ -185,7 +186,10 @@ export default function CreateAppointmentModal({
         client_first_name: isExternalClient ? externalClientInfo.firstName : null,
         client_last_name: isExternalClient ? externalClientInfo.lastName : null,
         client_email: isExternalClient ? externalClientInfo.email : null,
-        client_phone: isExternalClient ? externalClientInfo.phone : null,
+        client_phone:
+          isExternalClient && externalClientInfo.phone
+            ? normalizeSAPhone(externalClientInfo.phone)
+            : null,
       };
 
       const { data: inserted, error } = await supabase

@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Claude Code (claude.ai/code) and opencode when working with code in this repository.
 
 ## Commands
 
@@ -15,9 +15,15 @@ npm run build        # Production build with Turbopack
 npm run lint         # Run ESLint
 ```
 
+## Rules
+
+- Do NOT commit changes unless the user explicitly asks you to.
+- Do NOT add or modify documentation files unless asked.
+
 ## Environment Variables
 
 Create `.env.local` with:
+
 ```
 NEXT_PUBLIC_SUPABASE_URL=...
 NEXT_PUBLIC_SUPABASE_ANON_KEY=...
@@ -44,26 +50,27 @@ Both `(admin)` and `(client)` route groups share the same `src/app/layout.tsx` r
 ### Supabase Client Usage
 
 Two Supabase clients exist — use the right one for context:
+
 - **`src/lib/supabase/client.ts`** — `createClient()` using `@supabase/ssr`'s `createBrowserClient`. Used in most client components.
 - **`src/lib/supabase.ts`** — Singleton `supabase` export (also a browser client with manual cookie handling). Used in some older services and `rbac.ts`.
 - **`src/lib/supabase/server.ts`** — Server-side client for API routes/server components.
 
 ### Key Service Layer (`src/lib/`)
 
-| File | Purpose |
-|---|---|
-| `rbac.ts` | Role checks and permission-filtered appointment queries |
-| `appointment-calendar-service.ts` | Calendar/scheduling logic |
-| `appointment-completion-service.ts` | Marks appointments complete, triggers notifications |
-| `appointment-sms-service.ts` | SMS notifications via Supabase Edge Functions |
-| `booking-progress-service.ts` | Persists multi-step booking wizard progress |
-| `invoice-service.ts` | Invoice generation and PDF export (jsPDF) |
-| `inventory-service.ts` | Inventory CRUD |
-| `schedule-service.ts` | Practitioner working schedule management |
-| `notification-service.ts` | In-app notifications |
+| File                                             | Purpose                                                                      |
+| ------------------------------------------------ | ---------------------------------------------------------------------------- |
+| `rbac.ts`                                        | Role checks and permission-filtered appointment queries                      |
+| `appointment-calendar-service.ts`                | Calendar/scheduling logic                                                    |
+| `appointment-completion-service.ts`              | Marks appointments complete, triggers notifications                          |
+| `appointment-sms-service.ts`                     | SMS notifications via Supabase Edge Functions                                |
+| `booking-progress-service.ts`                    | Persists multi-step booking wizard progress                                  |
+| `invoice-service.ts`                             | Invoice generation and PDF export (jsPDF)                                    |
+| `inventory-service.ts`                           | Inventory CRUD                                                               |
+| `schedule-service.ts`                            | Practitioner working schedule management                                     |
+| `notification-service.ts`                        | In-app notifications                                                         |
 | `lookup-service.ts` / `lookup-service-cached.ts` | Fetches lookup/enum data from `lookups` table; cached version uses IndexedDB |
-| `indexeddb-service.ts` | IndexedDB caching abstraction |
-| `email-tracking.ts` | Tracks password reset emails in `email_tracking` table |
+| `indexeddb-service.ts`                           | IndexedDB caching abstraction                                                |
+| `email-tracking.ts`                              | Tracks password reset emails in `email_tracking` table                       |
 
 ### Lookup System
 
@@ -72,6 +79,7 @@ Enum-like values (appointment statuses, service categories, payment methods, etc
 ### Multi-Step Booking Wizard (`src/app/(client)/appointments/`)
 
 The booking flow is driven by `src/hooks/use-appointment-booking.ts` which returns all state and handlers. The page renders one of five step components from `src/steps/`:
+
 1. `service-selection-step` → `practitioner-selection-step` (for clients) or `client-selection-step` (for practitioners/admins) → `date-time-step` → `confirmation-step`
 
 Practitioners booking on behalf of clients have a slightly different flow that includes the `client` step and supports "external clients" (not in the system).
@@ -79,6 +87,7 @@ Practitioners booking on behalf of clients have a slightly different flow that i
 ### Appointments Management (`src/app/(admin)/appointments-management/`)
 
 Follows a local feature-folder pattern:
+
 - `hooks/` — `use-appointments.ts`, `use-scroll-animations.ts`
 - `views/` — `day-view.tsx`, `week-view.tsx`, `month-view.tsx`
 - `components/` — modals, view controls, appointment cards

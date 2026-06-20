@@ -21,6 +21,143 @@ interface AppointmentSMSData {
   duration_minutes: number;
 }
 
+async function getFCMAccessToken(serviceAccount: any): Promise<string> {
+  const now = Math.floor(Date.now() / 1000);
+  const expiry = now + 3600;
+
+  const header = { alg: 'RS256', typ: 'JWT' };
+  const claimSet = {
+    iss: serviceAccount.client_email,
+    scope: 'https://www.googleapis.com/auth/firebase.messaging',
+    aud: 'https://oauth2.googleapis.com/token',
+    iat: now,
+    exp: expiry,
+  };
+
+  const encoder = new TextEncoder();
+  const headerB64 = btoa(JSON.stringify(header))
+    .replace(/=/g, '')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_');
+  const claimSetB64 = btoa(JSON.stringify(claimSet))
+    .replace(/=/g, '')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_');
+
+  const dataToSign = `${headerB64}.${claimSetB64}`;
+  const dataBytes = encoder.encode(dataToSign);
+
+  const keyData = serviceAccount.private_key;
+  const pemHeader = '-----BEGIN PRIVATE KEY-----';
+  const pemFooter = '-----END PRIVATE KEY-----';
+  const pemContents = keyData.replace(pemHeader, '').replace(pemFooter, '').replace(/\s/g, '');
+
+  const binaryDer = Uint8Array.from(atob(pemContents), (c) => c.charCodeAt(0));
+
+  const cryptoKey = await crypto.subtle.importKey(
+    'pkcs8',
+    binaryDer,
+    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+
+  const signature = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', cryptoKey, dataBytes);
+  const signatureB64 = btoa(String.fromCharCode(...new Uint8Array(signature)))
+    .replace(/=/g, '')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_');
+
+  const jwt = `${headerB64}.${claimSetB64}.${signatureB64}`;
+
+  const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+      assertion: jwt,
+    }),
+  });
+
+  const tokenData = await tokenResponse.json();
+  if (!tokenData.access_token) {
+    throw new Error(`Failed to get FCM access token: ${JSON.stringify(tokenData)}`);
+  }
+
+  return tokenData.access_token;
+}
+
+async function sendPushNotification(
+  supabase: any,
+  userId: string,
+  title: string,
+  body: string,
+  data: Record<string, string>
+): Promise<boolean> {
+  const { data: user } = await supabase
+    .from('users')
+    .select('fcm_token, push_enabled')
+    .eq('id', userId)
+    .single();
+
+  if (!user || !user.push_enabled || !user.fcm_token) {
+    return false;
+  }
+
+  try {
+    const firebaseServiceAccount = JSON.parse(Deno.env.get('FIREBASE_SERVICE_ACCOUNT')!);
+    const accessToken = await getFCMAccessToken(firebaseServiceAccount);
+    const projectId = firebaseServiceAccount.project_id;
+
+    const fcmResponse = await fetch(
+      `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          message: {
+            token: user.fcm_token,
+            notification: { title, body },
+            data,
+            android: { priority: 'high' },
+            apns: { headers: { 'apns-priority': '10' } },
+          },
+        }),
+      }
+    );
+
+    const fcmResult = await fcmResponse.json();
+
+    if (fcmResponse.status < 200 || fcmResponse.status > 299) {
+      console.error('FCM send failed:', fcmResult);
+      if (
+        fcmResult.error?.message?.includes('INVALID_ARGUMENT') ||
+        fcmResult.error?.message?.includes('UNREGISTERED')
+      ) {
+        await supabase.from('users').update({ fcm_token: null }).eq('id', userId);
+      }
+      return false;
+    }
+
+    await supabase.from('push_notifications').insert({
+      user_id: userId,
+      title,
+      body,
+      data,
+      status: 'sent',
+      sent_at: new Date().toISOString(),
+    });
+
+    return true;
+  } catch (err) {
+    console.error('Push send error:', err);
+    return false;
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -49,10 +186,7 @@ serve(async (req) => {
     if (!appointment_id) {
       return new Response(
         JSON.stringify({ success: false, message: 'Appointment ID is required' }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -162,13 +296,11 @@ serve(async (req) => {
 
     const formatPhoneNumber = (phone: string): string => {
       let formatted = phone.replace(/\s/g, '');
-
       if (formatted.startsWith('0')) {
         formatted = '27' + formatted.substring(1);
       } else if (formatted.startsWith('+')) {
         formatted = formatted.substring(1);
       }
-
       return formatted;
     };
 
@@ -229,20 +361,38 @@ serve(async (req) => {
         break;
     }
 
-    const batchMessages: Array<{ to: string; body: string }> = [];
+    const smsTypeTitle = normalizedSmsType.charAt(0).toUpperCase() + normalizedSmsType.slice(1);
 
-    if (smsData.client_phone && send_client_sms) {
-      batchMessages.push({
-        to: smsData.client_phone,
-        body: clientMessage,
-      });
+    const batchMessages: Array<{ to: string; body: string }> = [];
+    let clientPushSent = false;
+    let practitionerPushSent = false;
+
+    // Client: try push first, fall back to SMS
+    if (send_client_sms && clientProfile?.id && !appointment.is_external_client) {
+      clientPushSent = await sendPushNotification(
+        supabase,
+        clientProfile.id,
+        `Appointment ${smsTypeTitle}`,
+        clientMessage,
+        { type: 'appointment', appointment_id, sms_type: normalizedSmsType }
+      );
+    }
+    if (!clientPushSent && smsData.client_phone && send_client_sms) {
+      batchMessages.push({ to: smsData.client_phone, body: clientMessage });
     }
 
-    if (smsData.practitioner_phone) {
-      batchMessages.push({
-        to: smsData.practitioner_phone,
-        body: practitionerMessage,
-      });
+    // Practitioner: try push first, fall back to SMS
+    if (practitionerProfile?.id) {
+      practitionerPushSent = await sendPushNotification(
+        supabase,
+        practitionerProfile.id,
+        `Appointment ${smsTypeTitle}`,
+        practitionerMessage,
+        { type: 'appointment', appointment_id, sms_type: normalizedSmsType }
+      );
+    }
+    if (!practitionerPushSent && smsData.practitioner_phone) {
+      batchMessages.push({ to: smsData.practitioner_phone, body: practitionerMessage });
     }
 
     let batchResult: { success: boolean; error?: string } = { success: false };
@@ -250,12 +400,18 @@ serve(async (req) => {
       batchResult = await sendBatchSMS(batchMessages);
     }
 
-    const clientSMSResult = smsData.client_phone && send_client_sms ? batchResult.success : false;
-    const practitionerSMSResult = smsData.practitioner_phone ? batchResult.success : false;
+    const clientSMSResult =
+      !clientPushSent && smsData.client_phone && send_client_sms ? batchResult.success : false;
+    const practitionerSMSResult =
+      !practitionerPushSent && smsData.practitioner_phone ? batchResult.success : false;
     const clientSMSError =
-      smsData.client_phone && send_client_sms && !batchResult.success ? batchResult.error : null;
+      !clientPushSent && smsData.client_phone && send_client_sms && !batchResult.success
+        ? batchResult.error
+        : null;
     const practitionerSMSError =
-      smsData.practitioner_phone && !batchResult.success ? batchResult.error : null;
+      !practitionerPushSent && smsData.practitioner_phone && !batchResult.success
+        ? batchResult.error
+        : null;
 
     await supabase.from('sms_logs').upsert(
       {
@@ -263,8 +419,8 @@ serve(async (req) => {
         sms_type: smsData.sms_type,
         client_phone: smsData.client_phone,
         practitioner_phone: smsData.practitioner_phone,
-        client_sms_sent: clientSMSResult,
-        practitioner_sms_sent: practitionerSMSResult,
+        client_sms_sent: clientPushSent || clientSMSResult,
+        practitioner_sms_sent: practitionerPushSent || practitionerSMSResult,
         client_sms_error: clientSMSError,
         practitioner_sms_error: practitionerSMSError,
         appointment_date: smsData.appointment_date,
@@ -272,24 +428,21 @@ serve(async (req) => {
         service_names: smsData.service_name,
         created_at: new Date().toISOString(),
       },
-      {
-        onConflict: 'appointment_id,sms_type',
-      }
+      { onConflict: 'appointment_id,sms_type' }
     );
 
     return new Response(
       JSON.stringify({
         success: true,
-        message: 'SMS notifications sent',
+        message: 'Notifications sent',
         data: {
+          client_push_sent: clientPushSent,
           client_sms_sent: clientSMSResult,
+          practitioner_push_sent: practitionerPushSent,
           practitioner_sms_sent: practitionerSMSResult,
         },
       }),
-      {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error: any) {
     console.error('Error in send-appointment-sms function:', error);
@@ -297,13 +450,10 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: false,
-        message: 'Failed to send appointment SMS',
+        message: 'Failed to send appointment notifications',
         error: error.message,
       }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });

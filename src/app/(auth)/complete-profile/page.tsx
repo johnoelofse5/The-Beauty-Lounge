@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { normalizeSAPhone } from '@/lib/phone-utils';
 
 export default function CompleteProfilePage() {
   const { user } = useAuth();
@@ -35,8 +36,9 @@ export default function CompleteProfilePage() {
       }
 
       if (formData.phone) {
+        const normalizedPhone = normalizeSAPhone(formData.phone);
         const { error: authUpdateError } = await supabase.auth.updateUser({
-          phone: formatToE164(formData.phone),
+          phone: normalizedPhone,
         });
         if (authUpdateError) {
           throw new Error('Failed to save phone number');
@@ -62,23 +64,6 @@ export default function CompleteProfilePage() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const formatToE164 = (phone: string): string => {
-    const cleaned = phone.replace(/\s/g, '').replace(/-/g, '');
-
-    if (cleaned.startsWith('0')) {
-      return `+27${cleaned.slice(1)}`;
-    }
-
-    if (cleaned.startsWith('+')) {
-      return cleaned;
-    }
-
-    if (cleaned.startsWith('27')) {
-      return `+${cleaned}`;
-    }
-    return cleaned;
   };
 
   if (!user) {

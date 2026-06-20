@@ -9,6 +9,7 @@ import { createClient } from '@/lib/supabase/client';
 import { getUserRoleAndPermissions, UserWithRoleAndPermissions } from '@/lib/rbac';
 import { trackPasswordResetEmail, markEmailAsSent, markEmailAsFailed } from '@/lib/email-tracking';
 import { seedLookups } from '@/lib/lookup-seed';
+import { normalizeSAPhone } from '@/lib/phone-utils';
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
@@ -303,6 +304,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const sendOTP = async (phone: string, purpose: 'signup' | 'signin' | 'password_reset') => {
+    const normalizedPhone = normalizeSAPhone(phone);
     try {
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/send-otp`,
@@ -312,7 +314,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
           },
-          body: JSON.stringify({ phoneNumber: phone, purpose }),
+          body: JSON.stringify({ phoneNumber: normalizedPhone, purpose, source: 'web' }),
         }
       );
 
@@ -331,6 +333,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     otpCode: string,
     purpose: 'signup' | 'signin' | 'password_reset'
   ): Promise<boolean> => {
+    const normalizedPhone = normalizeSAPhone(phone);
     try {
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/verify-otp`,
@@ -340,7 +343,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
           },
-          body: JSON.stringify({ phoneNumber: phone, otpCode, purpose }),
+          body: JSON.stringify({ phoneNumber: normalizedPhone, otpCode, purpose }),
         }
       );
 
@@ -363,26 +366,27 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     lastName: string,
     otpCode: string
   ) => {
-    await verifyOTP(phone, otpCode, 'signup');
+    const normalizedPhone = normalizeSAPhone(phone);
+    await verifyOTP(normalizedPhone, otpCode, 'signup');
 
     const { data: existingProfile, error: checkError } = await supabase
       .from('user_profiles')
       .select('id, phone')
-      .eq('phone', phone)
+      .eq('phone', normalizedPhone)
       .maybeSingle();
 
     if (existingProfile && !checkError) {
       throw new Error('User already exists with this phone number. Please try logging in instead.');
     }
 
-    const tempPassword = `temp_${phone}_${Date.now()}`;
+    const tempPassword = `temp_${normalizedPhone}_${Date.now()}`;
 
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: email,
       password: tempPassword,
       options: {
         data: {
-          phone: phone,
+          phone: normalizedPhone,
           first_name: firstName,
           last_name: lastName,
         },
@@ -425,12 +429,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const signInWithPhone = async (phone: string, otpCode: string) => {
-    await verifyOTP(phone, otpCode, 'signin');
+    const normalizedPhone = normalizeSAPhone(phone);
+    await verifyOTP(normalizedPhone, otpCode, 'signin');
 
     const { data: userData, error: userError } = await supabase
       .from('user_profiles')
       .select('*')
-      .eq('phone', phone)
+      .eq('phone', normalizedPhone)
       .eq('is_active', true)
       .eq('is_deleted', false)
       .single();
@@ -451,7 +456,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           body: JSON.stringify({
             userId: userData.id,
             email: userData.email,
-            phone: phone,
+            phone: normalizedPhone,
           }),
         }
       );
